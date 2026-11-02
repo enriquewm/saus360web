@@ -1635,7 +1635,7 @@ function render() {
   $("main").innerHTML = html;
   const bar = $("tabbar"), bare = pub.includes(ui.route) || !ME();
   bar.hidden = bare;
-  $("app").className = "app" + (bare ? " bare" : "") + (["novoPedido", "inventario", "novaCompra"].includes(ui.route) ? " with-foot" : "");
+  $("app").className = "app" + (bare ? " bare" : "") + (["novoPedido", "inventario", "novaCompra"].includes(ui.route) ? " with-foot" : "") + " r-" + ui.route;
   if (!bare) {
     const cur = R.tab === "compras" && can("vendas") ? "mais" : R.tab;
     bar.innerHTML = tabsFor().map(([k, i, l]) => k === "fab" ? `<button data-a="sheet" data-k="quick" aria-label="Nuevo"><span class="fab">${ico(i, 26)}</span><span>${l}</span></button>` : `<button data-a="tab" data-r="${k}" aria-current="${cur === k ? "page" : "false"}">${ico(i)}<span>${l}</span></button>`).join("");
