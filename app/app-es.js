@@ -889,12 +889,21 @@ async function createCompany(v) { if (SB) return SupaBE.create(v); return Claude
 async function joinCompany(code, nome) { if (SB) return SupaBE.join(code, nome); return ClaudeBE.join(code, nome); }
 
 /* ---- Inicialização ---- */
+/* Links da página de apresentação: app/#demo abre a demonstração, #criar a criação de conta, #termos os termos */
+const LINK_ENTRADA = (location.hash || "").slice(1);
+if (LINK_ENTRADA && history.replaceState) history.replaceState(null, "", location.pathname + location.search);
+function entradaPorLink() {
+  if (LINK_ENTRADA === "termos") { ui.route = "termos"; render(); return; }
+  if (MODE !== null) return;
+  if (LINK_ENTRADA === "demo") startDemo();
+  else if (LINK_ENTRADA === "criar" && ui.route === "login") { render(); if (ui.login) { ui.login.modo = "criar"; render(); } }
+}
 async function boot() {
   applyTheme(); textosShell(); Platform.init(); render();
   const CFG = window.DECANTA_CONFIG || {};
   if (CFG.supabaseUrl && CFG.supabaseAnonKey && window.DecantaNative && window.DecantaNative.createClient) { await bootSupa(CFG); return; }
   const cl = window.claude;
-  if (!cl || typeof cl.use !== "function") { cloudState = "off"; render(); return; }
+  if (!cl || typeof cl.use !== "function") { cloudState = "off"; render(); entradaPorLink(); return; }
   cloudState = "connecting"; render();
   try {
     const [db, user] = await Promise.all([cl.use("db"), cl.use("user")]);
@@ -926,7 +935,7 @@ async function bootSupa(CFG) {
     SB.auth.onAuthStateChange((ev, s) => { SESSION = s; if (ev === "SIGNED_OUT") { unsubscribeAll(); MODE = null; EID = null; resetState(); UID = REAL_UID = null; PROFILE = null; ui.route = "login"; closeSheet(); render(); } });
     const { data } = await SB.auth.getSession();
     cloudState = "on";
-    if (!data.session) { ui.route = "login"; render(); return; }
+    if (!data.session) { ui.route = "login"; render(); entradaPorLink(); return; }
     await afterLogin(data.session);
   } catch (e) { cloudState = "off"; render(); }
 }
@@ -945,6 +954,22 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 function head(title, eyebrow, o = {}) {
   return `<header class="top">${o.back ? `<button class="iconbtn" data-a="back" aria-label="Volver">${ico("back", 20)}</button>` : ""}<div>${eyebrow ? `<p class="eyebrow">${eyebrow}</p>` : ""}<h1 class="${o.sm ? "sm" : ""}">${title}</h1></div>${o.action || ""}</header>`;
 }
+/* Computador (mesmo critério do CSS): barra lateral completa, tabelas e telas em colunas. No celular nada muda. */
+const DESK_MQ = window.matchMedia ? window.matchMedia("(min-width:1000px) and (min-height:520px)") : null;
+const DESK = () => !!(DESK_MQ && DESK_MQ.matches);
+if (DESK_MQ && DESK_MQ.addEventListener) DESK_MQ.addEventListener("change", () => { if (typeof renderAll === "function") renderAll(); });
+/* Tabela do computador: cada linha usa o mesmo data-a da linha do celular */
+const td = (v, cls) => `<td class="${cls || ""}">${v}</td>`;
+const dtr = (attrs, cells, cls) => `<tr ${attrs} tabindex="0" class="${cls || ""}">${cells.join("")}</tr>`;
+function dtable(cols, rows, vazio, cls) {
+  if (!rows.length) return vazio;
+  return `<div class="dtable ${cls || ""}"><table><thead><tr>${cols.map(c => `<th class="${c[1] || ""}">${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+}
+document.addEventListener("keydown", e => { const t = e.target; if (e.key === "Enter" && t && t.tagName === "TR" && t.dataset.a) { e.preventDefault(); t.click(); } });
+/* Busca e filtros na mesma linha no computador */
+const toolbar = s => DESK() ? `<div class="toolbar">${s}</div>` : s;
+/* Duas colunas no computador (principal + lateral); no celular, uma depois da outra */
+const colunas = (main, aside, cls) => DESK() ? `<div class="split ${cls || ""}"><div class="col-main">${main}</div><aside class="col-side">${aside}</aside></div>` : main + aside;
 function banners() {
   let h = "";
   if (MODE === "demo") h += `<div class="banner warn">Modo demostración: datos de ejemplo guardados solo en este dispositivo.</div>`;
@@ -1026,6 +1051,7 @@ function vInicio() {
   let h = head(`${hello}, ${esc(firstName(m.nome))}`, `${esc(S.emp ? S.emp.nome : "")}${MODE === "demo" ? '<span class="demo-tag">DEMO</span>' : ""}`,
     { action: `<div class="hdr-actions"><button class="iconbtn sm" data-a="toggleTheme" aria-label="Cambiar entre tema claro y oscuro">${ico(isDark() ? "sun" : "moon", 18)}</button><button class="me" data-a="tab" data-r="mais"><span class="avatar sm">${initials(m.nome)}</span>${PAPEIS[m.papel]}</button></div>` });
   h += banners();
+  const D = DESK(); let hero = "", kpi = "", chart = "";
   const rMes = periodo("mes"), rAnt = periodo("mesAnt");
   if (can("vendas")) {
     const vm = vendasAtivas(rMes), tot = sum(vm, o => pedCalc(o).base);
@@ -1034,13 +1060,19 @@ function vInicio() {
     const varTxt = antTot > 0 ? ` · ${tot >= antTot ? "+" : "−"}${pct(Math.abs(tot / antTot - 1))} vs mismo periodo del mes pasado` : "";
     const days = []; for (let i = 13; i >= 0; i--) { const d = addDays(today, -i); days.push(sum(vendasAtivas([d, d]), o => pedCalc(o).base)); }
     const mx = Math.max(1, ...days);
-    h += `<button class="hero" data-a="${can("relatorios") ? "go" : "tab"}" data-r="${can("relatorios") ? "relatorios" : "vendas"}"><span class="hl">Ventas del mes</span><span class="big">${fmt(tot)}</span>
+    hero = `<button class="hero" data-a="${can("relatorios") ? "go" : "tab"}" data-r="${can("relatorios") ? "relatorios" : "vendas"}"><span class="hl">Ventas del mes</span><span class="big">${fmt(tot)}</span>
       <span class="sub">${vm.length} ${vm.length === 1 ? "pedido" : "pedidos"} · ticket promedio ${fmt0(vm.length ? tot / vm.length : 0)}${varTxt}</span>
       <span class="spark" aria-hidden="true">${days.map((v, i) => `<i class="${i === 13 ? "now" : ""}" style="height:${Math.round(v / mx * 100)}%"></i>`).join("")}</span></button>`;
+    if (D) {
+      kpi = `<button class="stat kpi-main" data-a="${can("relatorios") ? "go" : "tab"}" data-r="${can("relatorios") ? "relatorios" : "vendas"}"><span>Ventas del mes</span><b>${fmt(tot)}</b><small>${vm.length} ${vm.length === 1 ? "pedido" : "pedidos"} · ticket promedio ${fmt0(vm.length ? tot / vm.length : 0)}</small>${antTot > 0 ? `<em class="${tot >= antTot ? "up" : "down"}">${tot >= antTot ? "+" : "−"}${pct(Math.abs(tot / antTot - 1))} vs mes pasado</em>` : ""}</button>`;
+      chart = `<section class="panel"><div class="ph"><h2>Ventas de los últimos 14 días</h2><b>${fmt(sum(days, v => v))}</b></div><div class="bars">${days.map((v, i) => { const d = addDays(today, i - 13); return `<div class="bar ${i === 13 ? "now" : ""}" title="${fd(d)}: ${fmt(v)}"><i style="height:${Math.max(1, Math.round(v / mx * 100))}%"></i><small>${fd(d)}</small></div>`; }).join("")}</div></section>`;
+    }
   } else {
     const val = sum(S.prod.filter(p => p.ativo !== false), p => p.estoque * (p.custo || 0));
-    h += `<button class="hero" data-a="tab" data-r="estoque"><span class="hl">Valor del inventario (costo)</span><span class="big">${fmt(val)}</span><span class="sub">${num(sum(S.prod, p => Math.max(0, p.estoque)))} unidades en ${S.prod.filter(p => p.ativo !== false).length} productos</span></button>`;
+    hero = `<button class="hero" data-a="tab" data-r="estoque"><span class="hl">Valor del inventario (costo)</span><span class="big">${fmt(val)}</span><span class="sub">${num(sum(S.prod, p => Math.max(0, p.estoque)))} unidades en ${S.prod.filter(p => p.ativo !== false).length} productos</span></button>`;
+    if (D) kpi = `<button class="stat kpi-main" data-a="tab" data-r="estoque"><span>Valor del inventario (costo)</span><b>${fmt(val)}</b><small>${num(sum(S.prod, p => Math.max(0, p.estoque)))} unidades en ${S.prod.filter(p => p.ativo !== false).length} productos</small></button>`;
   }
+  if (!D) h += hero;
   const rec = titulos("receber").filter(t => t.aberto > 0.004), pag = titulos("pagar").filter(t => t.aberto > 0.004);
   const st = [];
   if (can("receber")) {
@@ -1056,14 +1088,14 @@ function vInicio() {
     const low = S.prod.filter(p => p.ativo !== false && p.estoque <= (p.min || 0));
     st.push(`<button class="stat ${low.length ? "warn" : ""}" data-a="tab" data-r="estoque"><span>Debajo del mínimo</span><b>${low.length}</b><small>${low.filter(p => p.estoque <= 0).length} sin existencias</small></button>`);
   }
-  if (st.length) h += `<div class="stats">${st.join("")}</div>`;
+  if (st.length && !D) h += `<div class="stats">${st.join("")}</div>`;
   const q = [];
   if (can("vendas")) q.push(`<button data-a="novoPedido">${ico("order")}Pedido</button>`, `<button data-a="novoPedido" data-id="orcamento">${ico("tag")}Cotización</button>`);
   if (can("receber")) q.push(`<button data-a="sheet" data-k="payPickCli">${ico("cash")}Cobrar</button>`);
   if (can("compras")) q.push(`<button data-a="novaCompra">${ico("truck")}Compra</button>`);
   if (can("ajuste") && q.length < 4) q.push(`<button data-a="sheet" data-k="pickProdEntrada">${ico("box")}Entrada</button>`);
   if (can("pagar") && q.length < 4) q.push(`<button data-a="sheet" data-k="finForm" data-id="pagar">${ico("wallet")}Gasto</button>`);
-  if (q.length) h += `<div class="quick ${q.length === 3 ? "three" : q.length === 2 ? "two" : ""}">${q.slice(0, 4).join("")}</div>`;
+  if (q.length && !D) h += `<div class="quick ${q.length === 3 ? "three" : q.length === 2 ? "two" : ""}">${q.slice(0, 4).join("")}</div>`;
   const att = [];
   if (can("receber")) {
     const porCli = {};
@@ -1077,6 +1109,13 @@ function vInicio() {
     S.ped.filter(o => o.tipo === "consig" && o.status !== "cancelado" && pedCalc(o).comCliente > 0 && diffDays(o.data, today) > 30).slice(0, 3).forEach(o => { att.push(`<button class="row" data-a="go" data-r="pedido" data-id="${o.id}"><span class="dot warn">C</span><span class="wmain"><b>${esc(cliNome(o))}</b><small>Consignación #${o.num} hace ${diffDays(o.data, today)} días · ${pedCalc(o).comCliente} un. por liquidar</small></span>${ico("chev", 18)}</button>`); });
     const orc = S.ped.filter(o => o.tipo === "orcamento" && o.status === "orcamento");
     if (orc.length) att.push(`<button class="row" data-a="vendasFiltro" data-id="orcamento"><span class="dot acc">${ico("tag", 18)}</span><span class="wmain"><b>${orc.length} ${orc.length === 1 ? "cotización abierta" : "cotizaciones abiertas"}</b><small>${fmt(sum(orc, o => pedCalc(o).total))} para convertir en pedido</small></span>${ico("chev", 18)}</button>`);
+  }
+  if (D) { // computador: indicadores numa linha e painéis em duas colunas
+    const ult = can("vendas") ? S.ped.slice().sort((a, b) => (b.num || 0) - (a.num || 0)).slice(0, 8) : [];
+    return h + `<div class="stats kpis">${kpi}${st.join("")}</div><div class="dash"><div class="dcol">${chart}
+      ${can("vendas") ? `<section class="panel"><div class="ph"><h2>Últimos pedidos</h2><button class="lnk" data-a="tab" data-r="vendas">Ver todos</button></div>${pedTable(ult, true)}</section>` : ""}</div>
+      <div class="dcol">${q.length ? `<section class="panel"><div class="ph"><h2>Atajos</h2></div><div class="qlist">${q.join("")}</div></section>` : ""}
+      <section class="panel"><div class="ph"><h2>Requiere atención <span class="count">${att.length}</span></h2></div><div class="list">${att.join("") || empty("Todo al día.", "")}</div></section></div></div>`;
   }
   h += `<p class="sec">Requiere atención <span class="count">${att.length}</span></p><div class="list">${att.join("") || empty("Todo al día.", "")}</div>`;
   if (can("vendas")) {
@@ -1096,6 +1135,16 @@ function pedRow(o) {
     <span class="right"><b>${fmt(c.aberto > 0.004 ? c.aberto : c.total)}</b>${statusPed(c)}</span></button>`;
 }
 
+function pedTable(list, curta) { // curta: true = painel do início; "cli" = ficha do cliente
+  const cls = { venda: "acc", consig: "warn", orcamento: "info" };
+  const cols = curta === "cli" ? [["Pedido"], ["Fecha"], ["Tipo"], ["Total", "num"], ["Pendiente", "num"], ["Estado"]] : curta ? [["Pedido"], ["Cliente"], ["Fecha"], ["Total", "num"], ["Estado"]] : [["Pedido"], ["Cliente"], ["Fecha"], ["Tipo"], ["Vendedor"], ["Cant.", "num"], ["Total", "num"], ["Pendiente", "num"], ["Estado"]];
+  return dtable(cols, list.map(o => { const c = pedCalc(o); return dtr(`data-a="go" data-r="pedido" data-id="${o.id}"`, curta === "cli"
+    ? [td(`<b>#${o.num}</b>`, "nowrap"), td(fd(o.data), "muted"), td(`<span class="pill ${cls[o.tipo]}">${tipoPed(o.tipo)}</span>`), td(fmt(c.total), "num"), td(c.aberto > 0.004 ? fmt(c.aberto) : "—", "num"), td(statusPed(c))]
+    : curta ? [td(`<b>#${o.num}</b>`, "nowrap"), td(esc(cliNome(o)), "strong"), td(fd(o.data), "muted"), td(fmt(c.total), "num"), td(statusPed(c))]
+    : [td(`<b>#${o.num}</b>`, "nowrap"), td(esc(cliNome(o)), "strong"), td(fd(o.data), "muted"), td(`<span class="pill ${cls[o.tipo]}">${tipoPed(o.tipo)}</span>`), td(esc(firstName(nomeDe(o.vendedor))), "muted"), td(c.qtd, "num"), td(fmt(c.total), "num"), td(c.aberto > 0.004 ? fmt(c.aberto) : "—", "num"), td(statusPed(c))], o.status === "cancelado" ? "off" : ""); }),
+    empty(curta ? "Aún no hay pedidos." : "No se encontró nada.", ""), curta ? "" : "t-ped");
+}
+
 /* ---- Vendas ---- */
 function vVendas() {
   const f = ui.vFiltro, q = norm(ui.vq);
@@ -1112,9 +1161,9 @@ function vVendas() {
   }).sort((a, b) => (b.num || 0) - (a.num || 0));
   const chips = [["todos", "Todos"], ["orcamento", "Cotizaciones"], ["receber", "Por cobrar"], ["vencido", "Vencidos"], ["consig", "Consignación"], ["pago", "Pagados"], ["cancelado", "Cancelados"]];
   return head("Ventas", "Pedidos, cotizaciones y consignaciones", { action: `<button class="btn sm" data-a="novoPedido">+ Nuevo</button>` }) + banners() +
-    `<label class="search">${ico("search", 18)}<input id="vq" type="search" placeholder="Número, cliente o vendedor" value="${esc(ui.vq)}" aria-label="Buscar pedido"></label>
-    <div class="chips">${chips.map(([k, l]) => `<button class="chip" data-a="vf" data-id="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</div>
-    <div id="vlist"><p class="summary">${list.length} ${list.length === 1 ? "registro" : "registros"} · ${fmt(sum(list.filter(o => o.tipo !== "orcamento"), o => pedCalc(o).total))} facturado</p><div class="list">${list.map(pedRow).join("") || empty("No se encontró nada.", "")}</div></div>`;
+    toolbar(`<label class="search">${ico("search", 18)}<input id="vq" type="search" placeholder="Número, cliente o vendedor" value="${esc(ui.vq)}" aria-label="Buscar pedido"></label>
+    <div class="chips">${chips.map(([k, l]) => `<button class="chip" data-a="vf" data-id="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</div>`) +
+    `<div id="vlist"><p class="summary">${list.length} ${list.length === 1 ? "registro" : "registros"} · ${fmt(sum(list.filter(o => o.tipo !== "orcamento"), o => pedCalc(o).total))} facturado</p>${DESK() ? pedTable(list) : `<div class="list">${list.map(pedRow).join("") || empty("No se encontró nada.", "")}</div>`}</div>`;
 }
 function pedText(o) {
   const c = pedCalc(o), e = S.emp ? S.emp.nome : APP;
@@ -1129,27 +1178,40 @@ function pedText(o) {
   return t;
 }
 const waLink = (fone, txt) => { let d = digits(fone); if (d && d.length <= PC().nacional) d = PC().ddi + d; return `https://wa.me/${d}?text=${encodeURIComponent(txt)}`; }; // número nacional ganha o código do país
+function itensTable(o, ativo) {
+  const cons = o.tipo === "consig";
+  return dtable(cons ? [["Producto"], ["Entregado", "num"], ["Vendido", "num"], ["Devuelto", "num"], ["Con el cliente", "num"], [""]] : [["Producto"], ["Cant.", "num"], ["Precio", "num"], ["Total", "num"]],
+    o.itens.map((i, ix) => {
+      const p = P(i.p) || { nome: "Producto eliminado", tipo: "outros" }, l = i.q - (i.vend || 0) - (i.dev || 0), nome = td(`<span class="pcell"><span class="bt">${bottle(p.tipo)}</span><b>${esc(p.nome)}</b></span>`);
+      if (!cons) return `<tr class="static">${nome}${td(i.q, "num")}${td(fmt(i.preco), "num")}${td(`<b>${fmt(i.q * i.preco)}</b>`, "num")}</tr>`;
+      return `<tr class="static">${nome}${td(i.q, "num")}${td(i.vend || 0, "num")}${td(i.dev || 0, "num")}${td(`<b>${l}</b>`, "num")}${td(l > 0 && ativo && can("vendas") ? `<span class="mini"><button class="btn sm" data-a="consig" data-m="vend" data-id="${o.id}" data-x="${ix}">Vendió</button><button class="btn sm ghost" data-a="consig" data-m="dev" data-id="${o.id}" data-x="${ix}">Devolvió</button></span>` : "", "nowrap")}</tr>`;
+    }), "");
+}
 function vPedido() {
   const o = Pe(ui.id); if (!o) return head("Pedido", "", { back: true }) + empty("Cargando…", "");
   const c = pedCalc(o), cl = Cl(o.cli), ativo = o.status !== "cancelado";
   let h = head(`${tipoPed(o.tipo)} #${o.num}`, `${fdy(o.data)} · ${esc(nomeDe(o.vendedor))}`, { back: true, sm: true, action: statusPed(c) }) + banners();
+  const i0 = h.length; // no computador: itens e notas à esquerda; totais, parcelas e ações à direita
   h += o.cli ? `<button class="row" data-a="go" data-r="cliente" data-id="${o.cli}"><span class="avatar">${initials(cliNome(o))}</span><span class="wmain"><b>${esc(cliNome(o))}</b><small>${esc(cl ? cl.tipo : "")} · lista ${TABELAS[o.tabela] || "Menudeo"}</small></span>${ico("chev", 18)}</button>`
     : `<div class="row"><span class="avatar">CF</span><span class="wmain"><b>Consumidor final</b><small>Venta de mostrador${o.consumidor && o.consumidor.cpf ? " · CPF " + esc(o.consumidor.cpf) : ""}</small></span></div>`;
-  h += `<p class="sec">Artículos</p><div class="list">${o.itens.map((i, ix) => {
+  h += `<p class="sec">Artículos</p>${DESK() ? itensTable(o, ativo) : `<div class="list">${o.itens.map((i, ix) => {
     const p = P(i.p) || { nome: "Producto eliminado", tipo: "outros" }, l = i.q - (i.vend || 0) - (i.dev || 0);
     if (o.tipo !== "consig") return `<div class="row"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>${i.q} × ${fmt(i.preco)}</small></span><span class="right"><b>${fmt(i.q * i.preco)}</b></span></div>`;
     return `<div class="row"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>Entregado ${i.q} · vendido ${i.vend || 0} · devuelto ${i.dev || 0}</small>
       ${l > 0 && ativo && can("vendas") ? `<span class="mini"><button class="btn sm" data-a="consig" data-m="vend" data-id="${o.id}" data-x="${ix}">Vendió</button><button class="btn sm ghost" data-a="consig" data-m="dev" data-id="${o.id}" data-x="${ix}">Devolvió</button></span>` : ""}</span>
       <span class="right"><b>${l}</b><small>con el cliente</small></span></div>`;
-  }).join("")}</div>`;
+  }).join("")}</div>`}`;
+  const i1 = h.length;
   h += `<div class="card" style="margin-top:12px">${o.tipo === "consig" ? `<div class="tot muted"><span>Valor entregado</span><span>${fmt(sum(o.itens, i => i.q * i.preco))}</span></div>${c.iva ? `<div class="tot muted"><span>${ivaLabel(o.iva)} sobre lo vendido</span><span>${fmt(c.iva)}</span></div>` : ""}<div class="tot"><span>Facturado (vendido)</span><span>${fmt(c.total)}</span></div>` :
     `<div class="tot muted"><span>Subtotal</span><span>${fmt(c.bruto)}</span></div>${c.desc ? `<div class="tot muted"><span>Descuento</span><span>−${fmt(c.desc)}</span></div>` : ""}${c.iva ? `<div class="tot muted"><span>${ivaLabel(o.iva)}</span><span>${fmt(c.iva)}</span></div>` : ""}<div class="tot"><span>Total</span><span>${fmt(c.total)}</span></div>`}
     ${o.tipo !== "orcamento" ? `<div class="tot"><span>Cobrado</span><span>${fmt(c.pago)}</span></div><div class="tot big"><span>Pendiente</span><span>${fmt(c.aberto)}</span></div>` : ""}
     ${can("custo") && o.tipo !== "orcamento" ? `<div class="tot muted"><span>Margen bruto</span><span>${fmt(c.margem)} · ${pct(c.base ? c.margem / c.base : 0)}</span></div>` : ""}</div>`;
   if (o.tipo !== "orcamento" && ativo) h += `<p class="sec">${o.tipo === "consig" ? "Liquidación" : "Parcialidades"}</p><div class="list">${c.parcelas.map((p, ix) => `<div class="row"><span class="dot ${p.aberto <= 0.004 ? "good" : p.venc < today ? "bad" : "info"}">${ix + 1}</span><span class="wmain"><b>${fmt(p.valor)}</b><small>Vencimiento ${fdy(p.venc)}</small></span><span class="right">${p.aberto <= 0.004 ? '<span class="pill ok">Pagado</span>' : p.venc < today ? `<span class="pill bad">Vencido · ${diffDays(p.venc, today)}d</span>` : `<span class="pill info">${p.pago > 0 ? "Parcial" : "Pendiente"}</span>`}</span></div>`).join("")}</div>`;
+  const i2 = h.length;
   h += nfSection(o);
   if ((o.pag || []).length) h += `<p class="sec">Cobros</p><div class="list">${o.pag.map(p => `<div class="row"><span class="dot good">${SIM()}</span><span class="wmain"><b>${fmt(p.valor)}</b><small>${p.forma} · ${fdy(p.data)} · ${esc(nomeDe(p.por))}</small></span></div>`).join("")}</div>`;
   if (o.obs) h += `<p class="sec">Observaciones</p><div class="card">${esc(o.obs)}</div>`;
+  const i3 = h.length;
   const txt = pedText(o), b = [];
   if (o.tipo === "orcamento" && o.status === "orcamento" && can("vendas")) b.push(`<button class="btn block" data-a="converter" data-id="${o.id}">Convertir en pedido</button>`);
   if (c.aberto > 0.004 && can("receber")) b.push(`<button class="btn block" data-a="pay" data-src="ped" data-id="${o.id}">Registrar cobro</button>`);
@@ -1159,6 +1221,7 @@ function vPedido() {
   if (can("vendas") && o.tipo !== "orcamento") b2.push(`<button class="btn line" data-a="repetir" data-id="${o.id}">Repetir pedido</button>`);
   if (ativo && o.status !== "convertido" && can("cancelar")) b2.push(`<button class="btn danger" data-a="sheet" data-k="cancelPed" data-id="${o.id}">Cancelar</button>`);
   if (b2.length) h += `<div class="btns">${b2.join("")}</div>`;
+  if (DESK()) return h.slice(0, i0) + colunas(h.slice(i0, i1) + h.slice(i2, i3), h.slice(i1, i2) + h.slice(i3), "pedido");
   return h;
 }
 
@@ -1209,6 +1272,7 @@ function vNovoPedido() {
   if (!ui.draft) newDraft("venda");
   const d = ui.draft, cl = d.cli ? Cl(d.cli) : null;
   let h = head(d.tipo === "orcamento" ? "Nueva cotización" : "Nuevo pedido", "Venta, consignación o cotización", { back: true, action: Object.values(d.qty).some(v => v) ? `<button class="btn sm ghost" data-a="limparDraft">Limpiar</button>` : "" }) + banners();
+  const i0 = h.length; // no computador: produtos à esquerda; cliente, condições e desconto à direita
   h += `<section class="card"><span class="lbl">Cliente</span><button class="picker" data-a="sheet" data-k="pickCli">${d.cli === "CF" ? `<span class="avatar">CF</span><span class="wmain"><b>Consumidor final</b><small>Mostrador · pago en el momento</small></span>` : cl ? `<span class="avatar">${initials(cl.nome)}</span><span class="wmain"><b>${esc(cl.nome)}</b><small>${esc(cl.tipo)} · lista ${TABELAS[cl.tabela] || "Menudeo"}</small></span>` : `<span class="wmain"><b>Elegir cliente</b><small>Restaurante, bar, hotel, tienda o persona física</small></span>`}${ico("chev", 18)}</button><div id="dcredit">${draftCredit()}</div></section>`;
   h += `<section class="card"><span class="lbl">Tipo</span><div class="seg">${[["venda", "Venta"], ["consig", "Consignación"], ["orcamento", "Cotización"]].filter(x => !(d.cli === "CF" && x[0] === "consig")).map(([k, l]) => `<button data-a="dtipo" data-id="${k}" aria-pressed="${d.tipo === k}">${l}</button>`).join("")}</div>
     <p class="hint">${{ venda: "El inventario baja ahora y las parcialidades entran en cuentas por cobrar.", consig: "Los productos salen hoy. El cliente paga solo lo que venda y devuelve el resto en la liquidación.", orcamento: "No mueve el inventario. Puedes convertirla en pedido después." }[d.tipo]}</p>
@@ -1217,11 +1281,15 @@ function vNovoPedido() {
     : `<span class="lbl" style="margin-top:14px">Condición de pago</span><div class="chips wrap tight">${Object.entries(CONDS).map(([k, l]) => `<button class="chip" data-a="dcond" data-id="${k}" aria-pressed="${d.cond === k}">${l}</button>`).join("")}</div>`}
     ${d.tipo === "venda" && d.cond === "0" && can("receber") ? `<label class="toggle">Ya cobrado ahora<input type="checkbox" data-a="dpago" ${d.pagoAgora ? "checked" : ""}></label>${d.pagoAgora ? `<div class="chips wrap tight" style="margin-top:8px">${FORMAS.map(f => `<button class="chip" data-a="dforma" data-id="${f}" aria-pressed="${d.forma === f}">${f}</button>`).join("")}</div>` : ""}` : ""}
   </section>`;
+  const i1 = h.length;
   h += `<span class="lbl" style="margin:18px 2px 8px">Productos</span><label class="search">${ico("search", 18)}<input id="dq" type="search" placeholder="Buscar por nombre, uva, país o código" value="${esc(d.q)}" aria-label="Buscar producto"><button class="scanbtn" data-a="scan" aria-label="Leer código de barras">${ico("scan", 18)}</button></label>
     <div class="list" id="dlist" style="margin-top:10px">${draftList()}</div>`;
+  const i2 = h.length;
   h += `<section class="card" style="margin-top:14px">${d.tipo !== "consig" ? `<label class="field" style="margin-top:0">Descuento (${SIM()} o %)<input data-d="desc" inputmode="decimal" value="${esc(d.desc)}" placeholder="Ej.: ${money(50)} o 5%"></label>${ivaTaxa() ? `<label class="toggle">Sumar ${ivaLabel()} al total<input type="checkbox" data-a="diva" ${d.iva ? "checked" : ""}></label><p class="hint" style="margin-top:4px">${d.iva ? "Los precios de la lista están sin IVA; el impuesto entra en el total y en las parcialidades." : "Los precios de la lista ya incluyen el IVA."}</p>` : ""}` : ""}
     <label class="field">Observaciones<input data-d="obs" value="${esc(d.obs)}" placeholder="Ej.: entregar el martes"></label></section>`;
+  const i3 = h.length;
   h += `<div class="ofoot" id="dfoot">${draftFoot()}</div>`;
+  if (DESK()) return h.slice(0, i0) + colunas(h.slice(i1, i2), h.slice(i0, i1) + h.slice(i2, i3), "novo") + h.slice(i3);
   return h;
 }
 function newDraft(tipo, base) {
@@ -1243,7 +1311,15 @@ function prodMatch(p) {
 }
 function prodList() {
   const list = S.prod.filter(prodMatch).sort((a, b) => a.nome.localeCompare(b.nome)), cst = can("custo");
-  return `<p class="summary">${list.length} productos · ${num(sum(list, p => Math.max(0, p.estoque)))} un. · ${fmt0(sum(list, p => Math.max(0, p.estoque) * (cst ? p.custo || 0 : preco(p, "varejo"))))} ${cst ? "a costo" : "a precio de venta"}</p>
+  const resumo = `<p class="summary">${list.length} productos · ${num(sum(list, p => Math.max(0, p.estoque)))} un. · ${fmt0(sum(list, p => Math.max(0, p.estoque) * (cst ? p.custo || 0 : preco(p, "varejo"))))} ${cst ? "a costo" : "a precio de venta"}</p>`;
+  if (DESK()) return resumo + dtable([["Producto"], ["Categoría"], ["Ubicación"], ["Precio", "num"], ...(cst ? [["Costo", "num"]] : []), ["Inventario", "num"], ["Estado"]],
+    list.map(p => { const s = pstate(p), ct = catDe(p.tipo); return dtr(`data-a="prod" data-id="${p.id}"`, [
+      td(`<span class="pcell"><span class="bt">${bottle(p.tipo)}</span><span><b>${esc(p.nome)}${p.safra && p.safra !== "NV" ? " " + esc(p.safra) : ""}</b><small>${esc(prodSub(p))}</small></span></span>`),
+      td(`<span class="cat"><i style="background:${esc(ct.c)}"></i>${esc(catLabel(p.tipo))}</span>`, "muted"), td(esc(p.loc || "—"), "muted"), td(fmt(preco(p, "varejo")), "num"),
+      ...(cst ? [td(fmt(p.custo || 0), "num muted")] : []), td(`<b>${p.estoque}</b> un.${ehVinho() ? `<small>${Math.floor(p.estoque / 6)} cx</small>` : ""}`, "num"),
+      td(`<span class="pill ${s.cls}">${s.cls === "ok" ? "En existencia" : s.t}</span>`)]); }),
+    empty("No se encontraron productos.", can("ajuste") ? "Registra un producto o importa tu hoja de cálculo." : ""), "t-prod");
+  return `${resumo}
   <div class="list">${list.map(p => { const s = pstate(p); return `<button class="row" data-a="prod" data-id="${p.id}"><span class="bt">${bottle(p.tipo)}</span>
     <span class="wmain"><b>${esc(p.nome)}${p.safra && p.safra !== "NV" ? " " + esc(p.safra) : ""}</b><small>${esc(prodSub(p))}</small><small>${fmt(preco(p, "varejo"))}${p.loc ? " · " + esc(p.loc) : ""}</small></span>
     <span class="right"><b>${p.estoque} un.</b>${s.cls !== "ok" ? `<span class="pill ${s.cls}">${s.t}</span>` : (ehVinho() ? `<small>${Math.floor(p.estoque / 6)} cx</small>` : "")}</span></button>`; }).join("") || empty("No se encontraron productos.", can("ajuste") ? "Registra un producto o importa tu hoja de cálculo." : "")}</div>`;
@@ -1251,11 +1327,12 @@ function prodList() {
 function vEstoque() {
   if (ui.fTipo && !FILTROS_EST.includes(ui.fTipo) && !cats().some(c => c.id === ui.fTipo)) ui.fTipo = "todos";
   const f = [["todos", "Todos"], ...cats().map(c => [c.id, c.l]), ["baixo", "Existencia baja"], ["zero", "Sin existencias"], ["inativos", "Inactivos"]];
-  let h = head("Inventario", ehVinho() ? "Productos y botellas" : "Productos", { action: can("ajuste") ? `<button class="btn sm" data-a="sheet" data-k="prodForm">+ Producto</button>` : "" }) + banners();
   const qk = (can("ajuste") ? [`<button data-a="go" data-r="inventario">${ico("clip")}Conteo</button>`, `<button data-a="go" data-r="importar">${ico("upload")}Importar</button>`, `<button data-a="exportProd">${ico("download")}Exportar</button>`] : []).concat(can("vendas") ? [`<button data-a="abrirCatalogo">${ico("file")}Catálogo</button>`] : []);
-  if (qk.length) h += `<div class="quick ${qk.length === 4 ? "" : qk.length === 3 ? "three" : qk.length === 2 ? "two" : "one"}">${qk.join("")}</div>`;
-  h += `<label class="search" style="margin-top:10px">${ico("search", 18)}<input id="eq" type="search" placeholder="${ehVinho() ? "Nombre, uva, país, código o ubicación" : "Nombre, marca, referencia, código o ubicación"}" value="${esc(ui.q)}" aria-label="Buscar producto"><button class="scanbtn" data-a="scan" aria-label="Leer código de barras">${ico("scan", 18)}</button></label>
-  <div class="chips">${f.map(([k, l]) => `<button class="chip" data-a="ef" data-id="${k}" aria-pressed="${ui.fTipo === k}">${FILTROS_EST.includes(k) ? "" : `<i style="background:${esc(catDe(k).c)}"></i>`}${esc(l)}</button>`).join("")}</div>
+  const novo = can("ajuste") ? `<button class="btn sm" data-a="sheet" data-k="prodForm">+ Producto</button>` : "";
+  let h = head("Inventario", ehVinho() ? "Productos y botellas" : "Productos", { action: DESK() ? `<div class="hdr-actions">${qk.map(b => b.replace("<button ", '<button class="btn sm line" ')).join("")}${novo}</div>` : novo }) + banners();
+  if (qk.length && !DESK()) h += `<div class="quick ${qk.length === 4 ? "" : qk.length === 3 ? "three" : qk.length === 2 ? "two" : "one"}">${qk.join("")}</div>`;
+  h += toolbar(`<label class="search" style="margin-top:10px">${ico("search", 18)}<input id="eq" type="search" placeholder="${ehVinho() ? "Nombre, uva, país, código o ubicación" : "Nombre, marca, referencia, código o ubicación"}" value="${esc(ui.q)}" aria-label="Buscar producto"><button class="scanbtn" data-a="scan" aria-label="Leer código de barras">${ico("scan", 18)}</button></label>
+  <div class="chips">${f.map(([k, l]) => `<button class="chip" data-a="ef" data-id="${k}" aria-pressed="${ui.fTipo === k}">${FILTROS_EST.includes(k) ? "" : `<i style="background:${esc(catDe(k).c)}"></i>`}${esc(l)}</button>`).join("")}</div>`) + `
   <div id="elist">${prodList()}</div>`;
   return h;
 }
@@ -1276,14 +1353,15 @@ function invFoot() {
 function vMais() {
   const m = ME(); if (!m) return vSemAcesso();
   const it = (r, icon, t, s, perm) => perm === false ? "" : `<button data-a="go" data-r="${r}">${ico(icon)}<span class="wmain"><b>${t}</b><small>${s}</small></span>${ico("chev", 18)}</button>`;
-  let h = head("Más", esc(S.emp ? S.emp.nome : "")) + banners();
+  const D = DESK(); // no computador cadastros e gestão já estão na barra lateral
+  let h = head(D ? "Cuenta y ajustes" : "Más", esc(S.emp ? S.emp.nome : "")) + banners();
   h += `<div class="row"><span class="avatar">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${PAPEIS[m.papel]}${m.comissao ? ` · comisión ${m.comissao}%` : ""}</small></span></div>`;
   if (MODE === "demo") h += `<p class="sec">Ver la app como</p><div class="chips wrap tight">${S.mem.map(x => `<button class="chip" data-a="verComo" data-id="${x.id}" aria-pressed="${x.id === UID}">${esc(firstName(x.nome))} · ${PAPEIS[x.papel]}</button>`).join("")}</div><p class="hint">En la demostración puedes cambiar de usuario para ver lo que ve cada rol.</p>`;
-  h += `<p class="sec">Registros</p><div class="menu">${it("clientes", "users", "Clientes", "Ficha, crédito, historial y consignación", can("clientes"))}${it("fornecedores", "truck", "Proveedores", "Contactos, compras y cuentas por pagar", can("fornecedores"))}${it("estoque", "bottle", "Productos", ehVinho() ? "Ficha del vino, precios e inventario" : "Ficha, precios e inventario", can("estoque"))}</div>`;
+  if (!D) h += `<p class="sec">Registros</p><div class="menu">${it("clientes", "users", "Clientes", "Ficha, crédito, historial y consignación", can("clientes"))}${it("fornecedores", "truck", "Proveedores", "Contactos, compras y cuentas por pagar", can("fornecedores"))}${it("estoque", "bottle", "Productos", ehVinho() ? "Ficha del vino, precios e inventario" : "Ficha, precios e inventario", can("estoque"))}</div>`;
   const op = it("compras", "cart", "Compras", "Órdenes a proveedores y recepción", can("compras")) + it("financeiro", "wallet", "Finanzas", "Cuentas por cobrar, por pagar y flujo de caja", can("receber") || can("pagar")) + it("relatorios", "chart", "Reportes", "Ventas, curva ABC, margen, comisiones y atrasos", can("relatorios"));
   const fis = temFiscal() ? it("notas", "receipt", "Notas fiscales", "NF-e, NFC-e y consignación emitidas", can("fiscal")) + it("fiscal", "shield", "Configuración fiscal", "Datos del emisor, tributación y credenciales", can("empresa")) : ""; // nota fiscal brasileira
   const cat = can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span class="wmain"><b>Catálogo de productos</b><small>PDF con las existencias y los precios del cliente</small></span>${ico("chev", 18)}</button>` : "";
-  if (op || cat) h += `<p class="sec">Gestión</p><div class="menu">${cat}${op}</div>`;
+  if ((op || cat) && !D) h += `<p class="sec">Gestión</p><div class="menu">${cat}${op}</div>`;
   if (fis) h += `<p class="sec">Fiscal</p><div class="menu">${fis}</div>`;
   h += `<p class="sec">Apariencia</p><div class="seg theme-seg">${[["light", "Claro"], ["dark", "Oscuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-a="tema" data-id="${k}" aria-pressed="${temaAtual() === k}">${l}</button>`).join("")}</div>`;
   h += `<p class="sec">Idioma</p>${idiomaSeg()}`;
@@ -1303,11 +1381,15 @@ function vClientes() {
     return !q || norm([c.nome, c.razao, c.doc, c.cidade, c.contato].join(" ")).includes(q);
   }).sort((a, b) => b.s.vencido - a.s.vencido || b.s.aberto - a.s.aberto || a.c.nome.localeCompare(b.c.nome));
   return head("Clientes", "Personas morales y físicas", { back: ui.stack.length > 0, action: `<button class="btn sm" data-a="sheet" data-k="cliForm">+ Cliente</button>` }) + banners() +
-    `<label class="search">${ico("search", 18)}<input id="cq" type="search" placeholder="Nombre, ${PC().docCli.split(" ")[0]}, ciudad o contacto" value="${esc(ui.cq)}" aria-label="Buscar cliente"></label>
-    <div class="chips">${[["todos", "Todos"], ["vencido", "Con vencido"], ["consig", "En consignación"], ["limite", "Arriba del límite"]].map(([k, l]) => `<button class="chip" data-a="cf" data-id="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</div>
+    toolbar(`<label class="search">${ico("search", 18)}<input id="cq" type="search" placeholder="Nombre, ${PC().docCli.split(" ")[0]}, ciudad o contacto" value="${esc(ui.cq)}" aria-label="Buscar cliente"></label>
+    <div class="chips">${[["todos", "Todos"], ["vencido", "Con vencido"], ["consig", "En consignación"], ["limite", "Arriba del límite"]].map(([k, l]) => `<button class="chip" data-a="cf" data-id="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</div>`) +
+    (DESK() ? `<div id="clist"><p class="summary">${list.length} ${list.length === 1 ? "cliente" : "clientes"} · ${fmt(sum(list, x => x.s.aberto))} sin pagar</p>${dtable([["Cliente"], ["Tipo"], ["Ciudad"], ["Pedidos", "num"], ["Consignación", "num"], ["Pendiente", "num"], ["Estado"]],
+      list.map(({ c, s }) => dtr(`data-a="go" data-r="cliente" data-id="${c.id}"`, [td(`<span class="pcell"><span class="avatar sm">${initials(c.nome)}</span><b>${esc(c.nome)}</b></span>`), td(esc(c.tipo), "muted"), td(esc(c.cidade || "—"), "muted"),
+        td(s.n, "num"), td(s.consQ ? `${s.consQ} un.` : "—", "num"), td(fmt(s.aberto), "num"), td(s.vencido > 0 ? '<span class="pill bad">Vencido</span>' : s.aberto > 0 ? '<span class="pill info">Pendiente</span>' : '<span class="pill ok">Al corriente</span>')])),
+      empty("No se encontraron clientes.", ""))}</div>` : "") + (DESK() ? "" : `
     <div class="list" id="clist">${list.map(({ c, s }) => `<button class="row" data-a="go" data-r="cliente" data-id="${c.id}"><span class="avatar">${initials(c.nome)}</span>
       <span class="wmain"><b>${esc(c.nome)}</b><small>${esc(c.tipo)}${c.cidade ? " · " + esc(c.cidade) : ""} · ${s.n} ${s.n === 1 ? "pedido" : "pedidos"}${s.consQ ? ` · ${s.consQ} un. consignadas` : ""}</small></span>
-      <span class="right"><b>${fmt(s.aberto)}</b>${s.vencido > 0 ? '<span class="pill bad">Vencido</span>' : s.aberto > 0 ? '<span class="pill info">Pendiente</span>' : '<span class="pill ok">Al corriente</span>'}</span></button>`).join("") || empty("No se encontraron clientes.", "")}</div>`;
+      <span class="right"><b>${fmt(s.aberto)}</b>${s.vencido > 0 ? '<span class="pill bad">Vencido</span>' : s.aberto > 0 ? '<span class="pill info">Pendiente</span>' : '<span class="pill ok">Al corriente</span>'}</span></button>`).join("") || empty("No se encontraron clientes.", "")}</div>`);
 }
 function catalogText(cl) {
   const tab = cl ? cl.tabela : "varejo";
@@ -1320,19 +1402,24 @@ function vCliente() {
   const s = cliStats(c.id), peds = S.ped.filter(o => o.cli === c.id).sort((a, b) => (b.num || 0) - (a.num || 0));
   const cons = []; peds.filter(o => o.tipo === "consig" && o.status !== "cancelado").forEach(o => o.itens.forEach((i, ix) => { const l = i.q - (i.vend || 0) - (i.dev || 0); if (l > 0) cons.push({ o, i, ix, l }); }));
   let h = head(esc(c.nome), `${esc(c.tipo)}${c.doc ? " · " + esc(c.doc) : ""}`, { back: true, sm: true, action: `<button class="iconbtn" data-a="sheet" data-k="cliForm" data-id="${c.id}" aria-label="Editar cliente">${ico("edit", 18)}</button>` }) + banners();
+  const i0 = h.length; // no computador: indicadores numa linha; pedidos à esquerda; ações e dados à direita
   h += `<div class="hero"><span class="hl">Saldo pendiente</span><span class="big">${fmt(s.aberto)}</span><span class="sub">${s.vencido > 0 ? `<b>${fmt(s.vencido)} vencido</b> hace ${s.atraso} días` : "Ningún importe vencido"}</span></div>`;
   h += `<div class="stats"><div class="stat ${s.disp != null && s.disp < 0 ? "bad" : ""}"><span>Crédito disponible</span><b>${s.disp == null ? "Sin límite" : fmt0(s.disp)}</b><small>${s.limite ? "limite " + fmt0(s.limite) : "defínelo en la ficha"}</small></div>
     <div class="stat"><span>Compró en el año</span><b>${fmt0(s.ano)}</b><small>ticket promedio ${fmt0(s.ticket)}</small></div>
     <div class="stat"><span>En consignación</span><b>${s.consQ} un.</b><small>${fmt0(s.consV)} en productos</small></div>
     <div class="stat"><span>Último pedido</span><b>${s.ult ? fd(s.ult) : "—"}</b><small>${s.ult ? `hace ${diffDays(s.ult, today)} días` : "ninguno aún"}</small></div></div>`;
+  const i1 = h.length;
   h += `<div class="quick">${can("vendas") ? `<button data-a="novoPedido" data-cli="${c.id}">${ico("order")}Pedido</button>` : ""}<button data-a="sheet" data-k="payPick" data-id="${c.id}" ${s.aberto > 0.004 && can("receber") ? "" : "disabled"}>${ico("cash")}Cobrar</button>
     <a href="${waLink(c.fone, `Hola${c.contato ? " " + c.contato : ""}! `)}" target="_blank" rel="noopener">${ico("whats")}WhatsApp</a>${can("vendas") ? `<button data-a="abrirCatalogo" data-id="${c.id}">${ico("file")}Catálogo</button>` : ""}</div>`;
+  const i2 = h.length;
   h += condicoesHtml(c);
   if (cons.length) h += `<p class="sec">En consignación <span class="count">${s.consQ} un.</span></p><div class="list">${cons.map(x => { const p = P(x.i.p) || { nome: "Producto", tipo: "outros" }; return `<div class="row"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>#${x.o.num} · ${fd(x.o.data)} · liquidación ${fd(x.o.venc)}</small>${can("vendas") ? `<span class="mini"><button class="btn sm" data-a="consig" data-m="vend" data-id="${x.o.id}" data-x="${x.ix}">Vendió</button><button class="btn sm ghost" data-a="consig" data-m="dev" data-id="${x.o.id}" data-x="${x.ix}">Devolvió</button></span>` : ""}</span><span class="right"><b>${x.l}</b><small>con el cliente</small></span></div>`; }).join("")}</div>`;
-  h += `<p class="sec">Pedidos <span class="count">${peds.length}</span></p><div class="list">${peds.map(pedRow).join("") || empty("Aún no hay pedidos.", "")}</div>`;
+  h += `<p class="sec">Pedidos <span class="count">${peds.length}</span></p>${DESK() ? pedTable(peds, "cli") : `<div class="list">${peds.map(pedRow).join("") || empty("Aún no hay pedidos.", "")}</div>`}`;
+  const i3 = h.length;
   h += `<p class="sec">Datos</p><dl class="specs"><div class="full"><dt>Razón social</dt><dd>${esc(c.razao || "—")}</dd></div><div><dt>Contacto</dt><dd>${esc(c.contato || "—")}</dd></div><div><dt>Teléfono</dt><dd>${esc(c.fone || "—")}</dd></div>
     <div><dt>Correo</dt><dd>${esc(c.email || "—")}</dd></div><div><dt>Ciudad</dt><dd>${esc(c.cidade || "—")}</dd></div><div><dt>Lista</dt><dd>${TABELAS[c.tabela] || "Menudeo"}</dd></div><div><dt>Límite</dt><dd>${c.limite ? fmt(c.limite) : "Sin límite"}</dd></div>
     <div class="full"><dt>${temFiscal() ? "Dirección fiscal" : "Dirección"}</dt><dd>${esc([c.logradouro && `${c.logradouro}, ${c.numero || "s/n"}`, c.bairro, c.cidade && `${c.cidade}/${c.uf || ""}`, c.cep].filter(Boolean).join(" · ") || c.endereco || "—")}</dd></div>${temFiscal() ? `<div><dt>Inscripción estatal</dt><dd>${esc(c.ie || "—")}</dd></div><div><dt>ICMS</dt><dd>${(IND_IE.find(x => x[0] === (c.indIE || "9")) || IND_IE[0])[1]}</dd></div>` : ""}${c.obs ? `<div class="full"><dt>Observaciones</dt><dd>${esc(c.obs)}</dd></div>` : ""}</dl>`;
+  if (DESK()) return h.slice(0, i0) + `<div class="kpis-row">${h.slice(i0, i1)}</div>` + colunas(h.slice(i2, i3), h.slice(i1, i2) + h.slice(i3), "cliente");
   return h;
 }
 
@@ -1344,17 +1431,25 @@ function fornStats(id) {
 function vFornecedores() {
   const list = S.forn.slice().sort((a, b) => a.nome.localeCompare(b.nome));
   return head("Proveedores", "Importadoras, vinícolas y distribuidores", { back: ui.stack.length > 0, action: `<button class="btn sm" data-a="sheet" data-k="fornForm">+ Proveedor</button>` }) + banners() +
-    `<div class="list">${list.map(f => { const s = fornStats(f.id); return `<button class="row" data-a="go" data-r="fornecedor" data-id="${f.id}"><span class="avatar">${initials(f.nome)}</span><span class="wmain"><b>${esc(f.nome)}</b><small>${s.n} compras${f.obs ? " · " + esc(f.obs) : ""}</small></span><span class="right"><b>${fmt(s.aberto)}</b><small>por pagar</small></span></button>`; }).join("") || empty("No hay proveedores registrados.", "")}</div>`;
+    (DESK() ? dtable([["Proveedor"], ["Contacto"], ["Teléfono"], ["Compras", "num"], ["Comprado en el año", "num"], ["Por pagar", "num"]], list.map(f => { const s = fornStats(f.id); return dtr(`data-a="go" data-r="fornecedor" data-id="${f.id}"`, [
+      td(`<span class="pcell"><span class="avatar sm">${initials(f.nome)}</span><span><b>${esc(f.nome)}</b>${f.obs ? `<small>${esc(f.obs)}</small>` : ""}</span></span>`), td(esc(f.contato || "—"), "muted"), td(esc(f.fone || "—"), "muted nowrap"),
+      td(s.n, "num"), td(fmt(s.ano), "num"), td(s.aberto > 0.004 ? `<b>${fmt(s.aberto)}</b>` : "—", "num")]); }), empty("No hay proveedores registrados.", "")) :
+    `<div class="list">${list.map(f => { const s = fornStats(f.id); return `<button class="row" data-a="go" data-r="fornecedor" data-id="${f.id}"><span class="avatar">${initials(f.nome)}</span><span class="wmain"><b>${esc(f.nome)}</b><small>${s.n} compras${f.obs ? " · " + esc(f.obs) : ""}</small></span><span class="right"><b>${fmt(s.aberto)}</b><small>por pagar</small></span></button>`; }).join("") || empty("No hay proveedores registrados.", "")}</div>`);
 }
 function vFornecedor() {
   const f = Fo(ui.id); if (!f) return head("Proveedor", "", { back: true }) + empty("Cargando…", "");
   const s = fornStats(f.id), cs = S.comp.filter(c => c.forn === f.id).sort((a, b) => b.num - a.num), ps = S.prod.filter(p => p.forn === f.id && p.ativo !== false);
   let h = head(esc(f.nome), esc(f.doc || "Proveedor"), { back: true, sm: true, action: `<button class="iconbtn" data-a="sheet" data-k="fornForm" data-id="${f.id}" aria-label="Editar proveedor">${ico("edit", 18)}</button>` }) + banners();
+  const i0 = h.length;
   h += `<div class="stats"><div class="stat"><span>Comprado en el año</span><b>${fmt0(s.ano)}</b><small>${s.n} compras en total</small></div><div class="stat ${s.aberto ? "warn" : ""}"><span>Por pagar</span><b>${fmt0(s.aberto)}</b><small>plazo promedio ${f.prazo || 30} días</small></div></div>`;
+  const i1 = h.length;
   h += `<div class="quick two"><button data-a="novaCompra" data-id="${f.id}" ${can("compras") ? "" : "disabled"}>${ico("cart")}Nueva compra</button><a href="${waLink(f.fone, `Hola${f.contato ? " " + f.contato : ""}! `)}" target="_blank" rel="noopener">${ico("whats")}WhatsApp</a></div>`;
-  h += `<p class="sec">Compras</p><div class="list">${cs.map(compRow).join("") || empty("No hay compras registradas.", "")}</div>`;
+  const i2 = h.length;
+  h += `<p class="sec">Compras</p>${DESK() ? compTable(cs) : `<div class="list">${cs.map(compRow).join("") || empty("No hay compras registradas.", "")}</div>`}`;
   h += `<p class="sec">Productos de este proveedor <span class="count">${ps.length}</span></p><div class="list">${ps.map(p => `<button class="row" data-a="prod" data-id="${p.id}"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>${p.estoque} un. · costo ${fmt(p.custo)}</small></span></button>`).join("") || empty("Ningún producto ligado a este proveedor.", "Registra sus productos aquí o importa el XML de la primera nota.")}</div>${can("ajuste") ? `<button class="btn line block" style="margin-top:10px" data-a="novoProdForn" data-id="${f.id}">+ Nuevo producto de este proveedor</button>` : ""}`;
+  const i3 = h.length;
   h += `<p class="sec">Datos</p><dl class="specs"><div><dt>Contacto</dt><dd>${esc(f.contato || "—")}</dd></div><div><dt>Teléfono</dt><dd>${esc(f.fone || "—")}</dd></div><div><dt>Correo</dt><dd>${esc(f.email || "—")}</dd></div><div><dt>Plazo</dt><dd>${f.prazo || 30} días</dd></div>${f.obs ? `<div class="full"><dt>Observaciones</dt><dd>${esc(f.obs)}</dd></div>` : ""}</dl>`;
+  if (DESK()) return h.slice(0, i0) + colunas(h.slice(i0, i1) + h.slice(i2, i3), h.slice(i1, i2) + h.slice(i3), "fornecedor");
   return h;
 }
 
@@ -1362,6 +1457,11 @@ function vFornecedor() {
 function compRow(c) {
   const k = compCalc(c), f = Fo(c.forn);
   return `<button class="row ${c.status === "cancelado" ? "off" : ""}" data-a="go" data-r="compra" data-id="${c.id}"><span class="dot info">${ico("truck", 18)}</span><span class="wmain"><b>#${c.num} · ${esc(f ? f.nome : "Proveedor")}</b><small>${fd(c.data)} · ${k.qtd} un.${c.status === "pedido" ? ` · previsto ${fd(c.prev)}` : ""}</small></span><span class="right"><b>${fmt(k.aberto > 0.004 ? k.aberto : k.total)}</b>${statusComp(k)}</span></button>`;
+}
+function compTable(list) {
+  return dtable([["Compra"], ["Proveedor"], ["Fecha"], ["Previsto"], ["Cant.", "num"], ["Total", "num"], ["Pendiente", "num"], ["Estado"]], list.map(c => { const k = compCalc(c), f = Fo(c.forn);
+    return dtr(`data-a="go" data-r="compra" data-id="${c.id}"`, [td(`<b>#${c.num}</b>`, "nowrap"), td(esc(f ? f.nome : "Proveedor"), "strong"), td(fd(c.data), "muted"), td(c.status === "pedido" ? fd(c.prev) : "—", "muted"),
+      td(k.qtd, "num"), td(fmt(k.total), "num"), td(k.aberto > 0.004 ? fmt(k.aberto) : "—", "num"), td(statusComp(k))], c.status === "cancelado" ? "off" : ""); }), empty("No hay compras aquí.", ""), "t-comp");
 }
 function sugestoes() {
   const g = {};
@@ -1380,7 +1480,7 @@ function vCompras() {
   const ks = Object.keys(sg);
   if (ks.length) h += `<p class="sec">Sugerencia de reposición</p><div class="list">${ks.map(k => { const fo = Fo(k); return `<div class="row"><span class="dot warn">!</span><span class="wmain"><b>${esc(fo ? fo.nome : "Sin proveedor definido")}</b><small>${sg[k].length} ${sg[k].length === 1 ? "producto debajo" : "productos debajo"} del mínimo: ${sg[k].slice(0, 3).map(p => esc(p.nome)).join(", ")}${sg[k].length > 3 ? "…" : ""}</small></span>${fo ? `<button class="btn sm" data-a="sugCompra" data-id="${k}">Crear</button>` : ""}</div>`; }).join("")}</div>`;
   h += `<div class="chips">${[["abertas", "Pendiente"], ["pedido", "Esperando entrega"], ["todas", "Todas"]].map(([k, l]) => `<button class="chip" data-a="kf" data-id="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</div>`;
-  h += `<div class="list">${list.map(compRow).join("") || empty("No hay compras aquí.", "")}</div>`;
+  h += DESK() ? compTable(list) : `<div class="list">${list.map(compRow).join("") || empty("No hay compras aquí.", "")}</div>`;
   return h;
 }
 function vCompra() {
@@ -1404,14 +1504,19 @@ function vNovaCompra() {
   if (!ui.cdraft) ui.cdraft = { forn: null, itens: [], prev: 7, cond: "30", obs: "", jaRecebido: false };
   const d = ui.cdraft, f = d.forn ? Fo(d.forn) : null;
   let h = head("Nueva compra", "Orden al proveedor", { back: true }) + banners();
+  const i0 = h.length;
   h += `<section class="card"><span class="lbl">Proveedor</span><button class="picker" data-a="sheet" data-k="pickForn">${f ? `<span class="avatar">${initials(f.nome)}</span><span class="wmain"><b>${esc(f.nome)}</b><small>prazo ${f.prazo || 30} días</small></span>` : `<span class="wmain"><b>Elegir proveedor</b><small>Importadora, vinícola o distribuidor</small></span>`}${ico("chev", 18)}</button></section>`;
+  const i1 = h.length;
   h += `<span class="lbl" style="margin:16px 2px 8px">Artículos</span><div class="list">${d.itens.map((i, ix) => { const p = P(i.p) || { nome: "Producto" }; return `<div class="crow"><span><b>${esc(p.nome)}</b><small>estoque ${p.estoque != null ? p.estoque : "—"}</small></span><input type="number" inputmode="numeric" min="1" data-ci="${ix}" data-cf="q" value="${esc(i.q)}" aria-label="Cantidad"><input inputmode="decimal" data-ci="${ix}" data-cf="custo" value="${esc(i.custo)}" aria-label="Costo unitario"><button class="xbtn" data-a="rmItemCompra" data-id="${ix}" aria-label="Quitar artículo">×</button></div>`; }).join("")}</div>
     ${d.itens.length ? `<p class="hint">Cantidad y costo unitario (${SIM()}) de cada artículo.</p>` : ""}<button class="btn line block" style="margin-top:10px" data-a="sheet" data-k="pickProd">+ Agregar producto</button>`;
+  const i2 = h.length;
   h += `<section class="card" style="margin-top:14px"><span class="lbl">Condición de pago</span><div class="chips wrap tight">${Object.entries(CONDS).map(([k, l]) => `<button class="chip" data-a="kcond" data-id="${k}" aria-pressed="${d.cond === k}">${l}</button>`).join("")}</div>
     <span class="lbl" style="margin-top:14px">Entrega prevista el</span><div class="chips wrap tight">${[2, 5, 7, 15, 30].map(t => `<button class="chip" data-a="kprev" data-id="${t}" aria-pressed="${d.prev == t}">${t} días</button>`).join("")}</div>
     ${can("ajuste") ? `<label class="toggle">La mercancía ya llegó<input type="checkbox" data-a="kreceb" ${d.jaRecebido ? "checked" : ""}></label>` : ""}
     <label class="field">Observaciones<input data-kd="obs" value="${esc(d.obs)}" placeholder="Ej.: Factura 4890"></label></section>`;
+  const i3 = h.length;
   h += `<div class="ofoot" id="kfoot">${cdraftFoot()}</div>`;
+  if (DESK()) return h.slice(0, i0) + colunas(h.slice(i1, i2), h.slice(i0, i1) + h.slice(i2, i3), "novo") + h.slice(i3);
   return h;
 }
 
@@ -1419,6 +1524,12 @@ function vNovaCompra() {
 function titRow(t) {
   return `<button class="row" data-a="titulo" data-src="${t.src}" data-id="${t.id}"><span class="dot ${t.status === "pago" ? "good" : t.status === "vencido" ? "bad" : "info"}">${t.src === "ped" ? "V" : t.src === "comp" ? "C" : "$"}</span>
     <span class="wmain"><b>${esc(t.quem || t.desc)}</b><small>${esc(t.quem ? t.desc : "")}${t.quem ? " · " : ""}venc. ${fdy(t.venc)}</small></span><span class="right"><b>${fmt(t.status === "pago" ? t.valor : t.aberto)}</b>${statusTit(t)}</span></button>`;
+}
+function titTable(list) {
+  const orig = { ped: "Venta", comp: "Compra" };
+  return dtable([["Vencimiento"], ["Descripción"], ["Origen"], ["Valor", "num"], ["Pendiente", "num"], ["Estado"]], list.map(t => dtr(`data-a="titulo" data-src="${t.src}" data-id="${t.id}"`, [
+    td(fdy(t.venc), "nowrap"), td(`<b>${esc(t.quem || t.desc)}</b>${t.quem ? `<small>${esc(t.desc)}</small>` : ""}`), td(orig[t.src] || "Movimiento", "muted"),
+    td(fmt(t.valor), "num"), td(t.aberto > 0.004 ? `<b>${fmt(t.aberto)}</b>` : "—", "num"), td(statusTit(t))])), empty("Nada aquí.", ""));
 }
 function vFinanceiro() {
   const tabs = [can("receber") && ["receber", "Por cobrar"], can("pagar") && ["pagar", "Por pagar"], can("pagar") && can("receber") && ["fluxo", "Flujo de caja"]].filter(Boolean);
@@ -1438,7 +1549,7 @@ function vFinanceiro() {
   let list = f === "vencidos" ? ven : f === "semana" ? sete : f === "pagos" ? all.filter(t => t.status === "pago") : ab;
   list = list.slice().sort((a, b) => f === "pagos" ? b.venc.localeCompare(a.venc) : a.venc.localeCompare(b.venc));
   h += `<div class="chips">${[["abertos", "Pendiente"], ["vencidos", "Vencidos"], ["semana", "Próximos 7 días"], ["pagos", k === "pagar" ? "Pagados" : "Cobrados"]].map(([x, l]) => `<button class="chip" data-a="finF" data-id="${x}" aria-pressed="${f === x}">${l}</button>`).join("")}</div>`;
-  h += `<p class="summary">${list.length} cuentas · ${fmt(sum(list, t => f === "pagos" ? t.valor : t.aberto))}</p><div class="list">${list.slice(0, 120).map(titRow).join("") || empty("Nada aquí.", "")}</div>`;
+  h += `<p class="summary">${list.length} cuentas · ${fmt(sum(list, t => f === "pagos" ? t.valor : t.aberto))}</p>${DESK() ? titTable(list.slice(0, 300)) : `<div class="list">${list.slice(0, 120).map(titRow).join("") || empty("Nada aquí.", "")}</div>`}`;
   return h;
 }
 function vFluxo() {
@@ -1624,6 +1735,21 @@ function tabsFor() {
   t.push(["mais", "grid", "Más"]);
   return t;
 }
+/* Barra lateral do computador: todas as áreas agrupadas, respeitando as permissões do papel */
+const SIDE_DE = { pedido: "vendas", novoPedido: "vendas", cliente: "clientes", fornecedor: "fornecedores", compra: "compras", novaCompra: "compras", inventario: "estoque", categorias: "estoque", importar: "estoque", fiscal: "empresa", conta: "mais", termos: "mais" };
+function sideNav() {
+  const m = ME(), cur = SIDE_DE[ui.route] || ui.route;
+  const it = (r, i, l, ok) => ok === false ? "" : `<button data-a="tab" data-r="${r}" aria-current="${cur === r ? "page" : "false"}">${ico(i)}<span>${l}</span></button>`;
+  const grp = (t, itens) => { const x = itens.join(""); return x ? `<p class="sn-sec">${t}</p>${x}` : ""; };
+  return `<div class="sn-brand">${marcaSaus("escuro", "var(--side-bg)")}<b>Saus<span>360</span></b>${MODE === "demo" ? '<span class="demo-tag">DEMO</span>' : ""}</div>
+    <button class="sn-new" data-a="sheet" data-k="quick">${ico("plus", 20)}<span>Nuevo</span></button>
+    <div class="sn-nav">${it("inicio", "home", "Inicio")}
+    ${grp("Comercial", [it("vendas", "order", "Ventas", can("vendas")), it("clientes", "users", "Clientes", can("clientes")), can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span>Catálogo</span></button>` : ""])}
+    ${grp("Inventario", [it("estoque", "bottle", "Productos", can("estoque")), it("compras", "cart", "Compras", can("compras")), it("fornecedores", "truck", "Proveedores", can("fornecedores"))])}
+    ${grp("Gestión", [it("financeiro", "wallet", "Finanzas", can("receber") || can("pagar")), it("relatorios", "chart", "Reportes", can("relatorios")), temFiscal() ? it("notas", "receipt", "Notas fiscales", can("fiscal")) : ""])}
+    ${grp("Empresa", [it("equipe", "users", "Equipo"), it("empresa", "building", "Datos de la empresa", can("empresa")), it("atividade", "activity", "Actividad", can("atividade"))])}</div>
+    <button class="sn-me" data-a="tab" data-r="mais" aria-current="${cur === "mais" ? "page" : "false"}"><span class="avatar sm">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${esc(S.emp ? S.emp.nome : "")}</small></span>${ico("grid", 18)}</button>`;
+}
 function render() {
   const pub = ["entrada", "login", "termos"];
   if (MODE === null && !pub.includes(ui.route)) ui.route = SB && !SESSION ? "login" : "entrada";
@@ -1636,7 +1762,9 @@ function render() {
   const bar = $("tabbar"), bare = pub.includes(ui.route) || !ME();
   bar.hidden = bare;
   $("app").className = "app" + (bare ? " bare" : "") + (["novoPedido", "inventario", "novaCompra"].includes(ui.route) ? " with-foot" : "") + " r-" + ui.route;
-  if (!bare) {
+  if (!bare && DESK()) { bar.classList.add("side"); bar.innerHTML = sideNav(); }
+  else if (!bare) {
+    bar.classList.remove("side");
     const cur = R.tab === "compras" && can("vendas") ? "mais" : R.tab;
     bar.innerHTML = tabsFor().map(([k, i, l]) => k === "fab" ? `<button data-a="sheet" data-k="quick" aria-label="Nuevo"><span class="fab">${ico(i, 26)}</span><span>${l}</span></button>` : `<button data-a="tab" data-r="${k}" aria-current="${cur === k ? "page" : "false"}">${ico(i)}<span>${l}</span></button>`).join("");
   }
