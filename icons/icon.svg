@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" fill="#464B71"/><svg x="66.56" y="66.56" width="378.88" height="378.88" viewBox="0 0 100 100">
+<defs><linearGradient id="msescuroa" gradientUnits="userSpaceOnUse" x1="30" y1="16" x2="62" y2="50"><stop offset="0" stop-color="#2B9FCB"/><stop offset="1" stop-color="#47BEDD"/></linearGradient>
+<linearGradient id="msescurob" gradientUnits="userSpaceOnUse" x1="50" y1="50" x2="40" y2="84"><stop offset="0" stop-color="#47BEDD"/><stop offset="1" stop-color="#7CD5C7"/></linearGradient></defs>
+<g fill="none" stroke-width="15" stroke-linejoin="miter" stroke-miterlimit="4">
+<path d="M71.2 28.24 L50 16 L20.56 33 L20.56 50 L52 50" stroke="url(#msescuroa)"/>
+<path d="M48 50 L79.44 50 L79.44 67 L50 84 L28.8 71.76" stroke="url(#msescurob)"/></g>
+<path d="M50 33.5 L64.3 41.75 L64.3 58.25 L50 66.5 L35.7 58.25 L35.7 41.75 Z" style="fill:#464B71;stroke:#464B71" stroke-width="3" stroke-linejoin="round"/>
+<path d="M50 36 L62.1 43 L50 50 L37.9 43 Z" fill="#FFFFFF"/><path d="M37.9 43 L50 50 L50 64 L37.9 57 Z" fill="#E4E7EF"/><path d="M50 50 L62.1 43 L62.1 57 L50 64 Z" fill="#C3C9DA"/>
+<path d="M50 36 L62.1 43 L62.1 57 L50 64 L37.9 57 L37.9 43 Z M37.9 43 L50 50 L62.1 43 M50 50 L50 64" fill="none" stroke="#464B71" stroke-width="1.3" stroke-linejoin="round"/>
+<path d="M43.9 39.5 L56 46.5 L56 50.8" fill="none" stroke="#464B71" stroke-width="1.3" stroke-linejoin="round" opacity=".85"/>
+</svg></svg>
