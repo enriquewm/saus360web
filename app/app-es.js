@@ -292,6 +292,7 @@ function startDemo() {
   ui.route = "inicio"; ui.stack = []; closeSheet(); render(); window.scrollTo(0, 0);
 }
 function leaveCompany() {
+  if (typeof SupaBE !== "undefined") SupaBE.cancelar(); // carga em andamento da empresa anterior para aqui
   unsubscribeAll(); MODE = null; EID = null; resetState(); closeSheet(); ui.route = "entrada"; ui.stack = [];
   UID = REAL_UID;
   if (PROFILE) { PROFILE.atual = null; savePrefs(); if (cloudState === "on" && DB) ClaudeBE.saveProfile(); }
@@ -687,23 +688,45 @@ const Scanner = {
         }
         const r = await BS.scan();
         return r && r.barcodes && r.barcodes[0] ? String(r.barcodes[0].rawValue || r.barcodes[0].displayValue || "") : null;
-      } catch (e) { if (/cancel/i.test(String(e && e.message))) return null; toast("No se pudo abrir el lector. Escribe el código."); return this.manual(); }
+      } catch (e) {
+        if (/cancel/i.test(String(e && e.message))) return null;
+        Erros.enviar("leitor", "nativo: " + String((e && e.message) || e), e && e.stack);
+        toast("No se pudo abrir el lector. Escribe el código."); return this.manual();
+      }
     }
-    if ("BarcodeDetector" in window && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try { return await this.webScan(); } catch (e) { return this.manual(); }
+    if (!(window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { toast("Este dispositivo no permite usar la cámara aquí. Escribe el código o usa un lector USB."); return this.manual(); }
+    const motivo = await this.webSuportado();
+    if (motivo) { toast(motivo); return this.manual(); }
+    try { return await this.webScan(); }
+    catch (e) {
+      const n = String((e && (e.name || e.message)) || e);
+      if (/NotAllowed|Permission|Security/i.test(n)) toast("Permite el acceso a la cámara en la configuración del navegador para leer códigos.");
+      else if (/NotFound|Overconstrained|NotReadable/i.test(n)) toast("No se encontró la cámara o la está usando otra app. Escribe el código.");
+      else { toast("No se pudo abrir la cámara. Escribe el código."); Erros.enviar("leitor", "web: " + n, e && e.stack); }
+      return this.manual();
     }
-    return this.manual();
+  },
+  /* Navegador: só abre a câmera se ele souber ler os formatos de produto (iPhone/Safari e Firefox ainda não sabem) */
+  async webSuportado() {
+    const nao = "Este navegador no lee códigos con la cámara (iPhone y Firefox aún no tienen esta función). Escribe el código o usa un lector USB o Bluetooth.";
+    if (!("BarcodeDetector" in window)) return nao;
+    try {
+      const f = window.BarcodeDetector.getSupportedFormats ? await window.BarcodeDetector.getSupportedFormats() : null;
+      if (f && !f.some(x => /ean_13|ean_8|upc_a|code_128/.test(x))) return nao;
+      this._formatos = f ? ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "itf", "qr_code"].filter(x => f.includes(x)) : null;
+    } catch (e) {}
+    return "";
   },
   webScan() {
     return new Promise(async (resolve, reject) => {
-      let det; try { det = new window.BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "qr_code"] }); } catch (e) { return reject(e); }
+      let det; try { det = new window.BarcodeDetector({ formats: this._formatos && this._formatos.length ? this._formatos : ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "qr_code"] }); } catch (e) { return reject(e); }
       let stream; try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); } catch (e) { return reject(e); }
       this.active = true; this.stream = stream;
-      const ov = $("scanner"); ov.hidden = false; const v = $("scanVideo"); v.srcObject = stream; await v.play().catch(() => {});
+      const ov = $("scanner"); ov.hidden = false; const v = $("scanVideo"); v.srcObject = stream; v.play().catch(() => {}); // não espera: em alguns aparelhos o play() demora e travaria o leitor
       this._resolve = resolve;
       const tick = async () => {
         if (!this.active) return;
-        try { const r = await det.detect(v); if (r && r[0] && r[0].rawValue) { const code = r[0].rawValue; this.stop(); if (navigator.vibrate) navigator.vibrate(60); resolve(code); return; } } catch (e) {}
+        try { const r = await det.detect(v); if (r && r[0] && r[0].rawValue) { const code = r[0].rawValue; this._resolve = null; this.stop(); if (navigator.vibrate) navigator.vibrate(60); resolve(code); return; } /* stop() devolveria null antes do código */ } catch (e) {}
         this.loop = setTimeout(tick, 180);
       };
       tick();
@@ -717,21 +740,26 @@ const Scanner = {
   },
   manual() { return new Promise(res => { openSheet({ k: "codigoManual", vals: {}, resolve: res }, true); }); }
 };
-/* Leitores USB/Bluetooth funcionam como teclado: dígitos rápidos seguidos de Enter */
+/* Leitores USB/Bluetooth funcionam como teclado: caracteres rápidos (até 100 ms entre eles; os Bluetooth são mais lentos)
+   seguidos de Enter ou Tab. Só conta como código se for quase todo número, para não confundir com alguém digitando rápido. */
+const pareceCodigo = b => /^\d{6,}$/.test(b) || (/^[0-9A-Za-z-]{8,}$/.test(b) && b.replace(/\D/g, "").length >= b.length * 0.6);
 (() => {
   let buf = "", last = 0;
   document.addEventListener("keydown", e => {
     const now = Date.now();
-    if (now - last > 60) buf = "";
+    if (now - last > 100) buf = "";
     last = now;
-    if (e.key === "Enter") {
-      if (buf.length >= 8 && /^[0-9A-Za-z-]+$/.test(buf)) { const code = buf; buf = ""; const a = document.activeElement; if (a && a.tagName === "INPUT" && a.value.endsWith(code)) a.value = a.value.slice(0, -code.length); e.preventDefault(); onScan(code, "teclado"); }
+    if (e.key === "Enter" || e.key === "Tab") {
+      if (pareceCodigo(buf)) { const code = buf; buf = ""; const a = document.activeElement; if (a && a.tagName === "INPUT" && a.value.endsWith(code)) a.value = a.value.slice(0, -code.length); e.preventDefault(); onScan(code, "teclado"); }
       buf = ""; return;
     }
     if (e.key && e.key.length === 1) buf += e.key;
   }, true);
 })();
-const byEan = code => { const c = String(code || "").trim(); return c ? S.prod.find(p => p.ean && String(p.ean).trim() === c) : null; };
+/* Código de barras: compara sem espaços e sem zeros à esquerda, para que UPC-A (12 dígitos) e EAN-13 (13 dígitos com 0 na frente)
+   do mesmo produto se reconheçam; o leitor do celular costuma devolver um formato e o cadastro ter o outro */
+const eanNorm = code => { const s = String(code || "").replace(/\s+/g, "").trim(); return /^\d+$/.test(s) ? s.replace(/^0+/, "") : s.toUpperCase(); };
+const byEan = code => { const c = eanNorm(code); return c ? S.prod.find(p => p.ean && eanNorm(p.ean) === c) : null; };
 
 /* ---- backends.js ---- */
 /* ================= Backends ================= */
@@ -823,22 +851,30 @@ const SupaBE = {
   async delMem(id) { this.ok(await SB.from("membros").delete().match({ empresa_id: EID, user_id: id })); },
   mapEmp(r) { return Object.assign({}, r.dados || {}, { id: r.id, nome: r.nome, codigo: r.codigo, plano: r.plano, teste_ate: r.teste_ate, criadoEm: r.criado_em }); },
   mapMem(r) { return { id: r.user_id, nome: r.nome, papel: r.papel, comissao: Number(r.comissao) || 0, entrou: r.entrou }; },
+  /* Carrega a empresa inteira. Usa uma cópia do id e um número de geração: se a pessoa sair ou trocar de empresa
+     no meio (ou outra carga começar), esta carga para sem erro e não mistura dados de duas empresas. */
   async loadAll() {
-    const emp = this.ok(await SB.from("empresas").select("*").eq("id", EID).maybeSingle());
-    S.emp = emp ? this.mapEmp(emp) : null;
-    S.mem = (this.ok(await SB.from("membros").select("*").eq("empresa_id", EID)) || []).map(r => this.mapMem(r));
+    const eid = EID, gen = this._gen = (this._gen || 0) + 1;
+    const vivo = () => { if (gen !== this._gen || EID !== eid) { const e = new Error("carga cancelada"); e.cancelado = true; throw e; } };
+    if (!eid) vivo();
+    const N = {};
+    const emp = this.ok(await SB.from("empresas").select("*").eq("id", eid).maybeSingle()); vivo();
+    N.emp = emp ? this.mapEmp(emp) : null;
+    N.mem = (this.ok(await SB.from("membros").select("*").eq("empresa_id", eid)) || []).map(r => this.mapMem(r)); vivo();
     for (const c of COLS) {
       if (c === "mem") continue;
-      if (c === "mov") { const rows = this.ok(await SB.from("registros").select("id,dados").eq("empresa_id", EID).eq("colecao", "mov").order("atualizado_em", { ascending: false }).limit(400)); S.mov = rows.map(r => Object.assign({ id: r.id }, r.dados)); continue; }
+      if (c === "mov") { const rows = this.ok(await SB.from("registros").select("id,dados").eq("empresa_id", eid).eq("colecao", "mov").order("atualizado_em", { ascending: false }).limit(400)); vivo(); N.mov = rows.map(r => Object.assign({ id: r.id }, r.dados)); continue; }
       const out = [];
       for (let from = 0; ; from += 1000) {
-        const rows = this.ok(await SB.from("registros").select("id,dados").eq("empresa_id", EID).eq("colecao", c).range(from, from + 999));
+        const rows = this.ok(await SB.from("registros").select("id,dados").eq("empresa_id", eid).eq("colecao", c).range(from, from + 999)); vivo();
         rows.forEach(r => out.push(Object.assign({ id: r.id }, r.dados)));
         if (rows.length < 1000) break;
       }
-      S[c] = out;
+      N[c] = out;
     }
+    vivo(); Object.assign(S, N);
   },
+  cancelar() { this._gen = (this._gen || 0) + 1; },
   subscribe() {
     unsubscribeAll();
     const ch = SB.channel("emp-" + EID)
@@ -856,10 +892,10 @@ const SupaBE = {
     MODE = "supa"; EID = eid; resetState(); closeSheet(); ui.route = "inicio"; ui.stack = []; loadState = "loading"; render();
     PROFILE.atual = eid; savePrefs();
     try { await this.loadAll(); loadState = "ok"; this.subscribe(); Acesso.marcar(true); }
-    catch (e) { loadState = "erro"; Erros.enviar("carregar", (e && e.message) || String(e), e && e.stack); }
+    catch (e) { if (e && e.cancelado) return; loadState = "erro"; Erros.enviar("carregar", (e && e.message) || String(e), e && e.stack); }
     render();
   },
-  reload() { clearTimeout(this._rl); this._rl = setTimeout(async () => { if (MODE !== "supa" || !EID) return; try { await this.loadAll(); loadState = "ok"; Acesso.marcar(); } catch (e) { loadState = "erro"; Erros.enviar("carregar", (e && e.message) || String(e), e && e.stack); } scheduleRender(); }, 400); },
+  reload() { clearTimeout(this._rl); this._rl = setTimeout(async () => { if (MODE !== "supa" || !EID) return; try { await this.loadAll(); loadState = "ok"; Acesso.marcar(); } catch (e) { if (e && e.cancelado) return; loadState = "erro"; Erros.enviar("carregar", (e && e.message) || String(e), e && e.stack); } scheduleRender(); }, 400); },
   async empresas() { const rows = this.ok(await SB.from("empresas").select("id,nome").order("nome")); PROFILE = PROFILE || {}; PROFILE.empresas = (rows || []).map(r => ({ eid: r.id, nome: r.nome })); },
   async create(v) {
     const r = this.ok(await SB.rpc("criar_empresa", { p_nome: v.nome, p_dados: { cnpj: v.cnpj || "", cidade: v.cidade || "", fone: v.fone || "", fiscal: {}, rubro: RUBROS[v.rubro] ? v.rubro : "vinhos", pais: PAISES[v.pais] ? v.pais : "BR", ivaSomar: v.ivaSomar !== false }, p_seu_nome: v.seuNome }));
@@ -1125,7 +1161,9 @@ function vInicio() {
   return h;
 }
 function vSemAcesso() {
-  if (MODE === "cloud" && (loadState === "loading" || loadState === "slow")) return banners() + `<div class="empty"><b>Cargando…</b></div>`;
+  // Enquanto os dados da empresa chegam, a lista de membros ainda está vazia: não é falta de acesso
+  if ((MODE === "cloud" || MODE === "supa") && (loadState === "loading" || loadState === "slow")) return `${marcaHtml()}<div class="empty"><b>Cargando los datos de la empresa…</b>Esto tarda unos segundos la primera vez.</div>`;
+  if (MODE === "supa" && loadState === "erro") return `${marcaHtml()}${empty("No se pudo cargar la empresa.", "Revisa tu conexión a internet e inténtalo de nuevo.", `<div class="btns"><button class="btn" data-a="recarregar">Intentar de nuevo</button><button class="btn line" data-a="sair">Volver</button></div>`)}`;
   return `${marcaHtml()}${empty("No formas parte de esta empresa.", "Es posible que el administrador haya quitado tu acceso.", `<button class="btn" data-a="sair">Volver</button>`)}`;
 }
 function pedRow(o) {
@@ -2213,6 +2251,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "demo": startDemo(); break;
     case "openEmp": openCompany(id); break;
     case "sair": leaveCompany(); break;
+    case "recarregar": if (MODE === "supa" && EID) SupaBE.open(EID); break;
     case "resetDemo": try { localStorage.removeItem(DEMO_KEY); } catch (er) {} startDemo(); toast("Datos de ejemplo restaurados"); break;
     case "verComo": UID = id; saveDemo(); ui.stack = []; ui.route = "inicio"; render(); toast("Ahora ves la app como " + nomeDe(id)); break;
     case "vf": ui.vFiltro = id; render(); break;
@@ -2746,7 +2785,7 @@ function parseNFeXML(text) {
   const dups = Array.from(inf.getElementsByTagName("dup")).map(d => ({ venc: q(d, "dVenc"), valor: nm(d, "vDup") })).filter(d => d.venc && d.valor);
   return { chave: (inf.getAttribute("Id") || "").replace(/^NFe/, ""), numero: q(ide, "nNF"), data: (q(ide, "dhEmi") || q(ide, "dEmi")).slice(0, 10), forn: { cnpj: q(emit, "CNPJ") || q(emit, "CPF"), nome: q(emit, "xFant") || q(emit, "xNome"), razao: q(emit, "xNome"), fone: q(emit, "fone") }, itens, total: nm(tot, "vNF"), dups };
 }
-function xmlMatch(it) { return (it.ean && S.prod.find(p => p.ean === it.ean)) || S.prod.find(p => norm(p.nome) === norm(it.nome)) || null; }
+function xmlMatch(it) { return (it.ean && byEan(it.ean)) || S.prod.find(p => norm(p.nome) === norm(it.nome)) || null; }
 function xmlCarregado(text) {
   try {
     const x = parseNFeXML(text);
