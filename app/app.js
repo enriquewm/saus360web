@@ -282,6 +282,49 @@ async function commit(ps) {
 function logMov(k, txt, extra) {
   return Store.put("mov", rid(), Object.assign({ ts: isoT(new Date()), k, txt, por: UID }, extra || {}));
 }
+/* Movimentos de estoque com quantidade, para o relatório de movimentos (tipo MB51 / kardex).
+   mv = [{ p: produto, q: variação, de: saldo antes, c: contado }]. Chamar ANTES de Store.stock, que já muda o saldo local. */
+function mvDe(changes) {
+  const agg = {};
+  (changes || []).forEach(c => { if (c && c.delta) agg[c.id] = (agg[c.id] || 0) + Number(c.delta); });
+  return Object.entries(agg).filter(([id, q]) => q && P(id)).map(([id, q]) => ({ p: id, q, de: P(id).estoque }));
+}
+const TM = { // tipos de movimento: rótulo e sentido (1 entra, −1 sai, 0 ajuste/sem quantidade)
+  venda: ["Venda", -1], consig: ["Saída em consignação", -1], dev_consig: ["Devolução de consignação", 1], est_venda: ["Venda cancelada (estorno)", 1], est_consig: ["Consignação cancelada (estorno)", 1],
+  acerto: ["Acerto de consignação", 0], receb: ["Recebimento de compra", 1], entrada: ["Entrada manual", 1], baixa: ["Baixa", -1], contagem: ["Contagem individual", 0], inventario: ["Inventário geral", 0],
+  import: ["Importação de planilha", 0], compra: ["Pedido de compra", 0], cadastro: ["Cadastro", 0], outro: ["Outro", 0]
+};
+function movTipo(e) {
+  if (e.tm && TM[e.tm]) return e.tm;
+  const t = String(e.txt || "");
+  if (e.k === "venda") return /cancelad/i.test(t) ? "est_venda" : "venda";
+  if (e.k === "consig") return /^Devolução/i.test(t) ? "dev_consig" : /^Acerto/i.test(t) ? "acerto" : /cancelad/i.test(t) ? "est_consig" : "consig";
+  if (e.k === "estoque") return /^Entrada/i.test(t) ? "entrada" : /^Baixa/i.test(t) ? "baixa" : /^Contagem/i.test(t) ? "contagem" : /^Inventário/i.test(t) ? "inventario" : /^Mercadoria recebida/i.test(t) ? "receb" : /^Importação/i.test(t) ? "import" : "outro";
+  if (e.k === "compra") return "compra";
+  if (e.k === "cadastro") return "cadastro";
+  return "outro";
+}
+/* Quantidade de um movimento para um produto: { q, de, c } ou null quando o registro não mexeu no estoque.
+   Registros antigos (sem mv) são reconstruídos pelo texto e pelo pedido ou compra de referência. */
+function movQtd(e, pid) {
+  if (Array.isArray(e.mv)) { const x = e.mv.find(m => m.p === pid); return x ? { q: Number(x.q) || 0, de: x.de, c: x.c } : null; }
+  const t = String(e.txt || ""), tm = movTipo(e), n = re => { const m = t.match(re); return m ? Number(m[1]) : null; };
+  const doPed = sinal => { const o = S.ped.find(x => x.id === e.ref); if (!o) return null; const its = o.itens.filter(i => i.p === pid); return its.length ? { q: sinal * sum(its, i => i.q) } : null; };
+  if (tm === "venda" || tm === "consig") return doPed(-1);
+  if (tm === "est_venda") return doPed(1);
+  if (tm === "est_consig") { const o = S.ped.find(x => x.id === e.ref); if (!o) return null; const its = o.itens.filter(i => i.p === pid); return its.length ? { q: sum(its, i => i.q - (i.dev || 0)) } : null; }
+  if (tm === "dev_consig") { const v = n(/:\s*(\d+)\s*×/); return v != null ? { q: v } : null; }
+  if (tm === "receb") { const c = S.comp.find(x => x.id === e.ref); if (!c) return null; const its = c.itens.filter(i => i.p === pid); return its.length ? { q: sum(its, i => i.q) } : null; }
+  if (tm === "entrada") { const v = n(/\+(\d+)/); return v != null ? { q: v } : null; }
+  if (tm === "baixa") { const v = n(/[−-](\d+)/); return v != null ? { q: -v } : null; }
+  if (tm === "contagem") { const m = t.match(/sistema (\d+), contado (\d+)/); return m ? { q: Number(m[2]) - Number(m[1]), de: Number(m[1]), c: Number(m[2]) } : null; }
+  return null;
+}
+/* Contagem geral em andamento: fica guardada no aparelho até finalizar, para não perder se o app fechar */
+const INV_KEY = () => "saus360-inv-" + (EID || "x");
+function invCarregar() { if (ui.invEid === EID) return; ui.invEid = EID; try { ui.inv = JSON.parse(localStorage.getItem(INV_KEY())) || {}; } catch (e) { ui.inv = {}; } }
+function invGuardar() { try { if (Object.keys(ui.inv).length) localStorage.setItem(INV_KEY(), JSON.stringify(ui.inv)); else localStorage.removeItem(INV_KEY()); } catch (e) {} }
+const invContado = pid => ui.inv[pid] != null && ui.inv[pid] !== "";
 function unsubscribeAll() { unsubs.forEach(u => { try { u(); } catch (e) {} }); unsubs = []; clearTimeout(loadTimer); }
 function startDemo() {
   MODE = "demo"; EID = "demo"; unsubscribeAll(); CAN_WRITE = true; loadState = "ok";
@@ -499,7 +542,7 @@ function demoSeed() {
 
 /* ================= Infra de interface ================= */
 const ui = {
-  route: "entrada", id: null, stack: [], sheet: null, draft: null, cdraft: null, inv: {},
+  route: "entrada", id: null, stack: [], sheet: null, draft: null, cdraft: null, inv: {}, invEid: null, invModo: "geral", invF: "todos", invQ: "", movP: "", movPer: "d90", movT: "todos", movRemoto: null,
   q: "", fTipo: "todos", vq: "", vFiltro: "todos", cq: "", cFiltro: "todos", kFiltro: "abertas",
   finTab: "receber", finFiltro: "abertos", relTab: "vendas", per: "mes", actF: "tudo", actU: "todos", impTipo: "prod", impTxt: ""
 };
@@ -875,6 +918,14 @@ const SupaBE = {
     vivo(); Object.assign(S, N);
   },
   cancelar() { this._gen = (this._gen || 0) + 1; },
+  /* Relatório de movimentos: busca no servidor além dos 400 registros carregados na abertura */
+  async movs(pid, desde) {
+    let q = SB.from("registros").select("id,dados").eq("empresa_id", EID).eq("colecao", "mov");
+    if (pid) q = q.contains("dados", { ps: [pid] });
+    if (desde) q = q.gte("dados->>ts", desde);
+    const rows = this.ok(await q.order("atualizado_em", { ascending: false }).limit(pid ? 2000 : 3000));
+    return rows.map(r => Object.assign({ id: r.id }, r.dados));
+  },
   subscribe() {
     unsubscribeAll();
     const ch = SB.channel("emp-" + EID)
@@ -1365,26 +1416,45 @@ function prodList() {
 function vEstoque() {
   if (ui.fTipo && !FILTROS_EST.includes(ui.fTipo) && !cats().some(c => c.id === ui.fTipo)) ui.fTipo = "todos";
   const f = [["todos", "Todos"], ...cats().map(c => [c.id, c.l]), ["baixo", "Estoque baixo"], ["zero", "Sem estoque"], ["inativos", "Inativos"]];
-  const qk = (can("ajuste") ? [`<button data-a="go" data-r="inventario">${ico("clip")}Inventário</button>`, `<button data-a="go" data-r="importar">${ico("upload")}Importar</button>`, `<button data-a="exportProd">${ico("download")}Exportar</button>`] : []).concat(can("vendas") ? [`<button data-a="abrirCatalogo">${ico("file")}Catálogo</button>`] : []);
+  const qk = (can("ajuste") ? [`<button data-a="go" data-r="inventario">${ico("clip")}Inventário</button>`, `<button data-a="go" data-r="movimentos">${ico("list")}Movimentos</button>`, `<button data-a="go" data-r="importar">${ico("upload")}Importar</button>`, `<button data-a="exportProd">${ico("download")}Exportar</button>`] : []).concat(can("vendas") ? [`<button data-a="abrirCatalogo">${ico("file")}Catálogo</button>`] : []);
   const novo = can("ajuste") ? `<button class="btn sm" data-a="sheet" data-k="prodForm">+ Produto</button>` : "";
   let h = head("Estoque", ehVinho() ? "Produtos e garrafas" : "Produtos", { action: DESK() ? `<div class="hdr-actions">${qk.map(b => b.replace("<button ", '<button class="btn sm line" ')).join("")}${novo}</div>` : novo }) + banners();
-  if (qk.length && !DESK()) h += `<div class="quick ${qk.length === 4 ? "" : qk.length === 3 ? "three" : qk.length === 2 ? "two" : "one"}">${qk.join("")}</div>`;
+  if (qk.length && !DESK()) h += `<div class="quick ${qk.length >= 5 ? "five" : qk.length === 4 ? "" : qk.length === 3 ? "three" : qk.length === 2 ? "two" : "one"}">${qk.join("")}</div>`;
   h += toolbar(`<label class="search" style="margin-top:10px">${ico("search", 18)}<input id="eq" type="search" placeholder="${ehVinho() ? "Nome, uva, país, código ou local" : "Nome, marca, referência, código ou local"}" value="${esc(ui.q)}" aria-label="Buscar produto"><button class="scanbtn" data-a="scan" aria-label="Ler código de barras">${ico("scan", 18)}</button></label>
   <div class="chips">${f.map(([k, l]) => `<button class="chip" data-a="ef" data-id="${k}" aria-pressed="${ui.fTipo === k}">${FILTROS_EST.includes(k) ? "" : `<i style="background:${esc(catDe(k).c)}"></i>`}${esc(l)}</button>`).join("")}</div>`) + `
   <div id="elist">${prodList()}</div>`;
   return h;
 }
+function invLista() { return S.prod.filter(p => p.ativo !== false).sort((a, b) => (a.loc || "").localeCompare(b.loc || "") || a.nome.localeCompare(b.nome)); }
 function vInventario() {
-  const list = S.prod.filter(p => p.ativo !== false).sort((a, b) => (a.loc || "").localeCompare(b.loc || "") || a.nome.localeCompare(b.nome));
-  let h = head("Inventário", "Contagem geral do estoque", { back: true }) + banners();
-  h += `<p class="hint" style="margin:0 2px 12px">Conte cada produto e digite o total, ou bipe os códigos: cada leitura soma 1 ao produto. Deixe em branco o que bater. No final, as diferenças viram ajustes no histórico.</p><button class="btn line block" style="margin:0 0 12px" data-a="scan">${ico("scan", 18)}Contar bipando os códigos</button>`;
-  h += `<div class="list">${list.map(p => { const v = ui.inv[p.id] != null ? ui.inv[p.id] : ""; const d = v !== "" && Number(v) !== p.estoque; return `<div class="irow ${d ? "diff" : ""}"><span class="wmain"><b>${esc(p.nome)}</b><small>${p.loc ? esc(p.loc) + " · " : ""}sistema ${p.estoque}${d ? ` · diferença ${Number(v) - p.estoque > 0 ? "+" : "−"}${Math.abs(Number(v) - p.estoque)}` : ""}</small></span><input type="number" inputmode="numeric" min="0" data-inv="${p.id}" value="${esc(v)}" placeholder="${p.estoque}" aria-label="Contado de ${esc(p.nome)}"></div>`; }).join("")}</div>`;
+  invCarregar();
+  const todos = invLista(), feitos = todos.filter(p => invContado(p.id)).length, falta = todos.length - feitos, q = norm(ui.invQ);
+  let h = head("Inventário", ui.invModo === "geral" ? "Contagem geral do estoque" : "Contagem de um produto", { back: true, action: `<button class="btn sm line" data-a="go" data-r="movimentos">${ico("list", 16)}Movimentos</button>` }) + banners();
+  h += `<div class="seg" style="margin-bottom:12px">${[["geral", "Contagem geral"], ["individual", "Contagem individual"]].map(([k, l]) => `<button data-a="invModo" data-id="${k}" aria-pressed="${ui.invModo === k}">${l}</button>`).join("")}</div>`;
+  const busca = `<label class="search" style="margin-bottom:10px">${ico("search", 18)}<input id="invQ" type="search" placeholder="Buscar produto, código ou local" value="${esc(ui.invQ)}" aria-label="Buscar produto"><button class="scanbtn" data-a="scan" aria-label="Ler código de barras">${ico("scan", 18)}</button></label>`;
+  const filtra = p => !q || norm([p.nome, p.ean, p.loc, p.ref, p.marca, p.produtor].filter(Boolean).join(" ")).includes(q);
+  if (ui.invModo === "individual") {
+    h += `<p class="hint" style="margin:0 2px 12px">Escolha o produto, conte na prateleira e salve. A diferença vira um ajuste no histórico na hora, sem esperar o resto.</p>` + busca;
+    h += `<div class="list" id="invlist">${todos.filter(filtra).map(p => `<button class="row" data-a="sheet" data-k="contagem" data-id="${p.id}"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>${p.loc ? esc(p.loc) + " · " : ""}sistema ${p.estoque} un.</small></span>${ico("chev", 18)}</button>`).join("") || empty("Nenhum produto encontrado.", "")}</div>`;
+    return h;
+  }
+  const pc = todos.length ? Math.round(feitos / todos.length * 100) : 0;
+  h += `<div class="invprog"><div><b>${feitos} de ${todos.length}</b> contados${falta ? ` · faltam ${falta}` : " · tudo contado"}</div><div class="bar"><i style="width:${pc}%"></i></div></div>`;
+  h += `<p class="hint" style="margin:0 2px 10px">Digite o total de cada produto, toque em ${ico("check", 14)} se bater com o sistema, ou bipe os códigos (cada leitura soma 1). <b class="invleg pend">Cinza</b> falta contar, <b class="invleg ok">verde</b> já contado. Só dá para finalizar com todos contados. A contagem fica salva neste aparelho até você finalizar.</p>`;
+  h += busca + `<div class="chips tight">${[["todos", `Todos (${todos.length})`], ["faltam", `Faltam (${falta})`], ["contados", `Contados (${feitos})`]].map(([k, l]) => `<button class="chip" data-a="invF" data-id="${k}" aria-pressed="${ui.invF === k}">${l}</button>`).join("")}</div>`;
+  const vis = todos.filter(filtra).filter(p => ui.invF === "todos" || (ui.invF === "faltam" ? !invContado(p.id) : invContado(p.id)));
+  h += `<div class="list" id="invlist" style="margin-top:10px">${vis.map(invRow).join("") || empty(ui.invF === "faltam" ? "Nenhum produto falta contar." : "Nenhum produto aqui.", "")}</div>`;
+  if (feitos) h += `<button class="btn line block" style="margin-top:14px" data-a="invDescartar">Recomeçar a contagem</button>`;
   h += `<div class="ofoot" id="ifoot">${invFoot()}</div>`;
   return h;
 }
+function invRow(p) {
+  const ok = invContado(p.id), v = ok ? ui.inv[p.id] : "", d = ok ? Number(v) - p.estoque : 0;
+  return `<div class="irow ${ok ? "ok" : "pend"}" data-row="${p.id}"><span class="ist" aria-hidden="true">${ok ? ico("check", 16) : ""}</span><span class="wmain"><b>${esc(p.nome)}</b><small>${p.loc ? esc(p.loc) + " · " : ""}sistema ${p.estoque}${ok ? (d ? ` · <span class="idf">diferença ${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : " · confere") : " · falta contar"}</small></span><button class="iok" data-a="invOk" data-id="${p.id}" aria-label="Confere com o sistema: ${p.estoque}" title="Confere com o sistema">${ico("check", 18)}</button><input type="number" inputmode="numeric" min="0" data-inv="${p.id}" value="${esc(v)}" placeholder="Qtd." aria-label="Contado de ${esc(p.nome)}"></div>`;
+}
 function invFoot() {
-  const list = S.prod.filter(p => p.ativo !== false), diffs = list.filter(p => ui.inv[p.id] != null && ui.inv[p.id] !== "" && Number(ui.inv[p.id]) !== p.estoque);
-  return `<div><small>${diffs.length} ${diffs.length === 1 ? "diferença" : "diferenças"}</small><b>${list.length} produtos</b></div><button class="btn" data-a="salvarInv" ${diffs.length ? "" : "disabled"}>Salvar ajustes</button>`;
+  const list = invLista(), feitos = list.filter(p => invContado(p.id)), falta = list.length - feitos.length, diffs = feitos.filter(p => Number(ui.inv[p.id]) !== p.estoque);
+  return `<div><small>${falta ? `faltam ${falta} · ` : ""}${diffs.length} ${diffs.length === 1 ? "diferença" : "diferenças"}</small><b>${feitos.length}/${list.length}</b></div><button class="btn" data-a="finInv" ${falta || !list.length ? "disabled" : ""}>${falta ? `Faltam ${falta}` : "Finalizar inventário"}</button>`;
 }
 
 /* ---- Mais ---- */
@@ -1396,7 +1466,7 @@ function vMais() {
   h += `<div class="row"><span class="avatar">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${PAPEIS[m.papel]}${m.comissao ? ` · comissão ${m.comissao}%` : ""}</small></span></div>`;
   if (MODE === "demo") h += `<p class="sec">Ver o app como</p><div class="chips wrap tight">${S.mem.map(x => `<button class="chip" data-a="verComo" data-id="${x.id}" aria-pressed="${x.id === UID}">${esc(firstName(x.nome))} · ${PAPEIS[x.papel]}</button>`).join("")}</div><p class="hint">Na demonstração você pode trocar de usuário para ver o que cada papel enxerga.</p>`;
   if (!D) h += `<p class="sec">Cadastros</p><div class="menu">${it("clientes", "users", "Clientes", "Ficha, crédito, histórico e consignação", can("clientes"))}${it("fornecedores", "truck", "Fornecedores", "Contatos, compras e contas a pagar", can("fornecedores"))}${it("estoque", "bottle", "Produtos", ehVinho() ? "Ficha do vinho, preços e estoque" : "Ficha, preços e estoque", can("estoque"))}</div>`;
-  const op = it("compras", "cart", "Compras", "Pedidos a fornecedores e recebimento", can("compras")) + it("financeiro", "wallet", "Financeiro", "Contas a receber, a pagar e fluxo de caixa", can("receber") || can("pagar")) + it("relatorios", "chart", "Relatórios", "Vendas, curva ABC, margem, comissões e atrasos", can("relatorios"));
+  const op = it("compras", "cart", "Compras", "Pedidos a fornecedores e recebimento", can("compras")) + it("financeiro", "wallet", "Financeiro", "Contas a receber, a pagar e fluxo de caixa", can("receber") || can("pagar")) + it("relatorios", "chart", "Relatórios", "Vendas, curva ABC, margem, comissões e atrasos", can("relatorios")) + it("movimentos", "list", "Movimentos de estoque", "Tudo o que aconteceu com cada produto", can("estoque"));
   const fis = temFiscal() ? it("notas", "receipt", "Notas fiscais", "NF-e, NFC-e e consignação emitidas", can("fiscal")) + it("fiscal", "shield", "Configuração fiscal", "Dados do emitente, tributação e credenciais", can("empresa")) : ""; // nota fiscal brasileira
   const cat = can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span class="wmain"><b>Catálogo de produtos</b><small>PDF com o estoque e os preços do cliente</small></span>${ico("chev", 18)}</button>` : "";
   if ((op || cat) && !D) h += `<p class="sec">Gestão</p><div class="menu">${cat}${op}</div>`;
@@ -1704,6 +1774,76 @@ function vCategorias() {
   h += `<p class="sec">Ramo da empresa</p><div class="menu"><button data-a="sheet" data-k="rubroForm">${ico("building")}<span class="wmain"><b>${esc(RUBROS[rubro()].l)}</b><small>Define os campos da ficha do produto e as categorias sugeridas</small></span>${ico("chev", 18)}</button></div>`;
   return h;
 }
+/* ---- Movimentos de estoque (tipo MB51 / kardex): tudo o que aconteceu com cada produto ---- */
+const MOV_PER = [["d30", "30 dias", 30], ["d90", "90 dias", 90], ["ano", "12 meses", 365], ["tudo", "Tudo", 0]];
+function movDesde() { const p = MOV_PER.find(x => x[0] === ui.movPer) || MOV_PER[1]; return p[2] ? addDays(today, -(p[2] - 1)) : ""; }
+function movFonte() {
+  const key = (ui.movP || "") + "|" + ui.movPer;
+  if (MODE !== "supa") return { rows: S.mov, carregando: false };
+  if (ui.movRemoto && ui.movRemoto.key === key) return { rows: ui.movRemoto.rows || S.mov, carregando: !ui.movRemoto.rows, erro: ui.movRemoto.erro };
+  ui.movRemoto = { key, rows: null };
+  const desde = movDesde();
+  SupaBE.movs(ui.movP || null, desde ? desde + "T00:00:00" : "").then(rows => { if (ui.movRemoto && ui.movRemoto.key === key) { ui.movRemoto.rows = rows; if (ui.route === "movimentos") render(); } })
+    .catch(e => { if (ui.movRemoto && ui.movRemoto.key === key) { ui.movRemoto.rows = S.mov; ui.movRemoto.erro = true; if (ui.route === "movimentos") render(); } Erros.enviar("rede", String((e && e.message) || e), e && e.stack, { tela: "movimentos" }); });
+  return { rows: S.mov, carregando: true };
+}
+function movDoc(e) {
+  const o = e.ref && S.ped.find(x => x.id === e.ref); if (o) return { t: `${tipoPed(o.tipo)} #${o.num}`, a: `data-a="go" data-r="pedido" data-id="${o.id}"` };
+  const c = e.ref && S.comp.find(x => x.id === e.ref); if (c) return { t: `Compra #${c.num}`, a: `data-a="go" data-r="compra" data-id="${c.id}"` };
+  return { t: "", a: "" };
+}
+/* Uma linha por produto e movimento, do mais novo para o mais antigo, com o saldo depois de cada um */
+function movLinhas() {
+  const fonte = movFonte(), desde = movDesde(), pid = ui.movP;
+  const regs = (fonte.rows || []).filter(e => Array.isArray(e.ps) && e.ps.length && (!desde || String(e.ts).slice(0, 10) >= desde) && (!pid || e.ps.includes(pid))).slice().sort(byTs);
+  const out = [];
+  const saldo = {}; // saldo corrente por produto, voltando no tempo a partir do estoque atual
+  regs.forEach(e => {
+    const tm = movTipo(e), ids = pid ? [pid] : [...new Set(e.ps)];
+    ids.forEach(id => {
+      const p = P(id), x = movQtd(e, id);
+      if (!pid && (!x || !x.q)) return; // na visão geral só entram os movimentos que mexeram no estoque
+      if (!(id in saldo)) saldo[id] = p ? p.estoque : null;
+      let depois = null;
+      if (x) { depois = x.de != null ? Number(x.de) + x.q : saldo[id]; saldo[id] = depois != null ? depois - x.q : null; }
+      else if (TM[tm] && TM[tm][1] !== 0 || tm === "inventario" || tm === "import") saldo[id] = null; // registro antigo sem quantidade: não dá para saber o saldo antes dele
+      out.push({ e, id, p, tm, x, depois });
+    });
+  });
+  return { linhas: out.filter(l => ui.movT === "todos" || (ui.movT === "entradas" ? l.x && l.x.q > 0 : ui.movT === "saidas" ? l.x && l.x.q < 0 : ui.movT === "contagens" ? l.tm === "contagem" || l.tm === "inventario" : !l.x || !l.x.q)), fonte };
+}
+const movQtdTxt = l => !l.x ? "" : l.x.q > 0 ? "+" + l.x.q : l.x.q < 0 ? "−" + Math.abs(l.x.q) : "0";
+const movDetalhe = l => { const x = l.x, t = []; if (x && x.c != null) t.push(`sistema ${x.de}, contado ${x.c}`); if (l.e.motivo) t.push(l.e.motivo); return t.join(" · "); };
+function vMovimentos() {
+  const p = ui.movP ? P(ui.movP) : null, D = DESK();
+  const { linhas, fonte } = movLinhas();
+  let h = head("Movimentos de estoque", p ? esc(p.nome) : "Todos os produtos", { back: ui.stack.length > 0, action: `<button class="iconbtn" data-a="exportMov" aria-label="Exportar movimentos">${ico("download", 18)}</button>` }) + banners();
+  const prods = S.prod.slice().sort((a, b) => a.nome.localeCompare(b.nome));
+  h += `<label class="field">Produto<select id="movP"><option value="">Todos os produtos</option>${prods.map(x => `<option value="${x.id}" ${ui.movP === x.id ? "selected" : ""}>${esc(x.nome)}${x.ativo === false ? " (inativo)" : ""}</option>`).join("")}</select></label>`;
+  h += `<div class="chips tight">${MOV_PER.map(([k, l]) => `<button class="chip" data-a="movPer" data-id="${k}" aria-pressed="${ui.movPer === k}">${l}</button>`).join("")}</div>`;
+  h += `<div class="chips">${[["todos", "Todos"], ["entradas", "Entradas"], ["saidas", "Saídas"], ["contagens", "Contagens"], ["outros", p ? "Outros eventos" : "Sem quantidade"]].filter(([k]) => p || k !== "outros").map(([k, l]) => `<button class="chip" data-a="movT" data-id="${k}" aria-pressed="${ui.movT === k}">${l}</button>`).join("")}</div>`;
+  const ent = sum(linhas, l => l.x && l.x.q > 0 ? l.x.q : 0), sai = sum(linhas, l => l.x && l.x.q < 0 ? -l.x.q : 0);
+  h += `<div class="stats">${p ? `<div class="stat"><span>Saldo atual</span><b>${p.estoque}</b><small>un. em estoque</small></div>` : ""}<div class="stat good"><span>Entradas</span><b>+${num(ent)}</b><small>un. no período</small></div><div class="stat warn"><span>Saídas</span><b>−${num(sai)}</b><small>un. no período</small></div><div class="stat"><span>Movimentos</span><b>${linhas.length}</b><small>${fonte.carregando ? "carregando…" : "registros"}</small></div></div>`;
+  if (fonte.erro) h += `<div class="note warn">Não foi possível buscar o histórico completo no servidor. Mostrando só os registros mais recentes.</div>`;
+  const vazio = empty(fonte.carregando ? "Carregando os movimentos…" : "Nenhum movimento no período.", p ? "" : "Escolha um produto para ver tudo o que aconteceu com ele, inclusive cadastro e pedidos de compra.");
+  const quando = e => `${fdy(e.ts)} ${String(e.ts).slice(11, 16)}`;
+  if (D) {
+    const cols = [["Data e hora"], ["Tipo"], ...(p ? [] : [["Produto"]]), ["Qtd.", "n"], ["Saldo", "n"], ["Documento"], ["Usuário"], ["Detalhe"]];
+    h += `<div style="margin-top:10px">${dtable(cols, linhas.map(l => { const doc = movDoc(l.e); return dtr(doc.a, [td(quando(l.e)), td(esc(TM[l.tm][0])), ...(p ? [] : [td(esc(l.p ? l.p.nome : "Produto removido"))]), td(`<span class="mvq ${l.x && l.x.q > 0 ? "pos" : l.x && l.x.q < 0 ? "neg" : ""}">${movQtdTxt(l)}</span>`, "n"), td(l.depois != null ? l.depois : (l.x ? "—" : ""), "n"), td(esc(doc.t), "mvdoc"), td(esc(nomeDe(l.e.por))), td(esc(movDetalhe(l) || (l.x ? "" : l.e.txt)))]); }), vazio, "t-mov")}</div>`;
+  } else {
+    let cur = "", rows = "";
+    linhas.forEach(l => { const d = String(l.e.ts).slice(0, 10), doc = movDoc(l.e); if (d !== cur) { cur = d; rows += `<p class="day">${d === today ? "Hoje" : d === addDays(today, -1) ? "Ontem" : fdy(d)}</p>`; }
+      rows += `<${doc.a ? "button" : "div"} class="row" ${doc.a}><span class="wmain"><b>${esc(TM[l.tm][0])}${p ? "" : " · " + esc(l.p ? l.p.nome : "Produto removido")}</b><small>${esc([String(l.e.ts).slice(11, 16), nomeDe(l.e.por), doc.t, movDetalhe(l)].filter(Boolean).join(" · "))}</small>${l.x ? "" : `<small>${esc(l.e.txt)}</small>`}</span><span class="right">${l.x ? `<b class="mvq ${l.x.q > 0 ? "pos" : l.x.q < 0 ? "neg" : ""}">${movQtdTxt(l)}</b>` : ""}${l.depois != null ? `<small class="mvsaldo">saldo ${l.depois}</small>` : ""}</span></${doc.a ? "button" : "div"}>`; });
+    h += `<div class="list" style="margin-top:12px">${rows || vazio}</div>`;
+  }
+  h += `<p class="hint">O saldo é o estoque depois de cada movimento. Registros feitos antes desta versão não guardavam a quantidade em todos os casos; nesses aparece “—”.</p>`;
+  return h;
+}
+function movCsv() {
+  const { linhas } = movLinhas();
+  return [["Data", "Hora", "Tipo", "Produto", "Código", "Quantidade", "Saldo depois", "Sistema antes", "Contado", "Documento", "Usuário", "Descrição"],
+    ...linhas.map(l => [String(l.e.ts).slice(0, 10), String(l.e.ts).slice(11, 16), TM[l.tm][0], l.p ? l.p.nome : "Produto removido", l.p ? l.p.ean || "" : "", l.x ? l.x.q : "", l.depois != null ? l.depois : "", l.x && l.x.de != null ? l.x.de : "", l.x && l.x.c != null ? l.x.c : "", movDoc(l.e).t, nomeDe(l.e.por), l.e.txt])];
+}
 function vAtividade() {
   const cats = { venda: "Vendas", consig: "Consignação", estoque: "Estoque", compra: "Compras", fin: "Financeiro", fiscal: "Fiscal", cadastro: "Cadastros", equipe: "Equipe" };
   const list = S.mov.filter(e => (ui.actF === "tudo" || e.k === ui.actF) && (ui.actU === "todos" || e.por === ui.actU)).slice().sort(byTs).slice(0, 250);
@@ -1758,7 +1898,7 @@ const ROUTES = {
   entrada: { v: vEntrada }, login: { v: vLogin }, termos: { v: vTermos }, inicio: { v: vInicio, tab: "inicio" },
   notas: { v: vNotas, tab: "mais", p: "fiscal" }, fiscal: { v: vFiscal, tab: "mais", p: "empresa" }, conta: { v: vConta, tab: "mais" },
   vendas: { v: vVendas, tab: "vendas", p: "vendas" }, pedido: { v: vPedido, tab: "vendas", p: "vendas" }, novoPedido: { v: vNovoPedido, tab: "vendas", p: "vendas" },
-  estoque: { v: vEstoque, tab: "estoque", p: "estoque" }, categorias: { v: vCategorias, tab: "mais", p: "empresa" }, inventario: { v: vInventario, tab: "estoque", p: "ajuste" },
+  estoque: { v: vEstoque, tab: "estoque", p: "estoque" }, categorias: { v: vCategorias, tab: "mais", p: "empresa" }, inventario: { v: vInventario, tab: "estoque", p: "ajuste" }, movimentos: { v: vMovimentos, tab: "estoque", p: "estoque" },
   mais: { v: vMais, tab: "mais" }, clientes: { v: vClientes, tab: "mais", p: "clientes" }, cliente: { v: vCliente, tab: "mais", p: "clientes" },
   fornecedores: { v: vFornecedores, tab: "mais", p: "fornecedores" }, fornecedor: { v: vFornecedor, tab: "mais", p: "fornecedores" },
   compras: { v: vCompras, tab: "compras", p: "compras" }, compra: { v: vCompra, tab: "compras", p: "compras" }, novaCompra: { v: vNovaCompra, tab: "compras", p: "compras" },
@@ -1774,7 +1914,7 @@ function tabsFor() {
   return t;
 }
 /* Barra lateral do computador: todas as áreas agrupadas, respeitando as permissões do papel */
-const SIDE_DE = { pedido: "vendas", novoPedido: "vendas", cliente: "clientes", fornecedor: "fornecedores", compra: "compras", novaCompra: "compras", inventario: "estoque", categorias: "estoque", importar: "estoque", fiscal: "empresa", conta: "mais", termos: "mais" };
+const SIDE_DE = { pedido: "vendas", novoPedido: "vendas", cliente: "clientes", fornecedor: "fornecedores", compra: "compras", novaCompra: "compras", inventario: "estoque", movimentos: "estoque", categorias: "estoque", importar: "estoque", fiscal: "empresa", conta: "mais", termos: "mais" };
 function sideNav() {
   const m = ME(), cur = SIDE_DE[ui.route] || ui.route;
   const it = (r, i, l, ok) => ok === false ? "" : `<button data-a="tab" data-r="${r}" aria-current="${cur === r ? "page" : "false"}">${ico(i)}<span>${l}</span></button>`;
@@ -1894,7 +2034,7 @@ const SH = {
       <div><dt>Vendidas em 90 dias</dt><dd>${vend90} un.</dd></div><div><dt>Localização</dt><dd>${esc(p.loc || "—")}</dd></div><div><dt>Código</dt><dd>${esc(p.ean || "—")}</dd></div><div><dt>Fornecedor</dt><dd>${esc(p.forn && Fo(p.forn) ? Fo(p.forn).nome : "—")}</dd></div>
       ${p.temp ? `<div class="full"><dt>Serviço</dt><dd>${esc(p.temp)}</dd></div>` : ""}${p.harmon ? `<div class="full"><dt>${ehVinho() ? "Harmonização" : "Observações"}</dt><dd>${esc(p.harmon)}</dd></div>` : ""}</dl>
     ${can("ajuste") ? `<div class="btns"><button class="btn line" data-a="sheet" data-k="prodForm" data-id="${p.id}">${ico("edit", 16)}Editar</button><button class="btn line" data-a="toggleAtivo" data-id="${p.id}">${p.ativo === false ? "Reativar" : "Inativar"}</button></div>` : ""}
-    <p class="sec">Últimas movimentações</p><div class="list">${hist.map(e => `<div class="row"><span class="avatar sm">${initials(nomeDe(e.por))}</span><span class="wmain"><b style="font-weight:500">${esc(e.txt)}</b><small>${esc(nomeDe(e.por))} · ${fdy(e.ts)}</small></span></div>`).join("") || empty("Sem movimentações registradas.", "")}</div>`];
+    <p class="sec">Últimas movimentações<button class="btn sm line" style="margin-left:auto;text-transform:none;letter-spacing:0" data-a="go" data-r="movimentos" data-id="${p.id}">Ver todos</button></p><div class="list">${hist.map(e => `<div class="row"><span class="avatar sm">${initials(nomeDe(e.por))}</span><span class="wmain"><b style="font-weight:500">${esc(e.txt)}</b><small>${esc(nomeDe(e.por))} · ${fdy(e.ts)}</small></span></div>`).join("") || empty("Sem movimentações registradas.", "")}</div>`];
   },
   prodForm: s => [s.id ? "Editar produto" : "Novo produto", formHtml(SPEC.prod(s).filter(f => !(s.id && f.k === "estoque")), s.vals) + (s.id ? `<p class="hint">Para mudar a quantidade em estoque use Entrada, Baixa ou Contagem: assim fica registrado no histórico.</p>` : "") + `${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" data-a="saveProd">${s.id ? "Salvar alterações" : "Cadastrar produto"}</button>`],
   entrada: s => { const p = P(s.id); return ["Entrada de estoque", `${prodMini(p)}
@@ -1908,6 +2048,13 @@ const SH = {
     ${bigStepper(s.qty, 1, Math.max(1, p.estoque))}<div id="shd">${SHD.baixa(s)}</div>
     <label class="field">Observação<input data-f="nota" value="${esc(s.vals.nota || "")}" placeholder="Ex: garrafa trincada no recebimento"></label>
     <button class="btn block" data-a="doBaixa">Registrar baixa</button>`]; },
+  finInv: () => {
+    const list = invLista(), d = list.map(p => ({ p, q: parseInt(ui.inv[p.id], 10) - p.estoque })).filter(x => x.q), plus = sum(d, x => Math.max(0, x.q)), minus = sum(d, x => Math.max(0, -x.q));
+    return ["Finalizar inventário", `<div class="stats"><div class="stat good"><span>Contados</span><b>${list.length}</b><small>todos os produtos</small></div><div class="stat ${d.length ? "warn" : ""}"><span>Com diferença</span><b>${d.length}</b><small>+${plus} / −${minus} un.</small></div></div>
+    ${d.length ? `<p class="sec">Ajustes que serão feitos</p><div class="list">${d.slice(0, 40).map(x => `<div class="row"><span class="wmain"><b>${esc(x.p.nome)}</b><small>sistema ${x.p.estoque} → contado ${x.p.estoque + x.q}</small></span><b class="${x.q > 0 ? "pos" : "neg"}">${x.q > 0 ? "+" : "−"}${Math.abs(x.q)}</b></div>`).join("")}</div>${d.length > 40 ? `<p class="hint">E mais ${d.length - 40}.</p>` : ""}` : `<div class="note good">Tudo bate com o sistema. O inventário fica registrado no histórico de cada produto.</div>`}
+    <button class="btn block" style="margin-top:14px" data-a="doFinInv">${d.length ? "Confirmar e ajustar o estoque" : "Confirmar inventário"}</button>`];
+  },
+  invDescartar: () => ["Recomeçar a contagem?", `<p class="hint" style="margin:0 0 14px">Apaga o que já foi contado neste aparelho. O estoque não muda.</p><button class="btn block danger" data-a="doInvDescartar">Apagar e recomeçar</button>`],
   contagem: s => { const p = P(s.id); return ["Contagem física", `${prodMini(p, `No sistema: ${p.estoque} un.`)}<p class="hint">Conte na prateleira e informe o total encontrado.</p>${bigStepper(s.qty, 0, 99999)}<div id="shd">${SHD.contagem(s)}</div><button class="btn block" data-a="doContagem">Salvar contagem</button>`]; },
   pickProdEntrada: s => ["Entrada: escolha o produto", pickList(s, S.prod.filter(p => p.ativo !== false), p => `<button class="row" data-a="sheet" data-k="entrada" data-id="${p.id}"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>${p.estoque} un.</small></span>${ico("chev", 18)}</button>`, p => [p.nome, p.uva, p.ean].join(" "))],
   pickProd: s => ["Adicionar à compra", pickList(s, S.prod.filter(p => p.ativo !== false).sort((a, b) => (b.forn === (ui.cdraft && ui.cdraft.forn)) - (a.forn === (ui.cdraft && ui.cdraft.forn))), p => `<button class="row" data-a="addItemCompra" data-id="${p.id}"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>${p.estoque} un. · mín. ${p.min || 0} · custo ${fmt(p.custo)}</small></span>${ico("plus", 18)}</button>`, p => [p.nome, p.uva, p.ean].join(" ")) + (can("ajuste") ? `<button class="btn line block" style="margin-top:10px" data-a="novoProdCompra">+ Cadastrar novo produto</button>` : "")],
@@ -2057,6 +2204,18 @@ function initSheet(k, id, t) {
 }
 
 /* ================= Ações ================= */
+/* Atualiza só a linha e o rodapé, sem redesenhar a tela (não tira o foco do campo que está sendo digitado) */
+function invAtualiza(pid) {
+  const p = P(pid), row = document.querySelector(`.irow[data-row="${pid}"]`);
+  if (p && row) {
+    const tmp = document.createElement("div"); tmp.innerHTML = invRow(p); const n = tmp.firstElementChild;
+    row.className = n.className; row.querySelector(".ist").innerHTML = n.querySelector(".ist").innerHTML; row.querySelector("small").innerHTML = n.querySelector("small").innerHTML;
+    const inp = row.querySelector("input"); if (inp && document.activeElement !== inp) inp.value = n.querySelector("input").value;
+  }
+  const f = $("ifoot"); if (f) f.innerHTML = invFoot();
+  const pr = document.querySelector(".invprog"); if (pr) { const l = invLista(), k = l.filter(x => invContado(x.id)).length, fa = l.length - k; pr.innerHTML = `<div><b>${k} de ${l.length}</b> contados${fa ? ` · faltam ${fa}` : " · tudo contado"}</div><div class="bar"><i style="width:${l.length ? Math.round(k / l.length * 100) : 0}%"></i></div>`; }
+  document.querySelectorAll('[data-a="invF"]').forEach(b => { const l = invLista(), k = l.filter(x => invContado(x.id)).length; b.textContent = b.dataset.id === "todos" ? `Todos (${l.length})` : b.dataset.id === "faltam" ? `Faltam (${l.length - k})` : `Contados (${k})`; });
+}
 function go(r, id) { ui.stack.push({ route: ui.route, id: ui.id }); ui.route = r; ui.id = id || null; render(); window.scrollTo(0, 0); }
 function goTab(r) { closeSheet(); ui.stack = []; ui.route = r; ui.id = null; render(); window.scrollTo(0, 0); }
 function back() { const p = ui.stack.pop(); if (p) { ui.route = p.route; ui.id = p.id; } else { ui.route = "inicio"; ui.id = null; } render(); window.scrollTo(0, 0); }
@@ -2075,9 +2234,9 @@ async function confirmPedido0() {
   else { o.desc = t.desc; o.cond = d.cond; o.parc = makeParcelas(t.total, d.cond, today); }
   if (cf) { o.consumidor = { cpf: d.cpf || "" }; o.cond = "0"; o.parc = makeParcelas(t.total, "0", today); }
   if (d.tipo === "venda" && d.cond === "0" && d.pagoAgora && can("receber")) o.pag = [{ data: isoT(new Date()), valor: t.total, forma: d.forma, por: UID }];
-  const ws = [Store.put("ped", id, o)];
-  if (d.tipo !== "orcamento") ws.push(Store.stock(itens.map(i => ({ id: i.p, delta: -i.q }))));
-  ws.push(logMov(d.tipo === "consig" ? "consig" : "venda", `${tipoPed(d.tipo)} #${numero} · ${cl.nome} · ${fmt(d.tipo === "consig" ? t.bruto : t.total)}`, { ref: id, ps: itens.map(i => i.p) }));
+  const ws = [Store.put("ped", id, o)], chV = d.tipo !== "orcamento" ? itens.map(i => ({ id: i.p, delta: -i.q })) : [], mvV = mvDe(chV);
+  if (chV.length) ws.push(Store.stock(chV));
+  ws.push(logMov(d.tipo === "consig" ? "consig" : "venda", `${tipoPed(d.tipo)} #${numero} · ${cl.nome} · ${fmt(d.tipo === "consig" ? t.bruto : t.total)}`, { ref: id, ps: itens.map(i => i.p), ...(chV.length ? { tm: d.tipo === "consig" ? "consig" : "venda", mv: mvV } : { tm: "outro" }) }));
   if (o.pag.length) ws.push(logMov("fin", `Recebimento ${fmt(t.total)} · ${cl.nome} · pedido #${numero} · ${d.forma}`, { ref: id }));
   if (d.fromOrc) { const orc = Pe(d.fromOrc); if (orc) ws.push(Store.put("ped", orc.id, Object.assign({}, orc, { status: "convertido", convertidoEm: id }))); }
   if (!(await commit(ws))) return;
@@ -2097,8 +2256,8 @@ async function doPay(s) {
 async function doConsig(s) {
   if (!validQty(s)) return;
   const o = Pe(s.oid), no = clone(o), i = no.itens[s.ix], p = P(i.p), q = Number(s.qty), c = Cl(o.cli), ws = [];
-  if (s.m === "vend") { i.vend = (i.vend || 0) + q; ws.push(logMov("consig", `Acerto: vendeu ${q} × ${p ? p.nome : ""} · ${c ? c.nome : ""} · #${o.num} · ${fmt(q * i.preco)}`, { ref: o.id, ps: [i.p] })); }
-  else { i.dev = (i.dev || 0) + q; if (p) ws.push(Store.stock([{ id: p.id, delta: q }])); ws.push(logMov("consig", `Devolução de consignação: ${q} × ${p ? p.nome : ""} · ${c ? c.nome : ""} · #${o.num}`, { ref: o.id, ps: [i.p] })); }
+  if (s.m === "vend") { i.vend = (i.vend || 0) + q; ws.push(logMov("consig", `Acerto: vendeu ${q} × ${p ? p.nome : ""} · ${c ? c.nome : ""} · #${o.num} · ${fmt(q * i.preco)}`, { ref: o.id, ps: [i.p], tm: "acerto" })); }
+  else { i.dev = (i.dev || 0) + q; const mvD = p ? mvDe([{ id: p.id, delta: q }]) : []; if (p) ws.push(Store.stock([{ id: p.id, delta: q }])); ws.push(logMov("consig", `Devolução de consignação: ${q} × ${p ? p.nome : ""} · ${c ? c.nome : ""} · #${o.num}`, { ref: o.id, ps: [i.p], tm: "dev_consig", mv: mvD })); }
   ws.unshift(Store.put("ped", o.id, Object.assign({}, no, { id: o.id })));
   if (!(await commit(ws))) return;
   closeSheet(); toast(s.m === "vend" ? `${q} un. faturadas · ${fmt(q * i.preco)}` : `${q} un. voltaram ao estoque`);
@@ -2106,10 +2265,10 @@ async function doConsig(s) {
 function receiveWrites(c, cid) {
   const agg = {};
   c.itens.forEach(i => { const a = agg[i.p] = agg[i.p] || { q: 0, v: 0 }; a.q += i.q; a.v += i.q * i.custo; });
-  const ws = [];
-  ws.push(Store.stock(Object.entries(agg).filter(([pid]) => P(pid)).map(([pid, a]) => ({ id: pid, delta: a.q, custoEntrada: a.q ? a.v / a.q : 0 }))));
+  const ws = [], chR = Object.entries(agg).filter(([pid]) => P(pid)).map(([pid, a]) => ({ id: pid, delta: a.q, custoEntrada: a.q ? a.v / a.q : 0 })), mvR = mvDe(chR);
+  ws.push(Store.stock(chR));
   if (c.forn) Object.keys(agg).forEach(pid => { const p = P(pid); if (p && !p.forn) ws.push(Store.patch("prod", pid, { forn: c.forn })); });
-  ws.push(logMov("estoque", `Mercadoria recebida · compra #${c.num} · ${sum(c.itens, i => i.q)} un.`, { ref: cid, ps: Object.keys(agg) }));
+  ws.push(logMov("estoque", `Mercadoria recebida · compra #${c.num} · ${sum(c.itens, i => i.q)} un.`, { ref: cid, ps: Object.keys(agg), tm: "receb", mv: mvR }));
   return ws;
 }
 async function salvarCompra() {
@@ -2123,7 +2282,7 @@ async function salvarCompra() {
   if (d.jaRecebido && can("ajuste")) { c.status = "recebido"; c.recebidoEm = today; c.parc = makeParcelas(total, d.cond, today); }
   ws.push(Store.put("comp", id, c));
   if (c.status === "recebido") ws.push(...receiveWrites(c, id));
-  ws.push(logMov("compra", `Pedido de compra #${numero} · ${f.nome} · ${fmt(total)}`, { ref: id, ps: itens.map(i => i.p) }));
+  ws.push(logMov("compra", `Pedido de compra #${numero} · ${f.nome} · ${fmt(total)}`, { ref: id, ps: itens.map(i => i.p), tm: "compra" }));
   if (!(await commit(ws))) return;
   ui.cdraft = null; ui.stack = [{ route: "compras", id: null }]; ui.route = "compra"; ui.id = id; render(); window.scrollTo(0, 0);
   toast(c.status === "recebido" ? `Compra #${numero} recebida · estoque atualizado` : `Compra #${numero} salva`);
@@ -2216,8 +2375,10 @@ async function importar() {
   if (impOutroTipo(rows, k)) { toast("Esta planilha parece ser de outro tipo. Confira antes de importar."); render(); return; }
   const plano = impPlano(rows, k), ops = [];
   plano.novos.forEach(r => ops.push(() => [Store.put(k, rid(), k === "prod" ? impProdNovo(r) : impCliNovo(r))]));
+  const mvI = [];
   plano.atual.forEach(({ r, x, delta }) => ops.push(() => {
     const m = k === "prod" ? impProdMudancas(r, x) : impCliMudancas(r, x), ps = [];
+    if (delta && k === "prod") mvI.push(...mvDe([{ id: x.id, delta }]));
     if (Object.keys(m).length) ps.push(Store.patch(k, x.id, m));
     if (delta) ps.push(Store.stock([{ id: x.id, delta }]));
     return ps;
@@ -2231,7 +2392,7 @@ async function importar() {
   if (!feitos) return;
   const nomeK = k === "prod" ? "produtos" : "clientes", aj = plano.atual.filter(a => a.delta);
   const logs = [logMov("cadastro", `Importação de planilha (${nomeK}): ${plano.novos.length} novo${plano.novos.length === 1 ? "" : "s"}, ${plano.atual.length} atualizado${plano.atual.length === 1 ? "" : "s"}`)];
-  if (aj.length) logs.push(logMov("estoque", `Importação · estoque ajustado em ${aj.length} produto${aj.length > 1 ? "s" : ""}: ` + aj.slice(0, 6).map(a => `${a.x.nome} ${a.x.estoque}→${a.q}`).join(", ") + (aj.length > 6 ? "…" : ""), { ps: aj.map(a => a.x.id) }));
+  if (aj.length) logs.push(logMov("estoque", `Importação · estoque ajustado em ${aj.length} produto${aj.length > 1 ? "s" : ""}: ` + aj.slice(0, 6).map(a => `${a.x.nome} ${a.x.estoque}→${a.q}`).join(", ") + (aj.length > 6 ? "…" : ""), { ps: aj.map(a => a.x.id), tm: "import", mv: mvI }));
   await commit(logs);
   ui.impTxt = ""; toast(`${plano.novos.length} novos · ${plano.atual.length} atualizados`);
   goTab(k === "prod" ? "estoque" : "mais"); if (k === "cli") go("clientes");
@@ -2243,7 +2404,10 @@ document.addEventListener("click", travarAcao(async e => {
   const a = t.dataset.a, id = t.dataset.id, s = ui.sheet;
   switch (a) {
     case "tab": goTab(t.dataset.r); break;
-    case "go": closeSheet(); go(t.dataset.r, id); break;
+    case "go": closeSheet(); if (t.dataset.r === "movimentos") { ui.movP = id || ""; ui.movT = "todos"; go("movimentos"); break; } go(t.dataset.r, id); break;
+    case "movPer": ui.movPer = id; render(); break;
+    case "movT": ui.movT = id; render(); break;
+    case "exportMov": { const p = ui.movP ? P(ui.movP) : null; saveFile(`movimentos-${p ? norm(p.nome).replace(/\s+/g, "-").slice(0, 40) : "estoque"}-${today}.csv`, csv(movCsv())); break; }
     case "back": back(); break;
     case "sheet": { const o = initSheet(t.dataset.k, id || null); if (t.dataset.t) o.t = t.dataset.t; openSheet(o); break; }
     case "closeSheet": closeSheet(); break;
@@ -2286,8 +2450,9 @@ document.addEventListener("click", travarAcao(async e => {
     case "copyTxt": try { await navigator.clipboard.writeText(pedText(Pe(id))); toast("Texto copiado"); } catch (er) { toast("Não foi possível copiar neste aparelho"); } break;
     case "doCancelPed": {
       const o = Pe(s.id), ws = [Store.put("ped", o.id, Object.assign({}, o, { status: "cancelado", canceladoEm: isoT(new Date()), motivo: s.vals.motivo || "" }))];
-      if (o.tipo !== "orcamento") { const agg = {}; o.itens.forEach(i => { agg[i.p] = (agg[i.p] || 0) + (o.tipo === "consig" ? i.q - (i.dev || 0) : i.q); }); ws.push(Store.stock(Object.entries(agg).filter(([pid, q]) => P(pid) && q).map(([pid, q]) => ({ id: pid, delta: q })))); }
-      ws.push(logMov(o.tipo === "consig" ? "consig" : "venda", `${tipoPed(o.tipo)} #${o.num} cancelado${s.vals.motivo ? " · " + s.vals.motivo : ""}`, { ref: o.id, ps: o.itens.map(i => i.p) }));
+      let mvC = [];
+      if (o.tipo !== "orcamento") { const agg = {}; o.itens.forEach(i => { agg[i.p] = (agg[i.p] || 0) + (o.tipo === "consig" ? i.q - (i.dev || 0) : i.q); }); const ch = Object.entries(agg).filter(([pid, q]) => P(pid) && q).map(([pid, q]) => ({ id: pid, delta: q })); mvC = mvDe(ch); ws.push(Store.stock(ch)); }
+      ws.push(logMov(o.tipo === "consig" ? "consig" : "venda", `${tipoPed(o.tipo)} #${o.num} cancelado${s.vals.motivo ? " · " + s.vals.motivo : ""}`, { ref: o.id, ps: o.itens.map(i => i.p), tm: o.tipo === "orcamento" ? "outro" : o.tipo === "consig" ? "est_consig" : "est_venda", mv: mvC }));
       const devolver = r2(sum(o.pag || [], p => p.valor)); if (devolver > 0) ws.push(logMov("fin", `Devolução ${fmt(devolver)} · ${Cl(o.cli) ? Cl(o.cli).nome : "Consumidor final"} · pedido #${o.num} cancelado`, { ref: o.id }));
       if (await commit(ws)) { closeSheet(); toast("Cancelado e estoque devolvido"); }
       break;
@@ -2308,29 +2473,40 @@ document.addEventListener("click", travarAcao(async e => {
     case "doEntrada": {
       if (!validQty(s)) break;
       const p = P(s.id), n = Number(s.qty) * (s.unit === "cx" ? 6 : 1), cu = parseMoney(s.vals.custo);
-      if (await commit([Store.stock([{ id: p.id, delta: n, custoEntrada: cu > 0 && can("custo") ? cu : 0 }]), logMov("estoque", `Entrada · ${p.nome} · +${n}${s.vals.nota ? " · " + s.vals.nota : ""}`, { ps: [p.id] })])) { openSheet({ k: "prod", id: p.id }, true); toast(`+${n} un. · ${p.nome}`); }
+      const mvE = mvDe([{ id: p.id, delta: n }]);
+      if (await commit([Store.stock([{ id: p.id, delta: n, custoEntrada: cu > 0 && can("custo") ? cu : 0 }]), logMov("estoque", `Entrada · ${p.nome} · +${n}${s.vals.nota ? " · " + s.vals.nota : ""}`, { ps: [p.id], tm: "entrada", mv: mvE })])) { openSheet({ k: "prod", id: p.id }, true); toast(`+${n} un. · ${p.nome}`); }
       break;
     }
     case "doBaixa": {
       if (!validQty(s)) break;
       const p = P(s.id), q = Number(s.qty);
-      if (await commit([Store.stock([{ id: p.id, delta: -q }]), logMov("estoque", `Baixa por ${s.reason.toLowerCase()} · ${p.nome} · −${q}${s.vals.nota ? " · " + s.vals.nota : ""}`, { ps: [p.id] })])) { openSheet({ k: "prod", id: p.id }, true); toast(`${s.reason}: −${q} · ${p.nome}`); }
+      const mvB = mvDe([{ id: p.id, delta: -q }]);
+      if (await commit([Store.stock([{ id: p.id, delta: -q }]), logMov("estoque", `Baixa por ${s.reason.toLowerCase()} · ${p.nome} · −${q}${s.vals.nota ? " · " + s.vals.nota : ""}`, { ps: [p.id], tm: "baixa", mv: mvB, motivo: s.reason })])) { openSheet({ k: "prod", id: p.id }, true); toast(`${s.reason}: −${q} · ${p.nome}`); }
       break;
     }
     case "doContagem": {
       if (!validQty(s)) break;
       const p = P(s.id), q = Number(s.qty);
-      if (q === p.estoque) { toast("Contagem confere com o sistema"); openSheet({ k: "prod", id: p.id }, true); break; }
-      if (await commit([Store.stock([{ id: p.id, delta: q - p.estoque }]), logMov("estoque", `Contagem · ${p.nome} · sistema ${p.estoque}, contado ${q}`, { ps: [p.id] })])) { openSheet({ k: "prod", id: p.id }, true); toast("Estoque ajustado pela contagem"); }
+      const mvK = [{ p: p.id, q: q - p.estoque, de: p.estoque, c: q }], logK = logMov("estoque", `Contagem · ${p.nome} · sistema ${p.estoque}, contado ${q}`, { ps: [p.id], tm: "contagem", mv: mvK });
+      const depois = () => { if (ui.route === "inventario") closeSheet(); else openSheet({ k: "prod", id: p.id }, true); };
+      if (q === p.estoque) { if (await commit([logK])) { toast("Contagem confere com o sistema"); depois(); } break; }
+      if (await commit([Store.stock([{ id: p.id, delta: q - p.estoque }]), logK])) { depois(); toast("Estoque ajustado pela contagem"); }
       break;
     }
-    case "salvarInv": {
-      const diffs = S.prod.filter(p => ui.inv[p.id] != null && ui.inv[p.id] !== "" && Number(ui.inv[p.id]) !== p.estoque && Number(ui.inv[p.id]) >= 0);
-      if (!diffs.length) break;
-      const ws = [Store.stock(diffs.map(p => ({ id: p.id, delta: parseInt(ui.inv[p.id], 10) - p.estoque })))];
-      const plus = sum(diffs, p => Math.max(0, ui.inv[p.id] - p.estoque)), minus = sum(diffs, p => Math.max(0, p.estoque - ui.inv[p.id]));
-      ws.push(logMov("estoque", `Inventário geral · ${diffs.length} produtos ajustados (+${plus} / −${minus})`, { ps: diffs.map(p => p.id) }));
-      if (await commit(ws)) { ui.inv = {}; back(); toast("Inventário salvo"); }
+    case "invModo": ui.invModo = id; ui.invQ = ""; render(); break;
+    case "invF": ui.invF = id; render(); break;
+    case "invOk": { const p = P(id); if (!p) break; ui.inv[id] = String(p.estoque); invGuardar(); invAtualiza(id); break; }
+    case "invDescartar": openSheet({ k: "invDescartar" }); break;
+    case "doInvDescartar": ui.inv = {}; invGuardar(); closeSheet(); render(); toast("Contagem recomeçada"); break;
+    case "finInv": { const list = invLista(); if (!list.length || list.some(p => !invContado(p.id))) { toast("Conte todos os produtos antes de finalizar."); break; } openSheet({ k: "finInv" }); break; }
+    case "doFinInv": {
+      const list = invLista(); if (!list.length || list.some(p => !invContado(p.id) || !(Number(ui.inv[p.id]) >= 0))) { closeSheet(); toast("Conte todos os produtos antes de finalizar."); break; }
+      const mvI = list.map(p => { const c = parseInt(ui.inv[p.id], 10); return { p: p.id, q: c - p.estoque, de: p.estoque, c }; }), diffs = mvI.filter(m => m.q);
+      const plus = sum(diffs, m => Math.max(0, m.q)), minus = sum(diffs, m => Math.max(0, -m.q)), ws = [];
+      const log = logMov("estoque", `Inventário geral · ${list.length} produtos contados · ${diffs.length} ajustado${diffs.length === 1 ? "" : "s"} (+${plus} / −${minus})`, { ps: list.map(p => p.id), tm: "inventario", mv: mvI });
+      if (diffs.length) ws.push(Store.stock(diffs.map(m => ({ id: m.p, delta: m.q }))));
+      ws.push(log);
+      if (await commit(ws)) { ui.inv = {}; invGuardar(); closeSheet(); back(); toast(diffs.length ? `Inventário finalizado · ${diffs.length} ajuste${diffs.length === 1 ? "" : "s"}` : "Inventário finalizado · tudo conferiu"); }
       break;
     }
     case "toggleAtivo": { const p = P(id); if (await commit([Store.patch("prod", p.id, { ativo: p.ativo === false }), logMov("cadastro", `${p.ativo === false ? "Produto reativado" : "Produto inativado"} · ${p.nome}`, { ps: [p.id] })])) renderSheet(); break; }
@@ -2545,7 +2721,8 @@ document.addEventListener("input", e => {
   if (d.l && ui.login) { ui.login[d.l] = t.value; return; }
   if (d.fc && ui.fc) { ui.fc[d.fc] = t.value; return; }
   if (d.xf != null && ui.xml) { ui.xml.itens[Number(d.xf)].fator = t.value; return; }
-  if (d.inv) { ui.inv[d.inv] = t.value; const p = P(d.inv), row = t.closest(".irow"); if (row && p) row.classList.toggle("diff", t.value !== "" && Number(t.value) !== p.estoque); const f = $("ifoot"); if (f) f.innerHTML = invFoot(); return; }
+  if (d.inv) { if (t.value === "") delete ui.inv[d.inv]; else ui.inv[d.inv] = t.value; invGuardar(); invAtualiza(d.inv); return; }
+  if (t.id === "invQ") { ui.invQ = t.value; const tmp = document.createElement("div"); tmp.innerHTML = vInventario(); const el = $("invlist"); if (el) el.innerHTML = tmp.querySelector("#invlist").innerHTML; return; }
   if (!ui.sheet) return;
   if (d.f) { ui.sheet.vals[d.f] = t.value; return; }
   if (d.sq) { ui.sheet.q = t.value; const tmp = document.createElement("div"); tmp.innerHTML = SH[ui.sheet.k](ui.sheet)[1]; $("sl").innerHTML = tmp.querySelector("#sl").innerHTML; return; }
@@ -2554,6 +2731,7 @@ document.addEventListener("input", e => {
 document.addEventListener("change", e => {
   const t = e.target;
   if (t.id === "actU") { ui.actU = t.value; render(); return; }
+  if (t.id === "movP") { ui.movP = t.value; render(); return; }
   if (t.id === "impTxt") { render(); return; }
   if (t.id === "impFile" && t.files && t.files[0]) {
     // Excel no Windows costuma salvar CSV em ANSI (Windows-1252): tenta UTF-8 e cai para ele
@@ -2836,8 +3014,11 @@ function onScan(code, origem) {
   }
   if (ui.route === "inventario") {
     if (!p) { toast("Código " + code + " não cadastrado"); return; }
-    const cur = ui.inv[p.id] != null && ui.inv[p.id] !== "" ? Number(ui.inv[p.id]) : 0;
-    ui.inv[p.id] = String(cur + 1); render(); const el = document.querySelector(`[data-inv="${p.id}"]`); if (el) el.scrollIntoView({ block: "center" }); toast(`${p.nome}: ${cur + 1} contadas`); return;
+    if (ui.invModo === "individual") { openSheet(initSheet("contagem", p.id)); return; }
+    invCarregar(); const cur = invContado(p.id) ? Number(ui.inv[p.id]) || 0 : 0;
+    ui.inv[p.id] = String(cur + 1); invGuardar(); render();
+    const el = document.querySelector(`.irow[data-row="${p.id}"]`); if (el) { el.scrollIntoView({ block: "center" }); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 900); }
+    toast(`${p.nome}: ${cur + 1} contadas`); return;
   }
   if (ui.route === "novaCompra" && ui.cdraft) {
     if (!p) { openSheet({ k: "scanNovo", code }, true); return; }
