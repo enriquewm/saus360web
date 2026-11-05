@@ -1317,7 +1317,7 @@ function vPedido() {
 /* ---- Novo pedido ---- */
 function draftCalc() {
   const d = ui.draft; let n = 0, bruto = 0;
-  Object.entries(d.qty).forEach(([id, q]) => { const p = P(id); if (q > 0 && p) { n += q; bruto += q * precoDraft(p); } });
+  Object.entries(d.qty).forEach(([id, q]) => { const p = P(id); if (q > 0 && p && p.ativo !== false) { n += q; bruto += q * precoDraft(p); } });
   bruto = r2(bruto);
   let desc = 0; const s = String(d.desc || "").trim();
   if (s && d.tipo !== "consig") { desc = s.endsWith("%") ? bruto * (parseMoney(s.slice(0, -1)) || 0) / 100 : parseMoney(s) || 0; desc = r2(Math.min(Math.max(desc, 0), bruto)); }
@@ -1368,13 +1368,14 @@ function vNovoPedido() {
     <span class="lbl" style="margin-top:14px">Lista de precios</span><div class="chips wrap tight">${Object.entries(TABELAS).map(([k, l]) => `<button class="chip" data-a="dtab" data-id="${k}" aria-pressed="${d.tabela === k}">${l}</button>`).join("")}</div>
     ${d.tipo === "consig" ? `<span class="lbl" style="margin-top:14px">Liquidación en</span><div class="chips wrap tight">${[15, 30, 45, 60].map(t => `<button class="chip" data-a="dprazo" data-id="${t}" aria-pressed="${d.prazo == t}">${t} días</button>`).join("")}</div>`
     : `<span class="lbl" style="margin-top:14px">Condición de pago</span><div class="chips wrap tight">${Object.entries(CONDS).map(([k, l]) => `<button class="chip" data-a="dcond" data-id="${k}" aria-pressed="${d.cond === k}">${l}</button>`).join("")}</div>`}
+    ${d.tipo !== "consig" ? `<label class="field" style="margin-top:14px">Descuento para el cliente (${SIM()} o %)<input data-d="desc" inputmode="decimal" value="${esc(d.desc)}" placeholder="Ej.: ${money(50)} o 5%"></label><div class="chips tight" style="margin-top:8px">${[5, 10, 15].map(x => `<button class="chip" data-a="ddesc" data-id="${x}%" aria-pressed="${String(d.desc).trim() === x + "%"}">${x}%</button>`).join("")}${d.desc ? `<button class="chip" data-a="ddesc" data-id="">Sin descuento</button>` : ""}</div>` : ""}
     ${d.tipo === "venda" && d.cond === "0" && can("receber") ? `<label class="toggle">Ya cobrado ahora<input type="checkbox" data-a="dpago" ${d.pagoAgora ? "checked" : ""}></label>${d.pagoAgora ? `<div class="chips wrap tight" style="margin-top:8px">${FORMAS.map(f => `<button class="chip" data-a="dforma" data-id="${f}" aria-pressed="${d.forma === f}">${f}</button>`).join("")}</div>` : ""}` : ""}
   </section>`;
   const i1 = h.length;
   h += `<span class="lbl" style="margin:18px 2px 8px">Productos</span><label class="search">${ico("search", 18)}<input id="dq" type="search" placeholder="Buscar por nombre, uva, país o código" value="${esc(d.q)}" aria-label="Buscar producto"><button class="scanbtn" data-a="scan" aria-label="Leer código de barras">${ico("scan", 18)}</button></label>
     <div class="list" id="dlist" style="margin-top:10px">${draftList()}</div>`;
   const i2 = h.length;
-  h += `<section class="card" style="margin-top:14px">${d.tipo !== "consig" ? `<label class="field" style="margin-top:0">Descuento (${SIM()} o %)<input data-d="desc" inputmode="decimal" value="${esc(d.desc)}" placeholder="Ej.: ${money(50)} o 5%"></label>${ivaTaxa() ? `<label class="toggle">Sumar ${ivaLabel()} al total<input type="checkbox" data-a="diva" ${d.iva ? "checked" : ""}></label><p class="hint" style="margin-top:4px">${d.iva ? "Los precios de la lista están sin IVA; el impuesto entra en el total y en las parcialidades." : "Los precios de la lista ya incluyen el IVA."}</p>` : ""}` : ""}
+  h += `<section class="card" style="margin-top:14px">${d.tipo !== "consig" ? `${ivaTaxa() ? `<label class="toggle">Sumar ${ivaLabel()} al total<input type="checkbox" data-a="diva" ${d.iva ? "checked" : ""}></label><p class="hint" style="margin-top:4px">${d.iva ? "Los precios de la lista están sin IVA; el impuesto entra en el total y en las parcialidades." : "Los precios de la lista ya incluyen el IVA."}</p>` : ""}` : ""}
     <label class="field">Observaciones<input data-d="obs" value="${esc(d.obs)}" placeholder="Ej.: entregar el martes"></label></section>`;
   const i3 = h.length;
   h += `<div class="ofoot" id="dfoot">${draftFoot()}</div>`;
@@ -2224,6 +2225,8 @@ const putProd = (p, ch) => Store.put("prod", p.id, Object.assign({}, p, ch));
 async function confirmPedido() { const d = ui.draft; if (!d || d._salvando) return; d._salvando = true; try { await confirmPedido0(); } finally { d._salvando = false; } }
 async function confirmPedido0() {
   const d = ui.draft, t = draftCalc(), cf = d.cli === "CF", cl = cf ? { nome: "Consumidor final" } : Cl(d.cli); if (!cl || !t.n) return;
+  const inat = Object.keys(d.qty).filter(pid => d.qty[pid] > 0 && P(pid) && P(pid).ativo === false);
+  if (inat.length) { inat.forEach(pid => delete d.qty[pid]); avisoInativo(P(inat[0])); updateDraft(); return; }
   const itens = Object.entries(d.qty).filter(([, q]) => q > 0).map(([pid, q]) => { const p = P(pid); return { p: pid, q, preco: precoDraft(p), custo: p.custo || 0, vend: 0, dev: 0 }; });
   if (d.tipo !== "orcamento") { const bad = itens.find(i => i.q > P(i.p).estoque); if (bad) { toast("Existencia insuficiente: " + P(bad.p).nome); updateDraft(); return; } }
   let numero; try { numero = await Store.nextNum("ped"); } catch (e) { toast("Sin conexión con el servidor. Inténtalo de nuevo."); return; }
@@ -2438,6 +2441,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "dtab": ui.draft.tabela = id; render(); break;
     case "dprazo": ui.draft.prazo = Number(id); render(); break;
     case "dcond": ui.draft.cond = id; if (id !== "0") ui.draft.pagoAgora = false; render(); break;
+    case "ddesc": ui.draft.desc = id; render(); break;
     case "dpago": ui.draft.pagoAgora = t.checked; render(); break;
     case "diva": ui.draft.iva = t.checked; render(); break;
     case "idioma": setIdioma(id); break;
@@ -3001,6 +3005,11 @@ async function importarXml() {
 }
 
 /* ---- Leitura de código de barras por tela ---- */
+/* Produto inativo não entra em venda nem em contagem: avisa com destaque e vibra */
+function avisoInativo(p) {
+  toast(`Producto bloqueado: ${p.nome} está inactivo. Reactívalo en la ficha del producto para venderlo.`);
+  try { if (navigator.vibrate) navigator.vibrate([120, 80, 120]); } catch (e) {}
+}
 function onScan(code, origem) {
   code = String(code || "").trim(); if (!code || !MODE) return;
   if (ui.sheet && ui.sheet.k === "prodForm") { ui.sheet.vals.ean = code; renderSheet(); toast("Código llenado"); return; }
@@ -3008,12 +3017,14 @@ function onScan(code, origem) {
   const p = byEan(code);
   if (ui.route === "novoPedido" && ui.draft) {
     if (!p) { toast("Código " + code + " no registrado"); return; }
+    if (p.ativo === false) { avisoInativo(p); return; }
     const max = ui.draft.tipo === "orcamento" ? 9999 : p.estoque, cur = ui.draft.qty[p.id] || 0;
     if (cur >= max) { toast("Sin existencias disponibles de " + p.nome); return; }
     ui.draft.qty[p.id] = cur + 1; updateDraft(); toast(`+1 ${p.nome} (${cur + 1})`); return;
   }
   if (ui.route === "inventario") {
     if (!p) { toast("Código " + code + " no registrado"); return; }
+    if (p.ativo === false) { avisoInativo(p); return; }
     if (ui.invModo === "individual") { openSheet(initSheet("contagem", p.id)); return; }
     invCarregar(); const cur = invContado(p.id) ? Number(ui.inv[p.id]) || 0 : 0;
     ui.inv[p.id] = String(cur + 1); invGuardar(); render();
