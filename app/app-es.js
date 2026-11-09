@@ -589,6 +589,7 @@ const I = {
   cart: '<circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M3 4h2l2.4 11h10.2L20 8H6.2"/>',
   wallet: '<path d="M4 7h15a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 7l11-3v3"/><circle cx="16" cy="13.5" r="1.2"/>',
   chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  cal: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   truck: '<path d="M2 6h11v10H2zM13 10h5l3 3v3h-8"/><circle cx="6" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>',
   building: '<path d="M4 21V5l8-3v19M12 9h8v12M8 8v.01M8 12v.01M8 16v.01M16 13v.01M16 17v.01"/>',
   list: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
@@ -1232,7 +1233,7 @@ function vSemAcesso() {
 function pedRow(o) {
   const c = pedCalc(o), sym = { venda: "V", consig: "C", orcamento: "O" }[o.tipo], cls = { venda: "acc", consig: "warn", orcamento: "info" }[o.tipo];
   return `<button class="row ${o.status === "cancelado" ? "off" : ""}" data-a="go" data-r="pedido" data-id="${o.id}"><span class="dot ${cls}">${sym}</span>
-    <span class="wmain"><b>#${o.num} · ${esc(cliNome(o))}</b><small>${fd(o.data)} · ${tipoPed(o.tipo)} · ${c.qtd} un. · ${esc(firstName(nomeDe(o.vendedor)))}</small></span>
+    <span class="wmain"><b>#${o.num} · ${esc(cliNome(o))}</b><small>${encPend(o) ? `<span class="${o.enc.data < today ? "neg" : ""}">Encargo · ${encQuando(o.enc)}</span>` : `${fd(o.data)} · ${tipoPed(o.tipo)}`} · ${c.qtd} un. · ${esc(firstName(nomeDe(o.vendedor)))}</small></span>
     <span class="right"><b>${fmt(c.aberto > 0.004 ? c.aberto : c.total)}</b>${statusPed(c)}</span></button>`;
 }
 
@@ -1261,7 +1262,7 @@ function vVendas() {
     return true;
   }).sort((a, b) => (b.num || 0) - (a.num || 0));
   const chips = [["todos", "Todos"], ["orcamento", "Cotizaciones"], ["receber", "Por cobrar"], ["vencido", "Vencidos"], ["consig", "Consignación"], ["pago", "Pagados"], ["cancelado", "Cancelados"]];
-  return head("Ventas", "Pedidos, cotizaciones y consignaciones", { action: `<button class="btn sm" data-a="novoPedido">+ Nuevo</button>` }) + banners() + cxBanner() +
+  return head("Ventas", "Pedidos, cotizaciones y consignaciones", { action: `<button class="btn sm" data-a="novoPedido">+ Nuevo</button>` }) + banners() + cxBanner() + encBanner() +
     toolbar(`<label class="search">${ico("search", 18)}<input id="vq" type="search" placeholder="Número, cliente o vendedor" value="${esc(ui.vq)}" aria-label="Buscar pedido"></label>
     <div class="chips">${chips.map(([k, l]) => `<button class="chip" data-a="vf" data-id="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</div>`) +
     `<div id="vlist"><p class="summary">${list.length} ${list.length === 1 ? "registro" : "registros"} · ${fmt(sum(list.filter(o => o.tipo !== "orcamento"), o => pedCalc(o).total))} facturado</p>${DESK() ? pedTable(list) : `<div class="list">${list.map(pedRow).join("") || empty("No se encontró nada.", "")}</div>`}</div>`;
@@ -1274,6 +1275,7 @@ function pedText(o) {
   if (o.iva > 0 && o.tipo !== "consig") t += `\n${ivaLabel(o.iva)}: ${fmt(c.iva)}`;
   t += `\n*Total: ${fmt(o.tipo === "consig" ? sum(o.itens, i => i.q * i.preco) : c.total)}*${o.iva > 0 && o.tipo === "consig" ? ` (+ ${ivaLabel(o.iva)} sobre lo vendido)` : ""}\n`;
   if (o.tipo === "consig") t += `Consignación: liquidación hasta el ${fdy(o.venc)}. Solo cobramos lo que se venda.\n`;
+  else if (o.enc) t += encTexto(o);
   else t += `Pago: ${CONDS[o.cond] || "De contado"}${c.parcelas.length ? " · vencimiento " + c.parcelas.map(p => fd(p.venc)).join(", ") : ""}\n`;
   if (o.obs) t += `Obs.: ${o.obs}\n`;
   return t;
@@ -1291,7 +1293,7 @@ function itensTable(o, ativo) {
 function vPedido() {
   const o = Pe(ui.id); if (!o) return head("Pedido", "", { back: true }) + empty("Cargando…", "");
   const c = pedCalc(o), cl = Cl(o.cli), ativo = o.status !== "cancelado";
-  let h = head(`${tipoPed(o.tipo)} #${o.num}`, `${fdy(o.data)} · ${esc(nomeDe(o.vendedor))}`, { back: true, sm: true, action: statusPed(c) }) + banners();
+  let h = head(`${o.enc ? "Encargo" : tipoPed(o.tipo)} #${o.num}`, `${fdy(o.data)} · ${esc(nomeDe(o.vendedor))}`, { back: true, sm: true, action: statusPed(c) }) + banners();
   const i0 = h.length; // no computador: itens e notas à esquerda; totais, parcelas e ações à direita
   h += o.cli ? `<button class="row" data-a="go" data-r="cliente" data-id="${o.cli}"><span class="avatar">${initials(cliNome(o))}</span><span class="wmain"><b>${esc(cliNome(o))}</b><small>${esc(cl ? cl.tipo : "")} · lista ${TABELAS[o.tabela] || "Menudeo"}</small></span>${ico("chev", 18)}</button>`
     : `<div class="row"><span class="avatar">CF</span><span class="wmain"><b>Consumidor final</b><small>Venta de mostrador${o.consumidor && o.consumidor.cpf ? " · CPF " + esc(o.consumidor.cpf) : ""}</small></span></div>`;
@@ -1302,6 +1304,7 @@ function vPedido() {
       ${l > 0 && ativo && can("vendas") ? `<span class="mini"><button class="btn sm" data-a="consig" data-m="vend" data-id="${o.id}" data-x="${ix}">Vendió</button><button class="btn sm ghost" data-a="consig" data-m="dev" data-id="${o.id}" data-x="${ix}">Devolvió</button></span>` : ""}</span>
       <span class="right"><b>${l}</b><small>con el cliente</small></span></div>`;
   }).join("")}</div>`}`;
+  if (o.enc) h += encCard(o);
   const i1 = h.length;
   h += `<div class="card" style="margin-top:12px">${o.tipo === "consig" ? `<div class="tot muted"><span>Valor entregado</span><span>${fmt(sum(o.itens, i => i.q * i.preco))}</span></div>${c.iva ? `<div class="tot muted"><span>${ivaLabel(o.iva)} sobre lo vendido</span><span>${fmt(c.iva)}</span></div>` : ""}<div class="tot"><span>Facturado (vendido)</span><span>${fmt(c.total)}</span></div>` :
     `<div class="tot muted"><span>Subtotal</span><span>${fmt(c.bruto)}</span></div>${c.desc ? `<div class="tot muted"><span>Descuento</span><span>−${fmt(c.desc)}</span></div>` : ""}${c.iva ? `<div class="tot muted"><span>${ivaLabel(o.iva)}</span><span>${fmt(c.iva)}</span></div>` : ""}<div class="tot"><span>Total</span><span>${fmt(c.total)}</span></div>`}
@@ -1352,7 +1355,7 @@ function draftList() {
   const d = ui.draft, q = norm(d.q);
   const list = S.prod.filter(p => p.ativo !== false && !ehInsumo(p) && (!q || norm([p.nome, p.uva, p.regiao, p.pais, p.ean].join(" ")).includes(q)));
   return list.map(p => {
-    const est = d.tipo === "venda" ? dispVenda(p) : p.estoque, nv = d.tipo === "venda" && naVenda(p), n = d.qty[p.id] || 0, after = est - n, pr = precoDraft(p), orc = d.tipo === "orcamento", dcl = d.cli && d.cli !== "CF" ? Cl(d.cli) : null, esp = temEspecial(p, dcl) ? " · especial" : "";
+    const est = d.tipo === "venda" ? dispVenda(p) : p.estoque, nv = d.tipo === "venda" && naVenda(p), n = d.qty[p.id] || 0, after = est - n, pr = precoDraft(p), orc = d.tipo === "orcamento" || ehEncDraft(), dcl = d.cli && d.cli !== "CF" ? Cl(d.cli) : null, esp = temEspecial(p, dcl) ? " · especial" : "";
     const pronto = nv ? Math.max(0, Math.floor(p.estoque || 0)) : 0;
     let cls = "", t = nv ? `${est} disp. (${pronto} listo${pronto === 1 ? "" : "s"} + ${est - pronto} al momento) · ${fmt(pr)}${esp}` : `${est} disp. · ${fmt(pr)}${esp}`;
     if (est <= 0 && !orc) { cls = "bad"; t = nv ? "Faltan ingredientes" : "Sin existencias"; }
@@ -1365,25 +1368,25 @@ function draftList() {
 }
 function draftFoot() {
   const d = ui.draft, t = draftCalc();
-  const label = !d.cli ? "Elige el cliente" : d.tipo === "orcamento" ? "Guardar cotización" : "Confirmar";
+  const label = !d.cli ? "Elige el cliente" : d.tipo === "orcamento" ? "Guardar cotización" : ehEncDraft() ? "Agendar" : "Confirmar";
   if (d.tipo !== "consig" && descExcede(t)) return `<div><small class="lim">Descuento de ${dec(r2(descPctDe(t)))}% supera tu límite de ${dec(descLim())}%</small><b>${fmt(t.total)}</b></div><button class="btn" disabled>${label}</button>`;
-  return `<div><small>${t.n} un. · ${tipoPed(d.tipo).toLowerCase()}${t.desc ? ` · descuento ${fmt(t.desc)}` : ""}${t.iva ? ` · ${d.tipo === "consig" ? "+ IVA en la liquidación" : "IVA " + fmt(t.iva)}` : ""}</small><b>${fmt(d.tipo === "consig" ? t.bruto : t.total)}</b></div>
+  return `<div><small>${t.n} un. · ${ehEncDraft() ? "por encargo" : tipoPed(d.tipo).toLowerCase()}${t.desc ? ` · descuento ${fmt(t.desc)}` : ""}${t.iva ? ` · ${d.tipo === "consig" ? "+ IVA en la liquidación" : "IVA " + fmt(t.iva)}` : ""}</small><b>${fmt(d.tipo === "consig" ? t.bruto : t.total)}</b></div>
   <button class="btn" data-a="confirmPedido" ${!d.cli || !t.n ? "disabled" : ""}>${label}</button>`;
 }
-function updateDraft() { const a = $("dlist"), b = $("dfoot"), c = $("dcredit"), tr = $("dtroco"); if (a) a.innerHTML = draftList(); if (b) b.innerHTML = draftFoot(); if (c) c.innerHTML = draftCredit(); if (tr) tr.innerHTML = trocoTxt(); }
+function updateDraft() { const a = $("dlist"), b = $("dfoot"), c = $("dcredit"), tr = $("dtroco"); if (a) a.innerHTML = draftList(); if (b) b.innerHTML = draftFoot(); if (c) c.innerHTML = draftCredit(); if (tr) tr.innerHTML = trocoTxt(); const sd = $("dsaldo"); if (sd) sd.innerHTML = saldoTxt(); }
 function vNovoPedido() {
   if (!ui.draft) newDraft("venda");
   const d = ui.draft, cl = d.cli ? Cl(d.cli) : null;
   let h = head(d.tipo === "orcamento" ? "Nueva cotización" : "Nuevo pedido", "Venta, consignación o cotización", { back: true, action: Object.values(d.qty).some(v => v) ? `<button class="btn sm ghost" data-a="limparDraft">Limpiar</button>` : "" }) + banners();
   const i0 = h.length; // no computador: produtos à esquerda; cliente, condições e desconto à direita
   h += `<section class="card"><span class="lbl">Cliente</span><button class="picker" data-a="sheet" data-k="pickCli">${d.cli === "CF" ? `<span class="avatar">CF</span><span class="wmain"><b>Consumidor final</b><small>Mostrador · pago en el momento</small></span>` : cl ? `<span class="avatar">${initials(cl.nome)}</span><span class="wmain"><b>${esc(cl.nome)}</b><small>${esc(cl.tipo)} · lista ${TABELAS[cl.tabela] || "Menudeo"}</small></span>` : `<span class="wmain"><b>Elegir cliente</b><small>Restaurante, bar, hotel, tienda o persona física</small></span>`}${ico("chev", 18)}</button><div id="dcredit">${draftCredit()}</div></section>`;
-  h += `<section class="card"><span class="lbl">Tipo</span><div class="seg">${[["venda", "Venta"], ["consig", "Consignación"], ["orcamento", "Cotización"]].filter(x => !(d.cli === "CF" && x[0] === "consig")).map(([k, l]) => `<button data-a="dtipo" data-id="${k}" aria-pressed="${d.tipo === k}">${l}</button>`).join("")}</div>
-    <p class="hint">${{ venda: "El inventario baja ahora y las parcialidades entran en cuentas por cobrar.", consig: "Los productos salen hoy. El cliente paga solo lo que venda y devuelve el resto en la liquidación.", orcamento: "No mueve el inventario. Puedes convertirla en pedido después." }[d.tipo]}</p>
+  h += `<section class="card"><span class="lbl">Tipo</span><div class="seg">${[["venda", "Venta"], ...(usaEnc() ? [["encomenda", "Encargo"]] : []), ["consig", "Consignación"], ["orcamento", "Cotización"]].filter(x => !(d.cli === "CF" && (x[0] === "consig" || x[0] === "encomenda"))).map(([k, l]) => `<button data-a="dtipo" data-id="${k}" aria-pressed="${k === "encomenda" ? ehEncDraft() : k === "venda" ? d.tipo === "venda" && !d.enc : d.tipo === k}">${l}</button>`).join("")}</div>
+    <p class="hint">${ehEncDraft() ? "Para entregar o retirar otro día. El stock baja solo en la entrega y el encargo aparece en la agenda de producción." : { venda: "El inventario baja ahora y las parcialidades entran en cuentas por cobrar.", consig: "Los productos salen hoy. El cliente paga solo lo que venda y devuelve el resto en la liquidación.", orcamento: "No mueve el inventario. Puedes convertirla en pedido después." }[d.tipo]}</p>
     <span class="lbl" style="margin-top:14px">Lista de precios</span><div class="chips wrap tight">${Object.entries(TABELAS).map(([k, l]) => `<button class="chip" data-a="dtab" data-id="${k}" aria-pressed="${d.tabela === k}">${l}</button>`).join("")}</div>
-    ${d.tipo === "consig" ? `<span class="lbl" style="margin-top:14px">Liquidación en</span><div class="chips wrap tight">${[15, 30, 45, 60].map(t => `<button class="chip" data-a="dprazo" data-id="${t}" aria-pressed="${d.prazo == t}">${t} días</button>`).join("")}</div>`
+    ${ehEncDraft() ? encDraft() : d.tipo === "consig" ? `<span class="lbl" style="margin-top:14px">Liquidación en</span><div class="chips wrap tight">${[15, 30, 45, 60].map(t => `<button class="chip" data-a="dprazo" data-id="${t}" aria-pressed="${d.prazo == t}">${t} días</button>`).join("")}</div>`
     : `<span class="lbl" style="margin-top:14px">Condición de pago</span><div class="chips wrap tight">${Object.entries(CONDS).map(([k, l]) => `<button class="chip" data-a="dcond" data-id="${k}" aria-pressed="${d.cond === k}">${l}</button>`).join("")}</div>`}
     ${d.tipo !== "consig" ? `<label class="field" style="margin-top:14px">Descuento para el cliente (${SIM()} o %)<input data-d="desc" inputmode="decimal" value="${esc(d.desc)}" placeholder="Ej: ${money(50)} o 5%"></label>${descLim() != null ? `<p class="hint" style="margin:4px 0 0">Tu límite de descuento: ${dec(descLim())}%</p>` : ""}<div class="chips tight" style="margin-top:8px">${[5, 10, 15].filter(x => descLim() == null || x <= descLim()).map(x => `<button class="chip" data-a="ddesc" data-id="${x}%" aria-pressed="${String(d.desc).trim() === x + "%"}">${x}%</button>`).join("")}${d.desc ? `<button class="chip" data-a="ddesc" data-id="">Sin descuento</button>` : ""}</div>` : ""}
-    ${d.tipo === "venda" && d.cond === "0" && can("receber") ? `<label class="toggle">Ya cobrado ahora<input type="checkbox" data-a="dpago" ${d.pagoAgora ? "checked" : ""}></label>${d.pagoAgora ? `<div class="chips wrap tight" style="margin-top:8px">${formas().map(f => `<button class="chip" data-a="dforma" data-id="${f}" aria-pressed="${d.forma === f}">${f}</button>`).join("")}</div>${ehDin(d.forma) ? `<label class="field" style="margin-top:10px">El cliente entregó (${SIM()})<input data-d="recebido" inputmode="decimal" value="${esc(d.recebido || "")}" placeholder="Para calcular el cambio"></label><div id="dtroco">${trocoTxt()}</div>` : ""}` : ""}` : ""}
+    ${d.tipo === "venda" && !d.enc && d.cond === "0" && can("receber") ? `<label class="toggle">Ya cobrado ahora<input type="checkbox" data-a="dpago" ${d.pagoAgora ? "checked" : ""}></label>${d.pagoAgora ? `<div class="chips wrap tight" style="margin-top:8px">${formas().map(f => `<button class="chip" data-a="dforma" data-id="${f}" aria-pressed="${d.forma === f}">${f}</button>`).join("")}</div>${ehDin(d.forma) ? `<label class="field" style="margin-top:10px">El cliente entregó (${SIM()})<input data-d="recebido" inputmode="decimal" value="${esc(d.recebido || "")}" placeholder="Para calcular el cambio"></label><div id="dtroco">${trocoTxt()}</div>` : ""}` : ""}` : ""}
   </section>`;
   const i1 = h.length;
   h += `<span class="lbl" style="margin:18px 2px 8px">Productos</span><label class="search">${ico("search", 18)}<input id="dq" type="search" placeholder="Buscar por nombre, uva, país o código" value="${esc(d.q)}" aria-label="Buscar producto"><button class="scanbtn" data-a="scan" aria-label="Leer código de barras">${ico("scan", 18)}</button></label>
@@ -1481,7 +1484,7 @@ function vMais() {
   h += `<div class="row"><span class="avatar">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${PAPEIS[m.papel]}${m.comissao ? ` · comisión ${m.comissao}%` : ""}</small></span></div>`;
   if (MODE === "demo") h += `<p class="sec">Ver la app como</p><div class="chips wrap tight">${S.mem.map(x => `<button class="chip" data-a="verComo" data-id="${x.id}" aria-pressed="${x.id === UID}">${esc(firstName(x.nome))} · ${PAPEIS[x.papel]}</button>`).join("")}</div><p class="hint">En la demostración puedes cambiar de usuario para ver lo que ve cada rol.</p>`;
   if (!D) h += `<p class="sec">Registros</p><div class="menu">${it("clientes", "users", "Clientes", "Ficha, crédito, historial y consignación", can("clientes"))}${it("fornecedores", "truck", "Proveedores", "Contactos, compras y cuentas por pagar", can("fornecedores"))}${it("estoque", "bottle", "Productos", ehVinho() ? "Ficha del vino, precios e inventario" : "Ficha, precios e inventario", can("estoque"))}</div>`;
-  const op = it("caixa", "cash", "Caja", "Apertura, retiros y cierre del día", can("receber")) + it("compras", "cart", "Compras", "Órdenes a proveedores y recepción", can("compras")) + it("financeiro", "wallet", "Finanzas", "Cuentas por cobrar, por pagar y flujo de caja", can("receber") || can("pagar")) + it("relatorios", "chart", "Reportes", "Ventas, curva ABC, margen, comisiones y atrasos", can("relatorios")) + it("movimentos", "list", "Movimientos de inventario", "Todo lo que pasó con cada producto", can("estoque")) + (ehFood() ? it("receitas", "clip", "Recetas y producción", "Fichas técnicas, costo real y producción", can("estoque")) : "");
+  const op = it("encomendas", "cal", "Encargos", "Agenda de entregas y qué producir", usaEnc() && can("vendas")) + it("caixa", "cash", "Caja", "Apertura, retiros y cierre del día", can("receber")) + it("compras", "cart", "Compras", "Órdenes a proveedores y recepción", can("compras")) + it("financeiro", "wallet", "Finanzas", "Cuentas por cobrar, por pagar y flujo de caja", can("receber") || can("pagar")) + it("relatorios", "chart", "Reportes", "Ventas, curva ABC, margen, comisiones y atrasos", can("relatorios")) + it("movimentos", "list", "Movimientos de inventario", "Todo lo que pasó con cada producto", can("estoque")) + (ehFood() ? it("receitas", "clip", "Recetas y producción", "Fichas técnicas, costo real y producción", can("estoque")) : "");
   const fis = temFiscal() ? it("notas", "receipt", "Notas fiscales", "NF-e, NFC-e y consignación emitidas", can("fiscal")) + it("fiscal", "shield", "Configuración fiscal", "Datos del emisor, tributación y credenciales", can("empresa")) : ""; // nota fiscal brasileira
   const cat = can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span class="wmain"><b>Catálogo de productos</b><small>PDF con las existencias y los precios del cliente</small></span>${ico("chev", 18)}</button>` : "";
   if ((op || cat) && !D) h += `<p class="sec">Gestión</p><div class="menu">${cat}${op}</div>`;
@@ -1938,7 +1941,7 @@ function sideNav() {
   return `<div class="sn-brand">${marcaSaus("escuro", "var(--side-bg)")}<b>Saus<span>360</span></b>${MODE === "demo" ? '<span class="demo-tag">DEMO</span>' : ""}</div>
     <button class="sn-new" data-a="sheet" data-k="quick">${ico("plus", 20)}<span>Nuevo</span></button>
     <div class="sn-nav">${it("inicio", "home", "Inicio")}
-    ${grp("Comercial", [it("vendas", "order", "Ventas", can("vendas")), it("caixa", "cash", "Caja", can("receber")), it("clientes", "users", "Clientes", can("clientes")), can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span>Catálogo</span></button>` : ""])}
+    ${grp("Comercial", [it("vendas", "order", "Ventas", can("vendas")), it("caixa", "cash", "Caja", can("receber")), it("encomendas", "cal", "Encargos", usaEnc() && can("vendas")), it("clientes", "users", "Clientes", can("clientes")), can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span>Catálogo</span></button>` : ""])}
     ${grp("Inventario", [it("estoque", "bottle", "Productos", can("estoque")), it("compras", "cart", "Compras", can("compras")), it("fornecedores", "truck", "Proveedores", can("fornecedores"))])}
     ${grp("Gestión", [it("financeiro", "wallet", "Finanzas", can("receber") || can("pagar")), it("relatorios", "chart", "Reportes", can("relatorios")), temFiscal() ? it("notas", "receipt", "Notas fiscales", can("fiscal")) : ""])}
     ${grp("Empresa", [it("equipe", "users", "Equipo"), it("empresa", "building", "Datos de la empresa", can("empresa")), it("atividade", "activity", "Actividad", can("atividade"))])}</div>
@@ -2253,9 +2256,12 @@ async function confirmPedido0() {
   const inat = Object.keys(d.qty).filter(pid => d.qty[pid] > 0 && P(pid) && P(pid).ativo === false);
   if (inat.length) { inat.forEach(pid => delete d.qty[pid]); avisoInativo(P(inat[0])); updateDraft(); return; }
   if (d.tipo !== "consig" && descExcede(t)) { toast(`Descuento arriba de tu límite de ${dec(descLim())}%. Pide a un gerente.`); updateDraft(); return; }
+  const enc = d.tipo === "venda" && !!d.enc; // encomenda: o estoque baixa na entrega, não agora
+  if (enc && cf) { toast("El encargo necesita un cliente con nombre y teléfono."); return; }
+  if (enc && !d.encData) { toast("Indica la fecha de entrega o retiro."); return; }
   const itens = Object.entries(d.qty).filter(([, q]) => q > 0).map(([pid, q]) => { const p = P(pid), rf = naVenda(p) ? recDoProd(pid) : null; return { p: pid, q, preco: precoDraft(p), custo: rf ? r4(custoReceita(rf).unit) : p.custo || 0, vend: 0, dev: 0 }; });
   /* venda de produto com baixa na venda desconta os ingredientes da receita; consignação e o resto, o próprio produto */
-  const chV = d.tipo === "orcamento" ? [] : d.tipo === "venda" ? baixaItens(itens.map(i => ({ id: i.p, q: i.q }))) : itens.map(i => ({ id: i.p, delta: -i.q }));
+  const chV = d.tipo === "orcamento" || enc ? [] : d.tipo === "venda" ? baixaItens(itens.map(i => ({ id: i.p, q: i.q }))) : itens.map(i => ({ id: i.p, delta: -i.q }));
   if (d.tipo !== "orcamento") { const bad = chV.find(c => -c.delta > (P(c.id).estoque || 0) + 1e-9); if (bad) { toast("Existencia insuficiente: " + P(bad.id).nome); updateDraft(); return; } }
   let numero; try { numero = await Store.nextNum("ped"); } catch (e) { toast("Sin conexión con el servidor. Inténtalo de nuevo."); return; }
   const id = rid();
@@ -2264,16 +2270,20 @@ async function confirmPedido0() {
   if (d.tipo === "consig") { o.venc = addDays(today, Number(d.prazo) || 30); o.desc = 0; }
   else { o.desc = t.desc; o.cond = d.cond; o.parc = makeParcelas(t.total, d.cond, today); }
   if (cf) { o.consumidor = { cpf: d.cpf || "" }; o.cond = "0"; o.parc = makeParcelas(t.total, "0", today); }
-  if (d.tipo === "venda" && d.cond === "0" && d.pagoAgora && can("receber")) o.pag = [comCaixa({ data: isoT(new Date()), valor: t.total, forma: d.forma, por: UID })];
+  if (enc) {
+    o.enc = { data: d.encData, hora: d.encHora || "", modo: d.encModo || "retirada", end: d.encModo === "entrega" ? String(d.encEnd || "").trim() : "" };
+    o.baixaPend = true; o.cond = "0"; o.parc = makeParcelas(t.total, "0", d.encData); // saldo vence no dia da entrega
+    const sn = sinalDe(d, t.total); if (sn > 0 && can("receber")) o.pag = [comCaixa({ data: isoT(new Date()), valor: sn, forma: d.forma, por: UID })];
+  } else if (d.tipo === "venda" && d.cond === "0" && d.pagoAgora && can("receber")) o.pag = [comCaixa({ data: isoT(new Date()), valor: t.total, forma: d.forma, por: UID })];
   if (d.tipo === "venda" && chV.some(c => !itens.some(i => i.p === c.id))) o.baixa = chV; // guarda o que baixou para estornar igual no cancelamento
   const ws = [Store.put("ped", id, o)], mvV = mvDe(chV);
   if (chV.length) ws.push(Store.stock(chV));
-  ws.push(logMov(d.tipo === "consig" ? "consig" : "venda", `${tipoPed(d.tipo)} #${numero} · ${cl.nome} · ${fmt(d.tipo === "consig" ? t.bruto : t.total)}`, { ref: id, ps: [...new Set([...itens.map(i => i.p), ...chV.map(c => c.id)])], ...(chV.length ? { tm: d.tipo === "consig" ? "consig" : "venda", mv: mvV } : { tm: "outro" }) }));
-  if (o.pag.length) ws.push(logMov("fin", `Cobro ${fmt(t.total)} · ${cl.nome} · pedido #${numero} · ${d.forma}`, { ref: id }));
+  ws.push(logMov(d.tipo === "consig" ? "consig" : "venda", `${enc ? "Encargo" : tipoPed(d.tipo)} #${numero} · ${cl.nome} · ${fmt(d.tipo === "consig" ? t.bruto : t.total)}${enc ? ` · ${encModo(o.enc).toLowerCase()} ${fdy(o.enc.data)}${o.enc.hora ? " " + o.enc.hora : ""}` : ""}`, { ref: id, ps: [...new Set([...itens.map(i => i.p), ...chV.map(c => c.id)])], ...(chV.length ? { tm: d.tipo === "consig" ? "consig" : "venda", mv: mvV } : { tm: "outro" }) }));
+  if (o.pag.length) ws.push(logMov("fin", `${enc ? "Anticipo" : "Cobro"} ${fmt(o.pag[0].valor)} · ${cl.nome} · pedido #${numero} · ${d.forma}`, { ref: id }));
   if (d.fromOrc) { const orc = Pe(d.fromOrc); if (orc) ws.push(Store.put("ped", orc.id, Object.assign({}, orc, { status: "convertido", convertidoEm: id }))); }
   if (!(await commit(ws))) return;
   ui.draft = null; ui.stack = [{ route: "vendas", id: null }]; ui.route = "pedido"; ui.id = id; render(); window.scrollTo(0, 0);
-  toast(d.tipo === "orcamento" ? `Cotización #${numero} guardado` : `Pedido #${numero} confirmado · inventario actualizado`);
+  toast(d.tipo === "orcamento" ? `Cotización #${numero} guardado` : enc ? `Encargo #${numero} agendado · ${encQuando(o.enc)}` : `Pedido #${numero} confirmado · inventario actualizado`);
 }
 async function doPay(s) {
   const info = payInfo(s), v = r2(parseMoney(s.vals.valor));
@@ -2466,8 +2476,8 @@ document.addEventListener("click", travarAcao(async e => {
     case "prod": openSheet({ k: "prod", id }, true); break;
     /* pedido */
     case "novoPedido": closeSheet(); newDraft(id || "venda"); if (t.dataset.cli) { const c = Cl(t.dataset.cli); ui.draft.cli = c.id; ui.draft.tabela = c.tabela || "varejo"; } go("novoPedido"); break;
-    case "dstep": { const p = P(id), max = ui.draft.tipo === "orcamento" ? 9999 : ui.draft.tipo === "venda" ? dispVenda(p) : p.estoque; ui.draft.qty[id] = Math.max(0, Math.min(max, (ui.draft.qty[id] || 0) + Number(t.dataset.d))); updateDraft(); break; }
-    case "dtipo": { const dc = ui.draft.cli && ui.draft.cli !== "CF" ? Cl(ui.draft.cli) : null; if (id === "consig") ui.draft.tabela = "consig"; else if (ui.draft.tipo === "consig") ui.draft.tabela = dc ? dc.tabela || "varejo" : "varejo"; ui.draft.tipo = id; render(); break; }
+    case "dstep": { const p = P(id), max = draftMax(p); ui.draft.qty[id] = Math.max(0, Math.min(max, (ui.draft.qty[id] || 0) + Number(t.dataset.d))); updateDraft(); break; }
+    case "dtipo": { const dc = ui.draft.cli && ui.draft.cli !== "CF" ? Cl(ui.draft.cli) : null; if (id === "consig") ui.draft.tabela = "consig"; else if (ui.draft.tipo === "consig") ui.draft.tabela = dc ? dc.tabela || "varejo" : "varejo"; ui.draft.enc = id === "encomenda"; ui.draft.tipo = id === "encomenda" ? "venda" : id; render(); break; }
     case "dtab": ui.draft.tabela = id; render(); break;
     case "dprazo": ui.draft.prazo = Number(id); render(); break;
     case "dcond": ui.draft.cond = id; if (id !== "0") ui.draft.pagoAgora = false; render(); break;
@@ -2486,10 +2496,10 @@ document.addEventListener("click", travarAcao(async e => {
       const o = Pe(s.id), cxD = caixaAtual(), dinD = r2(sum((o.pag || []).filter(p => ehDin(p.forma)), p => p.valor));
       const ws = [Store.put("ped", o.id, Object.assign({}, o, { status: "cancelado", canceladoEm: isoT(new Date()), motivo: s.vals.motivo || "" }, cxD && dinD > 0 ? { devCx: { cx: cxD.id, v: dinD } } : {}))]; // dinheiro devolvido sai do caixa aberto
       let mvC = [];
-      if (o.tipo !== "orcamento") { let ch; if (o.baixa) ch = o.baixa.filter(c => P(c.id)).map(c => ({ id: c.id, delta: -c.delta })); else { const agg = {}; o.itens.forEach(i => { agg[i.p] = (agg[i.p] || 0) + (o.tipo === "consig" ? i.q - (i.dev || 0) : i.q); }); ch = Object.entries(agg).filter(([pid, q]) => P(pid) && q).map(([pid, q]) => ({ id: pid, delta: q })); } mvC = mvDe(ch); ws.push(Store.stock(ch)); }
-      ws.push(logMov(o.tipo === "consig" ? "consig" : "venda", `${tipoPed(o.tipo)} #${o.num} cancelado${s.vals.motivo ? " · " + s.vals.motivo : ""}`, { ref: o.id, ps: [...new Set([...o.itens.map(i => i.p), ...(o.baixa || []).map(c => c.id)])], tm: o.tipo === "orcamento" ? "outro" : o.tipo === "consig" ? "est_consig" : "est_venda", mv: mvC }));
+      if (o.tipo !== "orcamento" && !o.baixaPend) { let ch; if (o.baixa) ch = o.baixa.filter(c => P(c.id)).map(c => ({ id: c.id, delta: -c.delta })); else { const agg = {}; o.itens.forEach(i => { agg[i.p] = (agg[i.p] || 0) + (o.tipo === "consig" ? i.q - (i.dev || 0) : i.q); }); ch = Object.entries(agg).filter(([pid, q]) => P(pid) && q).map(([pid, q]) => ({ id: pid, delta: q })); } mvC = mvDe(ch); ws.push(Store.stock(ch)); }
+      ws.push(logMov(o.tipo === "consig" ? "consig" : "venda", `${tipoPed(o.tipo)} #${o.num} cancelado${s.vals.motivo ? " · " + s.vals.motivo : ""}`, { ref: o.id, ps: [...new Set([...o.itens.map(i => i.p), ...(o.baixa || []).map(c => c.id)])], tm: o.tipo === "orcamento" || o.baixaPend ? "outro" : o.tipo === "consig" ? "est_consig" : "est_venda", mv: mvC }));
       const devolver = r2(sum(o.pag || [], p => p.valor)); if (devolver > 0) ws.push(logMov("fin", `Devolución ${fmt(devolver)} · ${Cl(o.cli) ? Cl(o.cli).nome : "Consumidor final"} · pedido #${o.num} cancelado`, { ref: o.id }));
-      if (await commit(ws)) { closeSheet(); toast("Cancelado y existencias devueltas"); }
+      if (await commit(ws)) { closeSheet(); toast(o.baixaPend || o.tipo === "orcamento" ? "Cancelado" : "Cancelado y existencias devueltas"); }
       break;
     }
     /* pagamentos */
@@ -2743,7 +2753,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "backup": saveFile(`backup-${norm(S.emp ? S.emp.nome : "decanta").replace(/\s+/g, "-")}-${today}.json`, JSON.stringify({ app: APP, exportadoEm: isoT(new Date()), empresa: S.emp, produtos: S.prod, clientes: S.cli, fornecedores: S.forn, pedidos: S.ped, compras: S.comp, financeiro: S.fin, equipe: S.mem, atividade: S.mov }, null, 2)); break;
     case "modeloCSV": { const m = impModelo(ui.impTipo); saveFile(`modelo-${ui.impTipo === "prod" ? "productos" : "clientes"}.csv`, "﻿" + m.cols.join(";") + "\n" + m.ex + "\n"); break; }
     case "importar": importar(); break;
-    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]); if (f) await f(t, id, s); }
+    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]) || (typeof ENC_A !== "undefined" && ENC_A[a]); if (f) await f(t, id, s); }
   }
 }));
 document.addEventListener("input", e => {
@@ -2753,7 +2763,7 @@ document.addEventListener("input", e => {
   if (t.id === "cq") { ui.cq = t.value; const tmp = document.createElement("div"); tmp.innerHTML = vClientes(); $("clist").innerHTML = tmp.querySelector("#clist").innerHTML; return; }
   if (t.id === "dq") { ui.draft.q = t.value; $("dlist").innerHTML = draftList(); return; }
   if (t.id === "impTxt") { ui.impTxt = t.value; return; }
-  if (d.d && ui.draft) { ui.draft[d.d] = t.value; if (d.d === "desc") { $("dfoot").innerHTML = draftFoot(); $("dcredit").innerHTML = draftCredit(); } if ((d.d === "desc" || d.d === "recebido") && $("dtroco")) $("dtroco").innerHTML = trocoTxt(); return; }
+  if (d.d && ui.draft) { ui.draft[d.d] = t.value; if (d.d === "desc") { $("dfoot").innerHTML = draftFoot(); $("dcredit").innerHTML = draftCredit(); } if ((d.d === "desc" || d.d === "recebido") && $("dtroco")) $("dtroco").innerHTML = trocoTxt(); if ((d.d === "desc" || d.d === "sinal") && $("dsaldo")) $("dsaldo").innerHTML = saldoTxt(); return; }
   if (d.ci != null && ui.cdraft) { ui.cdraft.itens[Number(d.ci)][d.cf] = t.value; $("kfoot").innerHTML = cdraftFoot(); return; }
   if (d.kd && ui.cdraft) { ui.cdraft[d.kd] = t.value; return; }
   if (d.l && ui.login) { ui.login[d.l] = t.value; return; }
@@ -3053,7 +3063,7 @@ function onScan(code, origem) {
     if (!p) { toast("Código " + code + " no registrado"); return; }
     if (p.ativo === false) { avisoInativo(p); return; }
     if (ehInsumo(p)) { toast(`${p.nome} es ingrediente o empaque: no entra en la venta.`); return; }
-    const max = ui.draft.tipo === "orcamento" ? 9999 : ui.draft.tipo === "venda" ? dispVenda(p) : p.estoque, cur = ui.draft.qty[p.id] || 0;
+    const max = draftMax(p), cur = ui.draft.qty[p.id] || 0;
     if (cur >= max) { toast("Sin existencias disponibles de " + p.nome); return; }
     ui.draft.qty[p.id] = cur + 1; updateDraft(); toast(`+1 ${p.nome} (${cur + 1})`); return;
   }
@@ -3865,5 +3875,169 @@ document.addEventListener("input", e => {
   const d = e.target.dataset;
   if (ui.sheet && ui.sheet.k === "cxFechar" && d.f === "contado") { const el = $("cxDif"); if (el) el.innerHTML = cxDif(ui.sheet); }
 });
+
+/* ---- encomenda.js ---- */
+/* ================= Encomendas (Food): pedido com data de entrega ou retirada, sinal e agenda de produção =================
+   A encomenda é uma venda com o.enc = { data, hora, modo, end, entregue, entPor }. O estoque NÃO baixa ao agendar
+   (o.baixaPend): o produto ainda vai ser feito. Na entrega, baixa o que está pronto e, em receita "ao vender",
+   os ingredientes do que faltar. A parcela vence no dia da entrega: o sinal entra como recebimento. */
+const usaEnc = () => ehFood();
+const encPend = o => !!(o && o.enc && !o.enc.entregue && o.status !== "cancelado");
+const ehEncDraft = () => !!(ui.draft && ui.draft.tipo === "venda" && ui.draft.enc);
+function draftMax(p) { const d = ui.draft; return d.tipo === "orcamento" || ehEncDraft() ? 9999 : d.tipo === "venda" ? dispVenda(p) : p.estoque; }
+const DIAS_SEM = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
+const diaSem = iso => DIAS_SEM[new Date(String(iso).slice(0, 10) + "T12:00:00").getDay()];
+function encDia(iso) { return iso === today ? "Hoy" : iso === addDays(today, 1) ? "Mañana" : `${diaSem(iso)} ${fd(iso)}`; }
+const encQuando = e => `${encDia(e.data)}${e.hora ? " a las " + e.hora : ""}`;
+const encModo = e => (e.modo === "entrega" ? "Entrega" : "Retiro");
+const endCli = cl => (cl ? [[cl.logradouro, cl.numero].filter(Boolean).join(", "), cl.bairro, cl.cidade].filter(Boolean).join(" · ") : "");
+function sinalDe(d, total) {
+  const s = String(d.sinal || "").trim(); if (!s) return 0;
+  const v = s.endsWith("%") ? total * (parseMoney(s.slice(0, -1)) || 0) / 100 : parseMoney(s) || 0;
+  return r2(Math.min(Math.max(v, 0), total));
+}
+const resumoItens = o => o.itens.map(i => { const p = P(i.p); return `${dec(i.q)}× ${p ? p.nome : "Producto"}`; }).join(", ");
+
+/* ---- No novo pedido ---- */
+function encDraft() {
+  const d = ui.draft, cl = d.cli && d.cli !== "CF" ? Cl(d.cli) : null;
+  if (!d.encData) d.encData = addDays(today, 1);
+  if (!d.encModo) d.encModo = "retirada";
+  if (d.encEnd == null) d.encEnd = endCli(cl);
+  return `<span class="lbl" style="margin-top:14px">Entrega o retiro</span>
+    <div class="grid2"><label class="field">Fecha<input type="date" data-d="encData" min="${today}" value="${esc(d.encData)}"></label><label class="field">Horario<input type="time" data-d="encHora" value="${esc(d.encHora || "")}"></label></div>
+    <div class="chips tight">${[["retirada", "Retiro en la tienda"], ["entrega", "Entrega"]].map(([k, l]) => `<button class="chip" data-a="dencModo" data-id="${k}" aria-pressed="${d.encModo === k}">${l}</button>`).join("")}</div>
+    ${d.encModo === "entrega" ? `<label class="field" style="margin-top:10px">Dirección de entrega<input data-d="encEnd" value="${esc(d.encEnd)}" placeholder="Calle, número, colonia"></label>` : ""}
+    ${can("receber") ? `<span class="lbl" style="margin-top:14px">Anticipo pagado ahora</span><div class="chips tight">${["", "30%", "50%", "100%"].map(x => `<button class="chip" data-a="dsinal" data-id="${x}" aria-pressed="${String(d.sinal || "") === x}">${x || "Sin anticipo"}</button>`).join("")}</div>
+    <label class="field" style="margin-top:10px">Monto del anticipo (${SIM()} o %)<input data-d="sinal" inputmode="decimal" value="${esc(d.sinal || "")}" placeholder="Ej: ${money(50)} o 50%"></label>
+    <span class="lbl" style="margin-top:10px">Forma del anticipo</span><div class="chips wrap tight">${formas().map(f => `<button class="chip" data-a="dforma" data-id="${f}" aria-pressed="${d.forma === f}">${f}</button>`).join("")}</div>` : ""}
+    <div id="dsaldo">${saldoTxt()}</div>`;
+}
+function saldoTxt() {
+  const d = ui.draft; if (!ehEncDraft()) return "";
+  const t = draftCalc(); if (!t.n) return `<p class="hint" style="margin:8px 0 0">Elige los productos para ver el anticipo y el saldo.</p>`;
+  const s = sinalDe(d, t.total);
+  return `<div class="note info" style="margin-top:10px">Anticipo ${fmt(s)} ahora · saldo de <b>${fmt(r2(t.total - s))}</b> ${d.encModo === "entrega" ? "a la entrega" : "al retirar"}</div>`;
+}
+
+/* ---- Agenda ---- */
+function encRow(o) {
+  const c = pedCalc(o), e = o.enc, atras = encPend(o) && e.data < today;
+  return `<button class="row" data-a="go" data-r="pedido" data-id="${o.id}"><span class="dot ${atras ? "bad" : e.entregue ? "good" : "info"}">${e.hora ? esc(e.hora.slice(0, 5)) : "—"}</span>
+    <span class="wmain"><b>#${o.num} · ${esc(cliNome(o))}</b><small>${esc(resumoItens(o))} · ${encModo(e)}</small></span>
+    <span class="right">${e.entregue ? `<span class="pill ok">Entregado</span>` : c.aberto > 0.004 ? `<b>${fmt(c.aberto)}</b><small>por cobrar</small>` : `<span class="pill ok">Pagado</span>`}</span></button>`;
+}
+/* O que produzir: soma das encomendas até amanhã (e atrasadas) contra o que já está pronto */
+function encProducao(ate) {
+  const need = {};
+  S.ped.filter(o => encPend(o) && o.enc.data <= ate).forEach(o => o.itens.forEach(i => { need[i.p] = (need[i.p] || 0) + i.q; }));
+  return Object.entries(need).map(([pid, q]) => { const p = P(pid); if (!p) return null; const pronto = Math.max(0, r4(p.estoque || 0)), r = recDoProd(pid); return { p, q: r4(q), pronto, falta: r4(Math.max(0, q - pronto)), r, naHora: naVenda(p) }; })
+    .filter(Boolean).sort((a, b) => b.falta - a.falta || a.p.nome.localeCompare(b.p.nome));
+}
+function vEncomendas() {
+  const ver = ui.encVer || "prox";
+  let h = head("Encargos", "Entregas y retiros agendados", { back: ui.stack.length > 0, action: can("vendas") ? `<button class="btn sm" data-a="novaEnc">+ Nueva</button>` : "" }) + banners();
+  h += `<div class="chips">${[["prox", "Próximos"], ["feitas", "Entregados"]].map(([k, l]) => `<button class="chip" data-a="encVer" data-id="${k}" aria-pressed="${ver === k}">${l}</button>`).join("")}</div>`;
+  if (ver === "feitas") {
+    const L = S.ped.filter(o => o.enc && o.enc.entregue && o.status !== "cancelado").sort((a, b) => String(b.enc.entregue).localeCompare(String(a.enc.entregue))).slice(0, 60);
+    return h + (L.length ? `<div class="list" style="margin-top:12px">${L.map(encRow).join("")}</div>` : empty("Todavía no hay encargos entregados.", ""));
+  }
+  const pend = S.ped.filter(encPend).sort((a, b) => (a.enc.data + (a.enc.hora || "99")).localeCompare(b.enc.data + (b.enc.hora || "99")));
+  if (!pend.length) return h + empty("No hay encargos agendados.", "En Ventas, toca + Nuevo y elige Encargo: marcas la fecha, el horario y el anticipo.");
+  const amanha = addDays(today, 1), prod = encProducao(amanha);
+  if (prod.length) {
+    h += `<section class="card ring" style="margin-top:12px"><span class="lbl">Producción para hoy y mañana</span><div class="list">${prod.map(x => `<div class="row"><span class="wmain"><b>${esc(x.p.nome)}</b><small>Pedidos ${dec(x.q)} · listos ${dec(x.pronto)}${x.naHora ? " · hecho al momento" : ""}</small></span>
+      <span class="right">${x.falta > 0 && x.naHora ? (podeFazer(x.p) >= x.falta ? `<span class="pill ok">Se puede hacer</span>` : `<span class="pill bad">Faltan ingredientes</span>`) : x.falta > 0 ? (x.r && can("ajuste") ? `<button class="btn sm" data-a="encProduzir" data-id="${x.r.id}" data-q="${x.falta}">Producir ${dec(x.falta)}</button>` : `<span class="pill warn">Faltan ${dec(x.falta)}</span>`) : `<span class="pill ok">Listo</span>`}</span></div>`).join("")}</div></section>`;
+  }
+  const grupos = [];
+  pend.forEach(o => { const k = o.enc.data < today ? "atraso" : o.enc.data; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, L: [] }); g.L.push(o); });
+  grupos.forEach(g => { h += `<p class="sec">${g.k === "atraso" ? "Atrasados" : encDia(g.k)} <span class="count">${g.L.length}</span></p><div class="list">${g.L.map(encRow).join("")}</div>`; });
+  return h;
+}
+/* Aviso no topo de Vendas */
+function encBanner() {
+  if (!usaEnc() || !can("vendas")) return "";
+  const pend = S.ped.filter(encPend), hoje = pend.filter(o => o.enc.data === today).length, am = pend.filter(o => o.enc.data === addDays(today, 1)).length, atr = pend.filter(o => o.enc.data < today).length;
+  const txt = pend.length ? [atr ? `${atr} ${atr > 1 ? "atrasados" : "atrasado"}` : "", `${hoje} para hoy`, `${am} para mañana`].filter(Boolean).join(" · ") : "Ninguno agendado";
+  return `<button class="row" data-a="go" data-r="encomendas" style="margin-bottom:12px"><span class="avatar">${ico("cal", 18)}</span><span class="wmain"><b>Encargos</b><small class="${atr ? "neg" : ""}">${txt}</small></span>${ico("chev", 18)}</button>`;
+}
+/* Bloco na tela do pedido */
+function encCard(o) {
+  const e = o.enc, c = pedCalc(o), ativo = o.status !== "cancelado";
+  let h = `<section class="card ${encPend(o) ? "ring" : ""}" style="margin-top:12px"><span class="lbl">Encargo · ${encModo(e)}</span>
+    <div class="row" style="border:0;padding:4px 0"><span class="avatar">${ico("cal", 18)}</span><span class="wmain"><b>${encQuando(e)}</b><small>${e.modo === "entrega" && e.end ? esc(e.end) : fdy(e.data)}</small></span>${e.entregue ? `<span class="pill ok">Entregado</span>` : !ativo ? "" : e.data < today ? `<span class="pill bad">Atrasado</span>` : `<span class="pill info">Agendado</span>`}</div>`;
+  if (e.entregue) h += `<p class="hint" style="margin:6px 0 0">Entregado el ${fdy(e.entregue)} a las ${String(e.entregue).slice(11, 16)} por ${esc(nomeDe(e.entPor))}.</p>`;
+  else if (ativo) {
+    h += `<p class="hint" style="margin:6px 0 10px">El stock baja cuando marques la entrega.${c.aberto > 0.004 ? ` Saldo por cobrar: <b>${fmt(c.aberto)}</b>.` : ""}</p>`;
+    if (can("vendas")) h += `<div class="grid2"><button class="btn" data-a="sheet" data-k="encEntregar" data-id="${o.id}">Marcar como entregado</button><button class="btn ghost" data-a="sheet" data-k="encRemarcar" data-id="${o.id}">Reprogramar</button></div>`;
+  }
+  return h + `</section>`;
+}
+const encTexto = o => { const e = o.enc, c = pedCalc(o); return `\n*Encargo:* ${encModo(e).toLowerCase()} ${encQuando(e).toLowerCase()}${e.modo === "entrega" && e.end ? `\nDirección: ${e.end}` : ""}${c.pago > 0.004 ? `\nAnticipo pagado: ${fmt(c.pago)}` : ""}${c.aberto > 0.004 ? `\n${e.modo === "entrega" ? "Saldo a la entrega:" : "Saldo al retirar:"} ${fmt(c.aberto)}` : ""}\n`; };
+
+/* ---- Entrega: baixa o estoque e, se quiser, recebe o saldo ---- */
+function encBaixa(o) { return baixaItens(o.itens.map(i => ({ id: i.p, q: i.q }))); }
+function encFalta(o) { return encBaixa(o).filter(c => -c.delta > (P(c.id) ? P(c.id).estoque || 0 : 0) + 1e-9).map(c => ({ p: P(c.id), precisa: r4(-c.delta), tem: r4(P(c.id).estoque || 0) })); }
+Object.assign(SH, {
+  encEntregar: s => {
+    const o = Pe(s.id); if (!o || !encPend(o)) return ["Entregar", empty("Este encargo ya fue entregado o cancelado.", "")];
+    const c = pedCalc(o), falta = encFalta(o);
+    if (s.receber == null) s.receber = c.aberto > 0.004 && can("receber");
+    if (!s.forma) s.forma = formas()[0];
+    let h = `<div class="list">${o.itens.map(i => { const p = P(i.p); return `<div class="row"><span class="wmain"><b>${esc(p ? p.nome : "Producto")}</b><small>${dec(i.q)} × ${fmt(i.preco)}</small></span><b>${fmt(i.q * i.preco)}</b></div>`; }).join("")}</div>`;
+    if (falta.length) {
+      h += `<div class="note bad" style="margin-top:12px">Falta stock para entregar:<br>${falta.map(f => `${esc(f.p.nome)}: necesita ${dec(f.precisa)}, hay ${dec(f.tem)}`).join("<br>")}</div>`;
+      const prods = falta.map(f => ({ f, r: recDoProd(f.p.id) })).filter(x => x.r && can("ajuste") && x.r.baixa !== "venda");
+      if (prods.length) h += prods.map(x => `<button class="btn block ghost" style="margin-top:8px" data-a="encProduzir" data-id="${x.r.id}" data-q="${r4(x.f.precisa - x.f.tem)}">Producir ${dec(r4(x.f.precisa - x.f.tem))} ${esc(x.f.p.nome)}</button>`).join("");
+      else h += `<p class="hint">Registra la producción, la compra o la entrada de lo que falta y vuelve aquí.</p>`;
+      return ["Entregar encargo", h];
+    }
+    if (c.aberto > 0.004 && can("receber")) {
+      h += `<label class="toggle" style="margin-top:12px">Cobrar el saldo de ${fmt(c.aberto)} ahora<input type="checkbox" data-a="encReceber" ${s.receber ? "checked" : ""}></label>`;
+      if (s.receber) h += `<div class="chips wrap tight" style="margin-top:8px">${formas().map(f => `<button class="chip" data-a="pforma" data-id="${f}" aria-pressed="${s.forma === f}">${f}</button>`).join("")}</div>`;
+    }
+    return ["Entregar encargo", h + `<button class="btn block" style="margin-top:14px" data-a="encEntregar">Confirmar entrega</button>`];
+  },
+  encRemarcar: s => {
+    const o = Pe(s.id); if (!o || !o.enc) return ["Reprogramar", empty("Encargo no encontrado.", "")];
+    if (s.vals.data == null) Object.assign(s.vals, { data: o.enc.data, hora: o.enc.hora || "", modo: o.enc.modo || "retirada", end: o.enc.end || endCli(Cl(o.cli)) });
+    return ["Reprogramar encargo", `<div class="grid2"><label class="field">Fecha<input type="date" data-f="data" value="${esc(s.vals.data)}"></label><label class="field">Horario<input type="time" data-f="hora" value="${esc(s.vals.hora)}"></label></div>
+      <div class="chips tight">${[["retirada", "Retiro en la tienda"], ["entrega", "Entrega"]].map(([k, l]) => `<button class="chip" data-a="encModoS" data-id="${k}" aria-pressed="${s.vals.modo === k}">${l}</button>`).join("")}</div>
+      ${s.vals.modo === "entrega" ? `<label class="field" style="margin-top:10px">Dirección de entrega<input data-f="end" value="${esc(s.vals.end)}"></label>` : ""}
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" style="margin-top:12px" data-a="encRemarcar">Guardar</button>`];
+  }
+});
+
+const ENC_A = {
+  novaEnc: async () => { newDraft("venda"); ui.draft.enc = true; go("novoPedido"); },
+  encVer: async (t, id) => { ui.encVer = id; render(); },
+  dencModo: async (t, id) => { ui.draft.encModo = id; render(); },
+  dsinal: async (t, id) => { ui.draft.sinal = id; render(); },
+  encProduzir: async (t, id) => { closeSheet(); openSheet({ k: "produzir", id, vals: { qtd: dec(Number(t.dataset.q) || 0) } }); },
+  encReceber: async (t, id, s) => { s.receber = t.checked; renderSheet(); },
+  encModoS: async (t, id, s) => { s.vals.modo = id; renderSheet(); },
+  encRemarcar: async (t, id, s) => {
+    const o = Pe(s.id); if (!o) return;
+    if (!s.vals.data) { s.err = "Indica la fecha."; renderSheet(); return; }
+    const enc = Object.assign({}, o.enc, { data: s.vals.data, hora: s.vals.hora || "", modo: s.vals.modo, end: s.vals.modo === "entrega" ? String(s.vals.end || "").trim() : "" });
+    const parc = makeParcelas(pedCalc(o).total, "0", enc.data);
+    if (await commit([Store.patch("ped", o.id, { enc, parc }), logMov("venda", `Encargo #${o.num} reprogramado · ${encModo(enc).toLowerCase()} ${fdy(enc.data)}${enc.hora ? " " + enc.hora : ""}`, { ref: o.id })])) { closeSheet(); toast("Encargo reprogramado"); }
+  },
+  encEntregar: async (t, id, s) => {
+    const o = Pe(s.id); if (!encPend(o)) { closeSheet(); return; }
+    if (encFalta(o).length) { renderSheet(); return; }
+    const chV = encBaixa(o), c = pedCalc(o), agora = isoT(new Date()), no = clone(o);
+    no.enc = Object.assign({}, o.enc, { entregue: agora, entPor: UID }); delete no.baixaPend;
+    if (chV.some(x => !o.itens.some(i => i.p === x.id))) no.baixa = chV; // guarda o que baixou para estornar igual no cancelamento
+    let pag = null;
+    if (s.receber && c.aberto > 0.004 && can("receber")) { pag = comCaixa({ data: agora, valor: c.aberto, forma: s.forma, por: UID }); no.pag = [...(o.pag || []), pag]; }
+    const ws = [Store.put("ped", o.id, Object.assign(no, { id: o.id })), Store.stock(chV),
+      logMov("venda", `Encargo #${o.num} entregado · ${cliNome(o)}`, { ref: o.id, ps: [...new Set([...o.itens.map(i => i.p), ...chV.map(x => x.id)])], tm: "venda", mv: mvDe(chV) })];
+    if (pag) ws.push(logMov("fin", `Cobro ${fmt(pag.valor)} · ${cliNome(o)} · pedido #${o.num} · ${pag.forma}`, { ref: o.id }));
+    if (await commit(ws)) { closeSheet(); toast(pag ? `Entregado y ${fmt(pag.valor)} recebido` : "Encargo entregado · stock actualizado"); }
+  }
+};
+
+Object.assign(ROUTES, { encomendas: { v: vEncomendas, tab: "vendas", p: "vendas" } });
 
 boot();
