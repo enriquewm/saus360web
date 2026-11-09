@@ -87,6 +87,10 @@ const RUBROS = {
   semijoias: { l: "Bisutería y accesorios", cats: [["brincos", "Aretes", "#c9a227"], ["colares", "Collares", "#118ab2"], ["aneis", "Anillos", "#7b4fa0"], ["pulseiras", "Pulseiras", "#2a9d8f"], ["conjuntos", "Conjuntos", "#c2562f"], ["outros", "Otros", "#8a7f7a"]] },
   emporio: { l: "Tienda gourmet y alimentos", cats: [["bebidas", "Bebidas", "#6d1a2c"], ["mercearia", "Abarrotes", "#c2562f"], ["frios", "Carnes frías y lácteos", "#d9b752"], ["doces", "Dulces y chocolates", "#7a4a2a"], ["cafes", "Cafés y tés", "#3c6e47"], ["presentes", "Canastas y regalos", "#118ab2"], ["outros", "Otros", "#8a7f7a"]] },
   limpeza: { l: "Limpieza y artículos para el hogar (jarcería)", cats: [["vassouras", "Escobas y trapeadores", "#3c6e47"], ["produtos_limpeza", "Productos de limpieza", "#118ab2"], ["quimicos", "Químicos y desinfectantes", "#7b4fa0"], ["plasticos", "Plásticos y cubetas", "#c2562f"], ["cordas", "Mecates y fibras", "#d9b752"], ["descartaveis", "Desechables", "#2a9d8f"], ["outros", "Otros", "#8a7f7a"]] },
+  food_confeitaria: { l: "Food · Repostería y dulcería", food: 1, cats: [["insumos", "Ingredientes", "#8a6a3a"], ["embalagens", "Empaques", "#8a7f7a"], ["bolos", "Pasteles y tortas", "#c2562f"], ["doces", "Dulces y brigadeiros", "#7a4a2a"], ["sobremesas", "Postres", "#e48c9d"], ["kits", "Kits y regalos", "#118ab2"], ["outros", "Otros", "#5f5e5a"]] },
+  food_padaria: { l: "Food · Panadería y pastelería", food: 1, cats: [["insumos", "Ingredientes", "#8a6a3a"], ["embalagens", "Empaques", "#8a7f7a"], ["paes", "Panes", "#b8702a"], ["salgados", "Salados", "#c2562f"], ["doces", "Dulces y repostería", "#7a4a2a"], ["bebidas", "Bebidas", "#118ab2"], ["outros", "Otros", "#5f5e5a"]] },
+  food_cafe: { l: "Food · Cafetería", food: 1, cats: [["insumos", "Ingredientes", "#8a6a3a"], ["embalagens", "Empaques", "#8a7f7a"], ["cafes", "Cafés", "#3c6e47"], ["bebidas", "Otras bebidas", "#118ab2"], ["salgados", "Salados", "#c2562f"], ["doces", "Dulces", "#7a4a2a"], ["outros", "Otros", "#5f5e5a"]] },
+  food_rest: { l: "Food · Restaurante y dark kitchen", food: 1, cats: [["insumos", "Ingredientes", "#8a6a3a"], ["embalagens", "Empaques", "#8a7f7a"], ["pratos", "Platos", "#c2562f"], ["porcoes", "Porciones y snacks", "#b8702a"], ["bebidas", "Bebidas", "#118ab2"], ["sobremesas", "Postres", "#e48c9d"], ["outros", "Otros", "#5f5e5a"]] },
   outro: { l: "Otro giro", cats: [["geral", "General", "#118ab2"], ["outros", "Otros", "#8a7f7a"]] }
 };
 const CAT_CORES = ["#6d1a2c", "#c2562f", "#d9b752", "#3c6e47", "#2a9d8f", "#118ab2", "#464b71", "#7b4fa0", "#e48c9d", "#7a4a2a", "#8a7f7a"];
@@ -94,6 +98,11 @@ const VINHO_IDS = ["tinto", "branco", "rose", "espumante", "sobremesa", "fortifi
 const PLURAL_VINHO = { tinto: "Tintos", branco: "Blancos", rose: "Rosados", espumante: "Espumantes", sobremesa: "Postre", fortificado: "Fortificados", outros: "Accesorios y otros" };
 const rubro = () => (S.emp && RUBROS[S.emp.rubro]) ? S.emp.rubro : "vinhos";
 const ehVinho = () => rubro() === "vinhos";
+const ehFood = () => !!(RUBROS[rubro()] || {}).food;
+/* Food: insumos e embalagens não aparecem na venda; unidade de controle do estoque */
+const ehInsumo = p => !!p && (p.tipoItem === "insumo" || p.tipoItem === "embalagem");
+const unDe = p => (p && p.un) || "un";
+const r4 = n => Math.round((n || 0) * 10000) / 10000;
 function catsPadrao(r) { return (RUBROS[r] || RUBROS.vinhos).cats.map(([id, l, c]) => ({ id, l, c, ncm: r === "vinhos" && temFiscal() ? NCM_SUG[id] || "" : "", min: r === "vinhos" && id !== "outros" ? 6 : 0 })); }
 /* Lista na ordem da empresa; "outros" sempre existe e nunca é arquivada. todas=true inclui as arquivadas. */
 function cats(todas) {
@@ -169,7 +178,7 @@ let CAN_WRITE = true;
 let cloudState = "idle";  // idle | connecting | on | off
 let loadState = "idle";   // idle | loading | ok | slow | erro | revogado
 const S = { emp: null, prod: [], cli: [], forn: [], ped: [], comp: [], fin: [], mov: [], mem: [], nf: [] };
-const COLS = ["prod", "cli", "forn", "ped", "comp", "fin", "mem", "mov", "nf"];
+const COLS = ["prod", "cli", "forn", "ped", "comp", "fin", "mem", "mov", "nf", "rec"];
 let unsubs = [], loadTimer = null, loadedCols = new Set();
 const DEMO_KEY = "decanta-demo-v2";
 
@@ -199,7 +208,8 @@ function stockDocs(changes) {
   return changes.map(ch => {
     const p = P(ch.id); if (!p) return null;
     const n = { estoque: (p.estoque || 0) + ch.delta };
-    if (ch.custoEntrada > 0 && ch.delta > 0) { const base = Math.max(0, p.estoque || 0); n.custo = r2((base * (p.custo || 0) + ch.delta * ch.custoEntrada) / (base + ch.delta)); }
+    if (ch.custoEntrada > 0 && ch.delta > 0) { const base = Math.max(0, p.estoque || 0); n.custo = r4((base * (p.custo || 0) + ch.delta * ch.custoEntrada) / (base + ch.delta)); }
+    n.estoque = r4(n.estoque);
     return Object.assign({}, p, n);
   }).filter(Boolean);
 }
@@ -291,7 +301,7 @@ function mvDe(changes) {
 }
 const TM = { // tipos de movimento: rótulo e sentido (1 entra, −1 sai, 0 ajuste/sem quantidade)
   venda: ["Venta", -1], consig: ["Salida en consignación", -1], dev_consig: ["Devolución de consignación", 1], est_venda: ["Venta cancelada (reversión)", 1], est_consig: ["Consignación cancelada (reversión)", 1],
-  acerto: ["Liquidación de consignación", 0], receb: ["Recepción de compra", 1], entrada: ["Entrada manual", 1], baixa: ["Salida", -1], contagem: ["Conteo individual", 0], inventario: ["Conteo general", 0],
+  acerto: ["Liquidación de consignación", 0], producao: ["Producción", 0], receb: ["Recepción de compra", 1], entrada: ["Entrada manual", 1], baixa: ["Salida", -1], contagem: ["Conteo individual", 0], inventario: ["Conteo general", 0],
   import: ["Importación de hoja de cálculo", 0], compra: ["Orden de compra", 0], cadastro: ["Registro", 0], outro: ["Otro", 0]
 };
 function movTipo(e) {
@@ -324,6 +334,7 @@ function movQtd(e, pid) {
 const INV_KEY = () => "saus360-inv-" + (EID || "x");
 function invCarregar() { if (ui.invEid === EID) return; ui.invEid = EID; try { ui.inv = JSON.parse(localStorage.getItem(INV_KEY())) || {}; } catch (e) { ui.inv = {}; } }
 function invGuardar() { try { if (Object.keys(ui.inv).length) localStorage.setItem(INV_KEY(), JSON.stringify(ui.inv)); else localStorage.removeItem(INV_KEY()); } catch (e) {} }
+const invNum = v => ehFood() ? r4(parseMoney(v)) : parseInt(v, 10);
 const invContado = pid => ui.inv[pid] != null && ui.inv[pid] !== "";
 function unsubscribeAll() { unsubs.forEach(u => { try { u(); } catch (e) {} }); unsubs = []; clearTimeout(loadTimer); }
 function startDemo() {
@@ -1338,7 +1349,7 @@ function draftCredit() {
 }
 function draftList() {
   const d = ui.draft, q = norm(d.q);
-  const list = S.prod.filter(p => p.ativo !== false && (!q || norm([p.nome, p.uva, p.regiao, p.pais, p.ean].join(" ")).includes(q)));
+  const list = S.prod.filter(p => p.ativo !== false && !ehInsumo(p) && (!q || norm([p.nome, p.uva, p.regiao, p.pais, p.ean].join(" ")).includes(q)));
   return list.map(p => {
     const n = d.qty[p.id] || 0, after = p.estoque - n, pr = precoDraft(p), orc = d.tipo === "orcamento", dcl = d.cli && d.cli !== "CF" ? Cl(d.cli) : null, esp = temEspecial(p, dcl) ? " · especial" : "";
     let cls = "", t = `${p.estoque} disp. · ${fmt(pr)}${esp}`;
@@ -1390,7 +1401,7 @@ function newDraft(tipo, base) {
 /* ---- Estoque ---- */
 const FILTROS_EST = ["todos", "baixo", "zero", "inativos"];
 /* Linha de detalhe do produto na lista: vinho mostra uva e país; outros ramos, marca/referência/medida */
-const prodSub = p => (ehVinho() ? [p.uva, p.pais] : [p.marca, p.ref, p.material, p.medida]).filter(Boolean).join(" · ") || catLabel(p.tipo);
+const prodSub = p => ehFood() ? [p.tipoItem === "insumo" ? "Ingrediente" : p.tipoItem === "embalagem" ? "Empaque" : "", `${dec(r4(p.estoque || 0))} ${unDe(p)}`, p.marca].filter(Boolean).join(" · ") : (ehVinho() ? [p.uva, p.pais] : [p.marca, p.ref, p.material, p.medida]).filter(Boolean).join(" · ") || catLabel(p.tipo);
 function prodMatch(p) {
   const f = ui.fTipo, q = norm(ui.q);
   if (f === "inativos") { if (p.ativo !== false) return false; } else if (p.ativo === false) return false;
@@ -1417,7 +1428,7 @@ function prodList() {
 function vEstoque() {
   if (ui.fTipo && !FILTROS_EST.includes(ui.fTipo) && !cats().some(c => c.id === ui.fTipo)) ui.fTipo = "todos";
   const f = [["todos", "Todos"], ...cats().map(c => [c.id, c.l]), ["baixo", "Existencia baja"], ["zero", "Sin existencias"], ["inativos", "Inactivos"]];
-  const qk = (can("ajuste") ? [`<button data-a="go" data-r="inventario">${ico("clip")}Conteo</button>`, `<button data-a="go" data-r="movimentos">${ico("list")}Movimientos</button>`, `<button data-a="go" data-r="importar">${ico("upload")}Importar</button>`, `<button data-a="exportProd">${ico("download")}Exportar</button>`] : []).concat(can("vendas") ? [`<button data-a="abrirCatalogo">${ico("file")}Catálogo</button>`] : []);
+  const qk = (can("ajuste") ? [`<button data-a="go" data-r="inventario">${ico("clip")}Conteo</button>`, `<button data-a="go" data-r="movimentos">${ico("list")}Movimientos</button>`, ...(ehFood() ? [`<button data-a="go" data-r="receitas">${ico("clip")}Recetas</button>`] : []), `<button data-a="go" data-r="importar">${ico("upload")}Importar</button>`, `<button data-a="exportProd">${ico("download")}Exportar</button>`] : []).concat(can("vendas") ? [`<button data-a="abrirCatalogo">${ico("file")}Catálogo</button>`] : []);
   const novo = can("ajuste") ? `<button class="btn sm" data-a="sheet" data-k="prodForm">+ Producto</button>` : "";
   let h = head("Inventario", ehVinho() ? "Productos y botellas" : "Productos", { action: DESK() ? `<div class="hdr-actions">${qk.map(b => b.replace("<button ", '<button class="btn sm line" ')).join("")}${novo}</div>` : novo }) + banners();
   if (qk.length && !DESK()) h += `<div class="quick ${qk.length >= 5 ? "five" : qk.length === 4 ? "" : qk.length === 3 ? "three" : qk.length === 2 ? "two" : "one"}">${qk.join("")}</div>`;
@@ -1450,11 +1461,11 @@ function vInventario() {
   return h;
 }
 function invRow(p) {
-  const ok = invContado(p.id), v = ok ? ui.inv[p.id] : "", d = ok ? Number(v) - p.estoque : 0;
+  const ok = invContado(p.id), v = ok ? ui.inv[p.id] : "", d = ok ? r4(invNum(v) - p.estoque) : 0;
   return `<div class="irow ${ok ? "ok" : "pend"}" data-row="${p.id}"><span class="ist" aria-hidden="true">${ok ? ico("check", 16) : ""}</span><span class="wmain"><b>${esc(p.nome)}</b><small>${p.loc ? esc(p.loc) + " · " : ""}sistema ${p.estoque}${ok ? (d ? ` · <span class="idf">diferencia ${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : " · coincide") : " · falta contar"}</small></span><button class="iok" data-a="invOk" data-id="${p.id}" aria-label="Coincide con el sistema: ${p.estoque}" title="Coincide con el sistema">${ico("check", 18)}</button><input type="number" inputmode="numeric" min="0" data-inv="${p.id}" value="${esc(v)}" placeholder="Cant." aria-label="Contado de ${esc(p.nome)}"></div>`;
 }
 function invFoot() {
-  const list = invLista(), feitos = list.filter(p => invContado(p.id)), falta = list.length - feitos.length, diffs = feitos.filter(p => Number(ui.inv[p.id]) !== p.estoque);
+  const list = invLista(), feitos = list.filter(p => invContado(p.id)), falta = list.length - feitos.length, diffs = feitos.filter(p => invNum(ui.inv[p.id]) !== p.estoque);
   return `<div><small>${falta ? `faltam ${falta} · ` : ""}${diffs.length} ${diffs.length === 1 ? "diferencia" : "diferencias"}</small><b>${feitos.length}/${list.length}</b></div><button class="btn" data-a="finInv" ${falta || !list.length ? "disabled" : ""}>${falta ? `Faltan ${falta}` : "Finalizar conteo"}</button>`;
 }
 
@@ -1467,7 +1478,7 @@ function vMais() {
   h += `<div class="row"><span class="avatar">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${PAPEIS[m.papel]}${m.comissao ? ` · comisión ${m.comissao}%` : ""}</small></span></div>`;
   if (MODE === "demo") h += `<p class="sec">Ver la app como</p><div class="chips wrap tight">${S.mem.map(x => `<button class="chip" data-a="verComo" data-id="${x.id}" aria-pressed="${x.id === UID}">${esc(firstName(x.nome))} · ${PAPEIS[x.papel]}</button>`).join("")}</div><p class="hint">En la demostración puedes cambiar de usuario para ver lo que ve cada rol.</p>`;
   if (!D) h += `<p class="sec">Registros</p><div class="menu">${it("clientes", "users", "Clientes", "Ficha, crédito, historial y consignación", can("clientes"))}${it("fornecedores", "truck", "Proveedores", "Contactos, compras y cuentas por pagar", can("fornecedores"))}${it("estoque", "bottle", "Productos", ehVinho() ? "Ficha del vino, precios e inventario" : "Ficha, precios e inventario", can("estoque"))}</div>`;
-  const op = it("compras", "cart", "Compras", "Órdenes a proveedores y recepción", can("compras")) + it("financeiro", "wallet", "Finanzas", "Cuentas por cobrar, por pagar y flujo de caja", can("receber") || can("pagar")) + it("relatorios", "chart", "Reportes", "Ventas, curva ABC, margen, comisiones y atrasos", can("relatorios")) + it("movimentos", "list", "Movimientos de inventario", "Todo lo que pasó con cada producto", can("estoque"));
+  const op = it("compras", "cart", "Compras", "Órdenes a proveedores y recepción", can("compras")) + it("financeiro", "wallet", "Finanzas", "Cuentas por cobrar, por pagar y flujo de caja", can("receber") || can("pagar")) + it("relatorios", "chart", "Reportes", "Ventas, curva ABC, margen, comisiones y atrasos", can("relatorios")) + it("movimentos", "list", "Movimientos de inventario", "Todo lo que pasó con cada producto", can("estoque")) + (ehFood() ? it("receitas", "clip", "Recetas y producción", "Fichas técnicas, costo real y producción", can("estoque")) : "");
   const fis = temFiscal() ? it("notas", "receipt", "Notas fiscales", "NF-e, NFC-e y consignación emitidas", can("fiscal")) + it("fiscal", "shield", "Configuración fiscal", "Datos del emisor, tributación y credenciales", can("empresa")) : ""; // nota fiscal brasileira
   const cat = can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span class="wmain"><b>Catálogo de productos</b><small>PDF con las existencias y los precios del cliente</small></span>${ico("chev", 18)}</button>` : "";
   if ((op || cat) && !D) h += `<p class="sec">Gestión</p><div class="menu">${cat}${op}</div>`;
@@ -1813,7 +1824,7 @@ function movLinhas() {
   });
   return { linhas: out.filter(l => ui.movT === "todos" || (ui.movT === "entradas" ? l.x && l.x.q > 0 : ui.movT === "saidas" ? l.x && l.x.q < 0 : ui.movT === "contagens" ? l.tm === "contagem" || l.tm === "inventario" : !l.x || !l.x.q)), fonte };
 }
-const movQtdTxt = l => !l.x ? "" : l.x.q > 0 ? "+" + l.x.q : l.x.q < 0 ? "−" + Math.abs(l.x.q) : "0";
+const movQtdTxt = l => !l.x ? "" : l.x.q > 0 ? "+" + dec(r4(l.x.q)) : l.x.q < 0 ? "−" + dec(r4(Math.abs(l.x.q))) : "0";
 const movDetalhe = l => { const x = l.x, t = []; if (x && x.c != null) t.push(`sistema ${x.de}, contado ${x.c}`); if (l.e.motivo) t.push(l.e.motivo); return t.join(" · "); };
 function vMovimentos() {
   const p = ui.movP ? P(ui.movP) : null, D = DESK();
@@ -1830,11 +1841,11 @@ function vMovimentos() {
   const quando = e => `${fdy(e.ts)} ${String(e.ts).slice(11, 16)}`;
   if (D) {
     const cols = [["Fecha y hora"], ["Tipo"], ...(p ? [] : [["Producto"]]), ["Cant.", "n"], ["Saldo", "n"], ["Documento"], ["Usuario"], ["Detalle"]];
-    h += `<div style="margin-top:10px">${dtable(cols, linhas.map(l => { const doc = movDoc(l.e); return dtr(doc.a, [td(quando(l.e)), td(esc(TM[l.tm][0])), ...(p ? [] : [td(esc(l.p ? l.p.nome : "Producto eliminado"))]), td(`<span class="mvq ${l.x && l.x.q > 0 ? "pos" : l.x && l.x.q < 0 ? "neg" : ""}">${movQtdTxt(l)}</span>`, "n"), td(l.depois != null ? l.depois : (l.x ? "—" : ""), "n"), td(esc(doc.t), "mvdoc"), td(esc(nomeDe(l.e.por))), td(esc(movDetalhe(l) || (l.x ? "" : l.e.txt)))]); }), vazio, "t-mov")}</div>`;
+    h += `<div style="margin-top:10px">${dtable(cols, linhas.map(l => { const doc = movDoc(l.e); return dtr(doc.a, [td(quando(l.e)), td(esc(TM[l.tm][0])), ...(p ? [] : [td(esc(l.p ? l.p.nome : "Producto eliminado"))]), td(`<span class="mvq ${l.x && l.x.q > 0 ? "pos" : l.x && l.x.q < 0 ? "neg" : ""}">${movQtdTxt(l)}</span>`, "n"), td(l.depois != null ? dec(r4(l.depois)) : (l.x ? "—" : ""), "n"), td(esc(doc.t), "mvdoc"), td(esc(nomeDe(l.e.por))), td(esc(movDetalhe(l) || (l.x ? "" : l.e.txt)))]); }), vazio, "t-mov")}</div>`;
   } else {
     let cur = "", rows = "";
     linhas.forEach(l => { const d = String(l.e.ts).slice(0, 10), doc = movDoc(l.e); if (d !== cur) { cur = d; rows += `<p class="day">${d === today ? "Hoy" : d === addDays(today, -1) ? "Ayer" : fdy(d)}</p>`; }
-      rows += `<${doc.a ? "button" : "div"} class="row" ${doc.a}><span class="wmain"><b>${esc(TM[l.tm][0])}${p ? "" : " · " + esc(l.p ? l.p.nome : "Producto eliminado")}</b><small>${esc([String(l.e.ts).slice(11, 16), nomeDe(l.e.por), doc.t, movDetalhe(l)].filter(Boolean).join(" · "))}</small>${l.x ? "" : `<small>${esc(l.e.txt)}</small>`}</span><span class="right">${l.x ? `<b class="mvq ${l.x.q > 0 ? "pos" : l.x.q < 0 ? "neg" : ""}">${movQtdTxt(l)}</b>` : ""}${l.depois != null ? `<small class="mvsaldo">saldo ${l.depois}</small>` : ""}</span></${doc.a ? "button" : "div"}>`; });
+      rows += `<${doc.a ? "button" : "div"} class="row" ${doc.a}><span class="wmain"><b>${esc(TM[l.tm][0])}${p ? "" : " · " + esc(l.p ? l.p.nome : "Producto eliminado")}</b><small>${esc([String(l.e.ts).slice(11, 16), nomeDe(l.e.por), doc.t, movDetalhe(l)].filter(Boolean).join(" · "))}</small>${l.x ? "" : `<small>${esc(l.e.txt)}</small>`}</span><span class="right">${l.x ? `<b class="mvq ${l.x.q > 0 ? "pos" : l.x.q < 0 ? "neg" : ""}">${movQtdTxt(l)}</b>` : ""}${l.depois != null ? `<small class="mvsaldo">saldo ${dec(r4(l.depois))}</small>` : ""}</span></${doc.a ? "button" : "div"}>`; });
     h += `<div class="list" style="margin-top:12px">${rows || vazio}</div>`;
   }
   h += `<p class="hint">El saldo es el inventario después de cada movimiento. Los registros hechos antes de esta versión no guardaban la cantidad en todos los casos; en esos aparece “—”.</p>`;
@@ -1915,7 +1926,7 @@ function tabsFor() {
   return t;
 }
 /* Barra lateral do computador: todas as áreas agrupadas, respeitando as permissões do papel */
-const SIDE_DE = { pedido: "vendas", novoPedido: "vendas", cliente: "clientes", fornecedor: "fornecedores", compra: "compras", novaCompra: "compras", inventario: "estoque", movimentos: "estoque", categorias: "estoque", importar: "estoque", fiscal: "empresa", conta: "mais", termos: "mais" };
+const SIDE_DE = { pedido: "vendas", novoPedido: "vendas", cliente: "clientes", fornecedor: "fornecedores", compra: "compras", novaCompra: "compras", inventario: "estoque", movimentos: "estoque", receitas: "estoque", receita: "estoque", receitaEdit: "estoque", categorias: "estoque", importar: "estoque", fiscal: "empresa", conta: "mais", termos: "mais" };
 function sideNav() {
   const m = ME(), cur = SIDE_DE[ui.route] || ui.route;
   const it = (r, i, l, ok) => ok === false ? "" : `<button data-a="tab" data-r="${r}" aria-current="${cur === r ? "page" : "false"}">${ico(i)}<span>${l}</span></button>`;
@@ -1964,6 +1975,7 @@ const SPEC = {
     const esp = r === "vinhos" ? [{ k: "safra", l: "Cosecha", h: 1, ph: "2022 o NV" }, { k: "uva", l: "Uva", h: 1, ph: "Ej.: Malbec" }, { k: "vol", l: "Volumen (ml)", t: "num", h: 1 }, { k: "pais", l: "País", h: 1 }, { k: "regiao", l: "Región", h: 1 }, { k: "produtor", l: "Productor", h: 1 }, { k: "teor", l: "Graduación alcohólica", h: 1, ph: "13,5%" }]
       : r === "semijoias" ? [{ k: "ref", l: "Referencia", h: 1, ph: "Código del proveedor" }, { k: "material", l: "Baño o material", h: 1, ph: "Oro 18k, rodio, plata" }, { k: "medida", l: "Tamaño o medida", h: 1, ph: "Talla 16, 45 cm" }, { k: "marca", l: "Marca", h: 1 }]
       : r === "limpeza" ? [{ k: "marca", l: "Marca", h: 1 }, { k: "ref", l: "Referencia", h: 1, ph: "Código del proveedor" }, { k: "medida", l: "Tamaño o contenido", h: 1, ph: "1 L, 60 cm, paquete de 12" }, { k: "material", l: "Material", h: 1, ph: "Plástico, ixtle, microfibra" }]
+      : ehFood() ? [{ k: "tipoItem", l: "Tipo de ítem", t: "select", h: 1, opts: [["venda", "Producto de venta"], ["insumo", "Ingrediente / insumo"], ["embalagem", "Empaque"]] }, { k: "un", l: "Unidad del inventario", t: "select", h: 1, opts: UNIDADES.map(u => [u, UN_NOME[u]]) }, { k: "marca", l: "Marca", h: 1 }, { k: "validade", l: "Vida útil (días)", t: "num", h: 1, ph: "Ej: 5" }, { k: "alerg", l: "Alérgenos", ph: "Leche, gluten, huevo, frutos secos" }]
       : r === "emporio" ? [{ k: "marca", l: "Marca", h: 1 }, { k: "medida", l: "Peso o volumen", h: 1, ph: "500 g, 1 L" }, { k: "produtor", l: "Fabricante", h: 1 }, { k: "pais", l: "País de origen", h: 1 }]
       : [{ k: "marca", l: "Marca", h: 1 }, { k: "ref", l: "Referencia", h: 1 }, { k: "medida", l: "Tamaño o medida" }];
     return [
@@ -1975,7 +1987,7 @@ const SPEC = {
       { k: "custo", l: `Costo unitario (${SIM()})`, t: "money", h: 1, ph: money(52) }, { k: "pv", l: "Precio menudeo", t: "money", h: 1, ph: money(89) },
       { k: "pa", l: "Precio mayoreo", t: "money", h: 1 }, { k: "pr", l: "Precio restaurante", t: "money", h: 1 },
       { k: "pc", l: "Precio consignación", t: "money", h: 1, ph: "vacío = menudeo" },
-      { k: "estoque", l: "Existencia actual", t: "num", h: 1 }, { k: "min", l: "Existencia mínima", t: "num", h: 1 },
+      { k: "estoque", l: ehFood() ? "Inventario actual (en la unidad)" : "Existencia actual", t: ehFood() ? "money" : "num", h: 1 }, { k: "min", l: "Existencia mínima", t: ehFood() ? "money" : "num", h: 1 },
       { k: "ean", l: "Código de barras (EAN)", t: "code", scan: 1 }, { k: "loc", l: "Ubicación", ph: "Pasillo A · est. 2" },
       ...(r === "vinhos" ? [{ k: "temp", l: "Temperatura de servicio", ph: "16 a 18 °C" }, { k: "harmon", l: "Maridaje", t: "textarea", ph: "Ej.: carnes rojas, quesos curados" }] : [{ k: "harmon", l: "Observaciones", t: "textarea", ph: "Detalles que ayudan a vender" }]),
       ...(temFiscal() ? [{ sec: "Datos fiscales (confírmalos con el contador)" },
@@ -1984,7 +1996,7 @@ const SPEC = {
     ];
   },
   /* Campos que dependem do ramo (os demais são comuns a todos) */
-  campos: ["safra", "uva", "vol", "pais", "regiao", "produtor", "teor", "ref", "material", "medida", "marca", "temp"],
+  campos: ["safra", "uva", "vol", "pais", "regiao", "produtor", "teor", "ref", "material", "medida", "marca", "temp", "tipoItem", "un", "validade", "alerg"],
   cli: () => { const P = PC(); return [
     { k: "nome", l: "Nombre comercial", ph: "Ej.: Bistró La Marea" }, { k: "razao", l: "Razón social" },
     { k: "doc", l: P.docCli, h: 1, t: P.dec === "," ? "tel" : "code" }, { k: "tipo", l: "Tipo", t: "select", h: 1, opts: CLI_TIPOS.map(x => [x, x]) },
@@ -2050,7 +2062,7 @@ const SH = {
     <label class="field">Observación<input data-f="nota" value="${esc(s.vals.nota || "")}" placeholder="Ej.: botella estrellada al recibir"></label>
     <button class="btn block" data-a="doBaixa">Registrar salida</button>`]; },
   finInv: () => {
-    const list = invLista(), d = list.map(p => ({ p, q: parseInt(ui.inv[p.id], 10) - p.estoque })).filter(x => x.q), plus = sum(d, x => Math.max(0, x.q)), minus = sum(d, x => Math.max(0, -x.q));
+    const list = invLista(), d = list.map(p => ({ p, q: invNum(ui.inv[p.id]) - p.estoque })).filter(x => x.q), plus = sum(d, x => Math.max(0, x.q)), minus = sum(d, x => Math.max(0, -x.q));
     return ["Finalizar conteo", `<div class="stats"><div class="stat good"><span>Contados</span><b>${list.length}</b><small>todos los productos</small></div><div class="stat ${d.length ? "warn" : ""}"><span>Con diferencia</span><b>${d.length}</b><small>+${plus} / −${minus} un.</small></div></div>
     ${d.length ? `<p class="sec">Ajustes que se harán</p><div class="list">${d.slice(0, 40).map(x => `<div class="row"><span class="wmain"><b>${esc(x.p.nome)}</b><small>sistema ${x.p.estoque} → contado ${x.p.estoque + x.q}</small></span><b class="${x.q > 0 ? "pos" : "neg"}">${x.q > 0 ? "+" : "−"}${Math.abs(x.q)}</b></div>`).join("")}</div>${d.length > 40 ? `<p class="hint">Y otros ${d.length - 40}.</p>` : ""}` : `<div class="note good">Todo coincide con el sistema. El conteo queda registrado en el historial de cada producto.</div>`}
     <button class="btn block" style="margin-top:14px" data-a="doFinInv">${d.length ? "Confirmar y ajustar el inventario" : "Confirmar conteo"}</button>`];
@@ -2504,8 +2516,8 @@ document.addEventListener("click", travarAcao(async e => {
     case "doInvDescartar": ui.inv = {}; invGuardar(); closeSheet(); render(); toast("Conteo reiniciado"); break;
     case "finInv": { const list = invLista(); if (!list.length || list.some(p => !invContado(p.id))) { toast("Cuenta todos los productos antes de finalizar."); break; } openSheet({ k: "finInv" }); break; }
     case "doFinInv": {
-      const list = invLista(); if (!list.length || list.some(p => !invContado(p.id) || !(Number(ui.inv[p.id]) >= 0))) { closeSheet(); toast("Cuenta todos los productos antes de finalizar."); break; }
-      const mvI = list.map(p => { const c = parseInt(ui.inv[p.id], 10); return { p: p.id, q: c - p.estoque, de: p.estoque, c }; }), diffs = mvI.filter(m => m.q);
+      const list = invLista(); if (!list.length || list.some(p => !invContado(p.id) || !(invNum(ui.inv[p.id]) >= 0))) { closeSheet(); toast("Cuenta todos los productos antes de finalizar."); break; }
+      const mvI = list.map(p => { const c = invNum(ui.inv[p.id]); return { p: p.id, q: r4(c - p.estoque), de: p.estoque, c }; }), diffs = mvI.filter(m => m.q);
       const plus = sum(diffs, m => Math.max(0, m.q)), minus = sum(diffs, m => Math.max(0, -m.q)), ws = [];
       const log = logMov("estoque", `Conteo general · ${list.length} productos contados · ${diffs.length} ajustado${diffs.length === 1 ? "" : "s"} (+${plus} / −${minus})`, { ps: list.map(p => p.id), tm: "inventario", mv: mvI });
       if (diffs.length) ws.push(Store.stock(diffs.map(m => ({ id: m.p, delta: m.q }))));
@@ -2517,7 +2529,8 @@ document.addEventListener("click", travarAcao(async e => {
     case "saveProd": {
       const v = s.vals, pv = parseMoney(v.pv);
       if (!String(v.nome || "").trim()) { s.err = "Indica el nombre del producto."; renderSheet(); break; }
-      if (!(pv > 0)) { s.err = "Indica el precio de menudeo."; renderSheet(); break; }
+      const insumoF = ehFood() && (v.tipoItem === "insumo" || v.tipoItem === "embalagem");
+      if (!(pv > 0) && !insumoF) { s.err = "Indica el precio de menudeo."; renderSheet(); break; }
       let tipo = v.tipo || (cats()[0] || catDe("outros")).id; const ops = [];
       if (tipo === "__nova") { // categoria criada direto do cadastro do produto
         const nome = String(v.novaCat || "").trim(); if (!nome) { s.err = "Indica el nombre de la nueva categoría."; renderSheet(); break; }
@@ -2526,10 +2539,11 @@ document.addEventListener("click", travarAcao(async e => {
         else { tipo = novaCatId(); const io = l.findIndex(c => c.id === "outros"); l.splice(io < 0 ? l.length : io, 0, { id: tipo, l: nome, c: CAT_CORES.find(x => !l.some(y => y.c === x)) || CAT_CORES[5], ncm: "", min: 0 }); ops.push(Store.putEmp(Object.assign({}, S.emp, { cats: l })), logMov("cadastro", `Nueva categoría · ${nome}`)); }
       }
       const cat = catDe(tipo), old = s.id ? P(s.id) : null, pid = s.id || rid();
-      const doc = Object.assign({}, { nome: v.nome.trim(), ncm: digits(v.ncm) || (old ? "" : digits(cat.ncm)), cest: digits(v.cest), origem: v.origem || "0", st: v.st === "sim", tipo, forn: v.forn || "", custo: r2(parseMoney(v.custo) || 0), precos: Object.assign({ varejo: r2(pv), atacado: r2(parseMoney(v.pa) || pv), restaurante: r2(parseMoney(v.pr) || pv) }, parseMoney(v.pc) > 0 ? { consig: r2(parseMoney(v.pc)) } : {}), min: v.min === "" || v.min == null ? (old ? 0 : Number(cat.min) || 0) : parseInt(v.min, 10) || 0, ean: v.ean || "", loc: v.loc || "", harmon: v.harmon || "", ativo: old ? old.ativo !== false : true });
+      const doc = Object.assign({}, { nome: v.nome.trim(), ncm: digits(v.ncm) || (old ? "" : digits(cat.ncm)), cest: digits(v.cest), origem: v.origem || "0", st: v.st === "sim", tipo, forn: v.forn || "", custo: r2(parseMoney(v.custo) || 0), precos: Object.assign({ varejo: r2(pv), atacado: r2(parseMoney(v.pa) || pv), restaurante: r2(parseMoney(v.pr) || pv) }, parseMoney(v.pc) > 0 ? { consig: r2(parseMoney(v.pc)) } : {}), min: v.min === "" || v.min == null ? (old ? 0 : Number(cat.min) || 0) : ehFood() ? r4(parseMoney(v.min) || 0) : parseInt(v.min, 10) || 0, ean: v.ean || "", loc: v.loc || "", harmon: v.harmon || "", ativo: old ? old.ativo !== false : true });
       const naFicha = SPEC.prod({ vals: v }).map(f => f.k);
       SPEC.campos.forEach(k => { if (naFicha.includes(k)) doc[k] = k === "vol" ? parseInt(v.vol, 10) || 0 : v[k] || ""; });
-      if (!old) doc.estoque = parseInt(v.estoque, 10) || 0;
+      if (ehFood()) { doc.custo = r4(parseMoney(v.custo) || 0); if (!doc.tipoItem) doc.tipoItem = "venda"; if (!doc.un) doc.un = "un"; }
+      if (!old) doc.estoque = ehFood() ? r4(parseMoney(v.estoque) || 0) : parseInt(v.estoque, 10) || 0;
       if (await commit([...ops, old ? Store.patch("prod", pid, doc) : Store.put("prod", pid, doc), logMov("cadastro", `${old ? "Producto editado" : "Nuevo producto"} · ${doc.nome}`, { ps: [pid] })])) {
         if (!old && s.fromCompra && ui.cdraft) { ui.cdraft.itens.push({ p: pid, q: ehVinho() ? 6 : 1, custo: money(doc.custo) }); if (!ui.cdraft.forn && doc.forn) ui.cdraft.forn = doc.forn; closeSheet(); render(); toast("Producto registrado e incluido en la compra"); }
         else { openSheet({ k: "prod", id: pid }, true); toast(old ? "Producto actualizado" : "Producto registrado"); }
@@ -2710,6 +2724,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "backup": saveFile(`backup-${norm(S.emp ? S.emp.nome : "decanta").replace(/\s+/g, "-")}-${today}.json`, JSON.stringify({ app: APP, exportadoEm: isoT(new Date()), empresa: S.emp, produtos: S.prod, clientes: S.cli, fornecedores: S.forn, pedidos: S.ped, compras: S.comp, financeiro: S.fin, equipe: S.mem, atividade: S.mov }, null, 2)); break;
     case "modeloCSV": { const m = impModelo(ui.impTipo); saveFile(`modelo-${ui.impTipo === "prod" ? "productos" : "clientes"}.csv`, "﻿" + m.cols.join(";") + "\n" + m.ex + "\n"); break; }
     case "importar": importar(); break;
+    default: if (typeof FOOD_A !== "undefined" && FOOD_A[a]) await FOOD_A[a](t, id, s);
   }
 }));
 document.addEventListener("input", e => {
@@ -3360,6 +3375,216 @@ document.addEventListener("input", e => {
   const t = e.target, s = ui.sheet; if (!s) return;
   if (s.k === "catalogo" && t.dataset.ct === "obs") { s.obs = t.value; return; }
   if (s.k === "precoEsp" && t.dataset.f === "preco") { const el = $("shd"); if (el) el.innerHTML = peHint(s); }
+});
+
+/* ---- food.js ---- */
+/* ================= Saus360 Food: receitas, custo real, produção e preço ================= */
+/* Motor de transformação: insumos (com aproveitamento) → receita (com rendimento e perda) → produto acabado.
+   Sub-receita = um ingrediente que também tem receita (ex.: massa base, recheio). */
+const UNIDADES = ["un", "kg", "g", "l", "ml"];
+const UN_NOME = { un: "Unidad (un)", kg: "Kilo (kg)", g: "Gramo (g)", l: "Litro (l)", ml: "Mililitro (ml)" };
+const UN_BASE = { un: ["un", 1], kg: ["massa", 1000], g: ["massa", 1], l: ["vol", 1000], ml: ["vol", 1] };
+const unCompat = u => UNIDADES.filter(x => UN_BASE[x][0] === UN_BASE[u || "un"][0]);
+/* Converte q de "de" para "para"; null se as unidades não combinam (peso × volume depende da densidade do ingrediente) */
+function conv(q, de, para) {
+  const a = UN_BASE[de || "un"], b = UN_BASE[para || "un"];
+  if (!a || !b || a[0] !== b[0]) return null;
+  return Number(q) * a[1] / b[1];
+}
+const qtdTxt = (q, u) => `${dec(r4(q))} ${u || "un"}`;
+const pnum = v => { const n = parseMoney(v); return isNaN(n) ? 0 : n; };
+const RC = id => S.rec.find(r => r.id === id);
+const recDoProd = pid => S.rec.find(r => r.prod === pid && r.ativo !== false);
+
+/* Custo de 1 unidade (na unidade do estoque) de um ingrediente: se tem receita, usa a receita (preços atuais); senão o custo médio */
+function custoUn(p, prof) {
+  if (!p) return 0;
+  const r = recDoProd(p.id);
+  if (r && (prof || 0) < 5) { const c = custoReceita(r, (prof || 0) + 1); if (c.unit > 0) return c.unit; }
+  return Number(p.custo) || 0;
+}
+/* Custo completo da receita: por linha, consumo bruto (com aproveitamento) e custo; total, rendimento útil e custo unitário */
+function custoReceita(r, prof) {
+  const linhas = (r.itens || []).map(it => {
+    const p = P(it.p), aprov = Math.min(100, Math.max(1, Number(it.aprov) || 100));
+    const qProd = p ? conv(Number(it.q) || 0, it.u || unDe(p), unDe(p)) : null;
+    const consumo = qProd == null ? null : qProd / (aprov / 100);
+    const custo = consumo == null ? 0 : consumo * custoUn(p, prof);
+    return { it, p, aprov, consumo, custo, erro: !p ? "Ingrediente eliminado" : qProd == null ? `Unidad ${it.u} no es compatible con ${unDe(p)}` : "" };
+  });
+  const extra = Number(r.extra) || 0, total = sum(linhas, l => l.custo) + extra;
+  const rend = Number(r.rend) || 0, perda = Math.min(90, Math.max(0, Number(r.perda) || 0)), util = rend * (1 - perda / 100);
+  return { linhas, extra, total, rend, perda, util, unit: util > 0 ? total / util : 0 };
+}
+/* Preço que cobre custo + custos indiretos e deixa taxas e margem como % do preço: P = C / (1 − T − M) */
+function precoSugerido(c, ind, taxa, marg) {
+  const den = 1 - (taxa + marg) / 100;
+  return den > 0 ? (c + ind) / den : 0;
+}
+
+/* ---------- Telas ---------- */
+function vReceitas() {
+  const list = S.rec.filter(r => r.ativo !== false).map(r => ({ r, p: P(r.prod), c: custoReceita(r) })).filter(x => x.p).sort((a, b) => a.p.nome.localeCompare(b.p.nome));
+  const novo = can("ajuste") ? `<button class="btn sm" data-a="recNova">+ Receta</button>` : "";
+  let h = head("Recetas", "Ficha técnica, costo real y producción", { back: ui.stack.length > 0, action: novo }) + banners();
+  if (!list.length) return h + empty("Todavía no hay recetas.", "Registra los ingredientes como productos de tipo “Ingrediente”, con el costo y la unidad de compra. Después crea la receta del producto que vendes.");
+  h += `<p class="hint" style="margin:0 2px 12px">Costo por unidad con los precios actuales de los ingredientes, ya contando el aprovechamiento y la merma prevista.</p>`;
+  if (DESK()) return h + dtable([["Producto"], ["Rinde", "num"], ["Costo/un.", "num"], ["Precio menudeo", "num"], ["Margen", "num"], ["En existencia", "num"]],
+    list.map(({ r, p, c }) => { const pv = preco(p, "varejo"), m = pv > 0 ? (pv - c.unit) / pv * 100 : null; return dtr(`data-a="go" data-r="receita" data-id="${r.id}"`, [td(`<b>${esc(p.nome)}</b>`), td(qtdTxt(c.util, unDe(p)), "num"), td(fmt(c.unit), "num"), td(fmt(pv), "num"), td(m == null ? "—" : `<span class="${m < 20 ? "neg" : "pos"}">${dec(Math.round(m))}%</span>`, "num"), td(qtdTxt(p.estoque || 0, unDe(p)), "num")]); }), "", "t-rec");
+  return h + `<div class="list">${list.map(({ r, p, c }) => { const pv = preco(p, "varejo"), m = pv > 0 ? (pv - c.unit) / pv * 100 : null;
+    return `<button class="row" data-a="go" data-r="receita" data-id="${r.id}"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>rende ${qtdTxt(c.util, unDe(p))} · costo ${fmt(c.unit)}/${unDe(p)}</small></span><span class="right">${m == null ? "" : `<b class="${m < 20 ? "neg" : "pos"}">${dec(Math.round(m))}%</b><small class="mvsaldo">margem</small>`}</span></button>`; }).join("")}</div>`;
+}
+
+function vReceita() {
+  const r = RC(ui.id), p = r && P(r.prod);
+  if (!r || !p) return head("Ingreso", "", { back: true }) + empty("Receta no encontrada.", "");
+  const c = custoReceita(r), cst = can("custo");
+  if (!ui.calc || ui.calc.id !== r.id) ui.calc = { id: r.id, ind: "", taxa: "", marg: "30" };
+  let h = head(p.nome, `Receta · rinde ${qtdTxt(c.util, unDe(p))}`, { back: true, action: can("ajuste") ? `<button class="btn sm line" data-a="recEditar" data-id="${r.id}">Editar</button>` : "" }) + banners();
+  h += `<div class="stats"><div class="stat"><span>Costo de la receta</span><b>${cst ? fmt(c.total) : "—"}</b><small>${c.linhas.length} ingredientes</small></div><div class="stat good"><span>Costo por ${unDe(p)}</span><b>${cst ? fmt(c.unit) : "—"}</b><small>con mermas</small></div><div class="stat"><span>En existencia</span><b>${dec(r4(p.estoque || 0))}</b><small>${unDe(p)}</small></div></div>`;
+  if (can("ajuste")) h += `<button class="btn block" style="margin:12px 0" data-a="sheet" data-k="produzir" data-id="${r.id}">${ico("plus", 18)}Registrar producción</button>`;
+  h += `<p class="sec">Ingredientes</p><div class="list">${c.linhas.map(l => `<div class="row"><span class="wmain"><b>${esc(l.p ? l.p.nome : "Ingrediente eliminado")}</b><small>${qtdTxt(l.it.q, l.it.u)}${l.aprov < 100 ? ` · aprovechamiento ${dec(l.aprov)}% → compra ${l.consumo == null ? "—" : qtdTxt(l.consumo, unDe(l.p))}` : ""}${recDoProd(l.it.p) ? " · subreceta" : ""}${l.erro ? ` · <span class="neg">${esc(l.erro)}</span>` : ""}</small></span>${cst ? `<b>${fmt(l.custo)}</b>` : ""}</div>`).join("")}${c.extra ? `<div class="row"><span class="wmain"><b>Otros costos de la receta</b><small>gas, energía, mano de obra</small></span>${cst ? `<b>${fmt(c.extra)}</b>` : ""}</div>` : ""}</div>`;
+  h += `<p class="hint">Rinde ${qtdTxt(c.rend, unDe(p))}${c.perda ? `, con ${dec(c.perda)}% de merma prevista: ${qtdTxt(c.util, unDe(p))} aprovechables` : ""}.${p.validade ? ` Vida útil: ${p.validade} días.` : ""}${p.alerg ? ` Alérgenos: ${esc(p.alerg)}.` : ""}</p>`;
+  if (r.obs) h += `<p class="sec">Preparación</p><div class="card" style="white-space:pre-wrap">${esc(r.obs)}</div>`;
+  if (cst) {
+    h += `<p class="sec">Calculadora de precio</p><section class="card">
+      <div class="grid2"><label class="field">Costos indirectos por ${unDe(p)} (${SIM()})<input data-calc="ind" inputmode="decimal" value="${esc(ui.calc.ind)}" placeholder="${money(0)}"></label>
+      <label class="field">Tasas y comisiones (%)<input data-calc="taxa" inputmode="decimal" value="${esc(ui.calc.taxa)}" placeholder="Tarjeta, app de delivery"></label></div>
+      <label class="field">Margen deseado sobre el precio (%)<input data-calc="marg" inputmode="decimal" value="${esc(ui.calc.marg)}"></label>
+      <div id="calcRes">${calcRes(r)}</div></section>
+      <p class="hint">Las tasas y el margen son porcentajes del precio de venta, por eso el cálculo es costo ÷ (1 − tasas − margen), no costo + porcentajes. Simula cada canal (mostrador, WhatsApp, delivery) con su tasa.</p>`;
+  }
+  h += `<button class="btn line block" style="margin-top:12px" data-a="go" data-r="movimentos" data-id="${p.id}">${ico("list", 16)}Historial de producción y ventas</button>`;
+  return h;
+}
+function calcRes(r) {
+  const c = custoReceita(r), p = P(r.prod), k = ui.calc || {}, ind = pnum(k.ind), taxa = pnum(k.taxa), marg = pnum(k.marg), pv = precoSugerido(c.unit, ind, taxa, marg);
+  if (!(pv > 0)) return `<div class="note warn">Tasas + margen deben sumar menos de 100%.</div>`;
+  const atual = preco(p, "varejo"), lucro = atual - c.unit - ind - atual * taxa / 100;
+  return `<div class="stats" style="margin-top:6px"><div class="stat good"><span>Precio sugerido</span><b>${fmt(pv)}</b><small>por ${unDe(p)}</small></div><div class="stat"><span>Precio actual</span><b>${fmt(atual)}</b><small>${atual > 0 ? `sobra ${fmt(lucro)} (${dec(Math.round(lucro / atual * 100))}%)` : "sin precio"}</small></div></div>
+    ${can("ajuste") ? `<button class="btn line block" style="margin-top:10px" data-a="recUsarPreco" data-id="${r.id}" data-v="${r2(pv)}">Usar ${fmt(pv)} como precio minorista</button>` : ""}`;
+}
+
+/* Edição da receita (tela inteira, com rascunho em ui.rdraft) */
+function vReceitaEdit() {
+  const d = ui.rdraft; if (!d) return head("Ingreso", "", { back: true }) + empty("Nada en edición.", "");
+  const vendaveis = S.prod.filter(p => p.ativo !== false).sort((a, b) => a.nome.localeCompare(b.nome));
+  const ings = vendaveis.filter(p => p.id !== d.prod);
+  let h = head(d.id ? "Editar receta" : "Nuevo ingreso", "Ficha técnica", { back: true }) + banners();
+  h += `<section class="card"><label class="field">Producto que produce la receta<select data-rd="prod"><option value="">Elige…</option>${vendaveis.filter(p => !recDoProd(p.id) || recDoProd(p.id).id === d.id).map(p => `<option value="${p.id}" ${d.prod === p.id ? "selected" : ""}>${esc(p.nome)} (${unDe(p)})</option>`).join("")}</select></label>
+    <p class="hint" style="margin:4px 0 10px">Puede ser un producto de venta o una preparación usada en otra receta (masa, relleno, almíbar).</p>
+    <div class="grid2"><label class="field">Rendimiento (${d.prod ? unDe(P(d.prod)) : "un"})<input data-rd="rend" inputmode="decimal" value="${esc(d.rend)}" placeholder="Ej: 30"></label>
+    <label class="field">Merma prevista (%)<input data-rd="perda" inputmode="decimal" value="${esc(d.perda)}" placeholder="0"></label></div>
+    <label class="field">Otros costos por receta (${SIM()})<input data-rd="extra" inputmode="decimal" value="${esc(d.extra)}" placeholder="Gas, energía, mano de obra"></label></section>`;
+  h += `<p class="sec">Ingredientes</p><div class="list">${d.itens.map((it, i) => { const p = P(it.p), us = p ? unCompat(unDe(p)) : UNIDADES;
+    return `<div class="card ring" style="padding:10px 12px"><label class="field" style="margin:0 0 8px">Ingrediente<select data-ri="${i}" data-rk="p"><option value="">Elige…</option>${ings.map(x => `<option value="${x.id}" ${it.p === x.id ? "selected" : ""}>${esc(x.nome)}${ehInsumo(x) ? "" : " · preparación"}</option>`).join("")}</select></label>
+      <div class="grid3"><label class="field" style="margin:0">Cantidad<input data-ri="${i}" data-rk="q" inputmode="decimal" value="${esc(it.q)}"></label>
+      <label class="field" style="margin:0">Unidad<select data-ri="${i}" data-rk="u">${us.map(u => `<option ${it.u === u ? "selected" : ""}>${u}</option>`).join("")}</select></label>
+      <label class="field" style="margin:0">Aprovech. (%)<input data-ri="${i}" data-rk="aprov" inputmode="decimal" value="${esc(it.aprov)}" placeholder="100"></label></div>
+      <button class="btn sm ghost" style="margin-top:6px" data-a="recDelItem" data-id="${i}">Quitar</button></div>`; }).join("")}</div>
+    <button class="btn line block" style="margin-top:8px" data-a="recAddItem">+ Ingrediente</button>
+    <p class="hint">Cantidad = lo que lleva la receta ya limpio. Aprovechamiento = cuánto queda después de limpiar: 1 kg de fresas que rinde 850 g es 85%. El sistema descuenta del inventario el bruto (850 g ÷ 85% = 1 kg).</p>`;
+  h += `<label class="field">Preparación<textarea data-rd="obs" rows="5" placeholder="Pasos, tiempo de horno, temperatura">${esc(d.obs)}</textarea></label>`;
+  h += `<div id="rdres" class="card" style="margin-top:12px">${rdResumo()}</div>`;
+  if (d.err) h += `<div class="note warn">${esc(d.err)}</div>`;
+  h += `<button class="btn block" style="margin-top:12px" data-a="recSalvar">Guardar receta</button>`;
+  if (d.id) h += `<button class="btn ghost block" style="margin-top:6px" data-a="recArquivar">Archivar receta</button>`;
+  return h;
+}
+function rdDoc() {
+  const d = ui.rdraft;
+  return { prod: d.prod, rend: pnum(d.rend), perda: pnum(d.perda), extra: pnum(d.extra), obs: String(d.obs || "").trim(),
+    itens: d.itens.filter(it => it.p && pnum(it.q) > 0).map(it => ({ p: it.p, q: pnum(it.q), u: it.u || unDe(P(it.p)), aprov: pnum(it.aprov) || 100 })) };
+}
+function rdResumo() {
+  const doc = rdDoc(), p = P(doc.prod); if (!p || !(doc.rend > 0)) return `<small class="muted">Elige el producto y el rendimiento para ver el costo.</small>`;
+  const c = custoReceita(doc);
+  return `<b>Costo de la receta: ${fmt(c.total)}</b><br><small>Por ${unDe(p)}: <b>${fmt(c.unit)}</b> · rinde ${qtdTxt(c.util, unDe(p))} aprovechables</small>${c.linhas.some(l => l.erro) ? `<div class="note warn" style="margin-top:8px">${esc(c.linhas.filter(l => l.erro).map(l => l.erro).join("; "))}</div>` : ""}`;
+}
+/* Uma receita não pode usar a si mesma, nem por meio de sub-receitas */
+function temCiclo(prod, itens, vistos) {
+  vistos = vistos || new Set([prod]);
+  for (const it of itens) {
+    if (vistos.has(it.p)) return true;
+    const r = recDoProd(it.p); if (r) { const v = new Set(vistos); v.add(it.p); if (temCiclo(prod, r.itens || [], v)) return true; }
+  }
+  return false;
+}
+
+/* ---------- Produção ---------- */
+function prodPlano(s) {
+  const r = RC(s.id), p = r && P(r.prod), n = pnum(s.vals.n) || 0;
+  if (!r || !p) return null;
+  const c = custoReceita(r), linhas = c.linhas.map(l => ({ ...l, precisa: l.consumo == null ? null : l.consumo * n }));
+  const falta = linhas.filter(l => l.p && l.precisa != null && l.precisa > (l.p.estoque || 0) + 1e-9);
+  const previsto = c.util * n, obtido = s.vals.obtido === "" || s.vals.obtido == null ? previsto : pnum(s.vals.obtido);
+  return { r, p, c, n, linhas, falta, previsto, obtido, total: c.total * n };
+}
+function prodDet(s) {
+  const pl = prodPlano(s); if (!pl) return "";
+  const { p, linhas, falta, previsto, obtido, total } = pl, cst = can("custo");
+  return `<div class="list">${linhas.map(l => `<div class="row"><span class="wmain"><b>${esc(l.p ? l.p.nome : "—")}</b><small>usa ${l.precisa == null ? "—" : qtdTxt(l.precisa, unDe(l.p))} · hay ${l.p ? qtdTxt(l.p.estoque || 0, unDe(l.p)) : "—"}</small></span>${l.p && l.precisa != null && l.precisa > (l.p.estoque || 0) + 1e-9 ? `<b class="neg">falta ${qtdTxt(l.precisa - (l.p.estoque || 0), unDe(l.p))}</b>` : `<b class="pos">ok</b>`}</div>`).join("")}</div>
+    <div class="stats" style="margin-top:10px"><div class="stat"><span>Previsto</span><b>${dec(r4(previsto))}</b><small>${unDe(p)}</small></div><div class="stat ${obtido < previsto ? "warn" : "good"}"><span>Obtenido</span><b>${dec(r4(obtido))}</b><small>${previsto > 0 && obtido < previsto ? `merma extra ${dec(Math.round((1 - obtido / previsto) * 100))}%` : unDe(p)}</small></div>${cst ? `<div class="stat"><span>Costo/${unDe(p)}</span><b>${obtido > 0 ? fmt(total / obtido) : "—"}</b><small>total ${fmt(total)}</small></div>` : ""}</div>
+    ${falta.length ? `<div class="note warn" style="margin-top:10px">Falta un ingrediente en el inventario. Registra la compra o la entrada antes de producir.</div>` : ""}`;
+}
+
+Object.assign(SH, {
+  produzir: s => {
+    const r = RC(s.id), p = r && P(r.prod); if (!p) return ["Producción", empty("Receta no encontrada.", "")];
+    if (s.vals.n == null) s.vals.n = "1";
+    return [`Producir ${p.nome}`, `<div class="grid2"><label class="field">Cuántas recetas<input data-f="n" inputmode="decimal" value="${esc(s.vals.n)}"></label>
+      <label class="field">Cantidad obtenida (${unDe(p)})<input data-f="obtido" inputmode="decimal" value="${esc(s.vals.obtido || "")}" placeholder="igual a lo previsto"></label></div>
+      <p class="hint" style="margin:0 0 8px">Si salió menos de lo previsto, informa lo real: la diferencia queda registrada como merma.</p>
+      <div id="prodDet">${prodDet(s)}</div>${s.err ? `<div class="note warn">${esc(s.err)}</div>` : ""}
+      <button class="btn block" style="margin-top:12px" data-a="doProduzir">Confirmar producción</button>`];
+  }
+});
+
+const FOOD_A = {
+  recNova: () => { ui.rdraft = { id: null, prod: "", rend: "", perda: "", extra: "", obs: "", itens: [{ p: "", q: "", u: "g", aprov: "" }] }; go("receitaEdit"); },
+  recEditar: (t, id) => { const r = RC(id); if (!r) return; ui.rdraft = { id, prod: r.prod, rend: dec(r.rend || ""), perda: r.perda ? dec(r.perda) : "", extra: r.extra ? money(r.extra) : "", obs: r.obs || "", itens: (r.itens || []).map(it => ({ p: it.p, q: dec(it.q), u: it.u, aprov: it.aprov && it.aprov !== 100 ? dec(it.aprov) : "" })) }; go("receitaEdit"); },
+  recAddItem: () => { ui.rdraft.itens.push({ p: "", q: "", u: "g", aprov: "" }); render(); },
+  recDelItem: (t, id) => { ui.rdraft.itens.splice(Number(id), 1); render(); },
+  recSalvar: async () => {
+    const d = ui.rdraft, doc = rdDoc(), p = P(doc.prod);
+    d.err = !p ? "Elige el producto que produce la receta." : !(doc.rend > 0) ? "Informa el rendimiento, por ejemplo 30." : !doc.itens.length ? "Incluye al menos un ingrediente con cantidad." : doc.perda >= 90 ? "La merma prevista debe ser menor a 90%." : temCiclo(doc.prod, doc.itens) ? "Un ingrediente usa esta misma receta. Revisa las subrecetas." : custoReceita(doc).linhas.find(l => l.erro) ? custoReceita(doc).linhas.find(l => l.erro).erro : "";
+    if (d.err) { render(); return; }
+    const old = d.id ? RC(d.id) : null, id = d.id || rid(), full = Object.assign({ ativo: true, ver: ((old && old.ver) || 0) + 1, hist: ((old && old.hist) || []).concat(old ? [{ ts: old.ts || "", custo: r2(custoReceita(old).unit), rend: old.rend }] : []).slice(-20) }, doc, { ts: isoT(new Date()), por: UID });
+    if (await commit([Store.put("rec", id, full), logMov("cadastro", `${old ? "Receta editada" : "Nuevo ingreso"} · ${p.nome} · costo ${fmt(custoReceita(doc).unit)}/${unDe(p)}`, { ps: [p.id, ...doc.itens.map(i => i.p)] })])) { ui.rdraft = null; back(); if (!old) go("receita", id); toast(old ? "Receta actualizada" : "Receta creada"); }
+  },
+  recArquivar: async () => { const d = ui.rdraft, r = RC(d.id); if (!r) return; if (await commit([Store.put("rec", r.id, Object.assign({}, r, { ativo: false }))])) { ui.rdraft = null; go("receitas"); toast("Receta archivada"); } },
+  recUsarPreco: async (t, id) => { const r = RC(id), p = r && P(r.prod), v = Number(t.dataset.v); if (!p || !(v > 0)) return; if (await commit([Store.patch("prod", p.id, { precos: Object.assign({}, p.precos || {}, { varejo: v }) }), logMov("cadastro", `Precio de ${p.nome} → ${fmt(v)} (calculadora de la receta)`, { ps: [p.id] })])) { render(); toast("Precio minorista actualizado"); } },
+  doProduzir: async (t, id, s) => {
+    const pl = prodPlano(s); if (!pl) return;
+    s.err = !(pl.n > 0) ? "Informa cuántas recetas, por ejemplo 1 o 0,5." : pl.linhas.some(l => l.erro) ? pl.linhas.find(l => l.erro).erro : pl.falta.length ? `Falta ${pl.falta.map(l => l.p.nome).join(", ")} en el inventario.` : !(pl.obtido > 0) ? "Informa la cantidad obtenida." : "";
+    if (s.err) { renderSheet(); return; }
+    const ch = pl.linhas.filter(l => l.p && l.precisa > 0).map(l => ({ id: l.p.id, delta: -r4(l.precisa) }));
+    ch.push({ id: pl.p.id, delta: r4(pl.obtido), custoEntrada: r4(pl.total / pl.obtido) });
+    const mv = mvDe(ch), perdaReal = pl.previsto > 0 ? Math.max(0, (1 - pl.obtido / pl.previsto) * 100) : 0;
+    const log = logMov("estoque", `Producción · ${pl.p.nome} · ${qtdTxt(pl.obtido, unDe(pl.p))} (${dec(pl.n)} receita${pl.n === 1 ? "" : "s"})${perdaReal >= 0.5 ? ` · merma extra ${dec(Math.round(perdaReal))}%` : ""}`, { ps: ch.map(c => c.id), tm: "producao", mv, ref: pl.r.id, previsto: r4(pl.previsto), obtido: r4(pl.obtido), custo: r2(pl.total) });
+    if (await commit([Store.stock(ch), log])) { closeSheet(); render(); toast(`Producción registrada: ${qtdTxt(pl.obtido, unDe(pl.p))}`); }
+  }
+};
+
+Object.assign(ROUTES, {
+  receitas: { v: vReceitas, tab: "estoque", p: "estoque" },
+  receita: { v: vReceita, tab: "estoque", p: "estoque" },
+  receitaEdit: { v: vReceitaEdit, tab: "estoque", p: "ajuste" }
+});
+
+/* Campos da receita e da calculadora: atualiza só o resumo (não tira o foco do campo) */
+document.addEventListener("input", e => {
+  const t = e.target, d = t.dataset;
+  if (d.rd && ui.rdraft) { ui.rdraft[d.rd] = t.value; const el = $("rdres"); if (el) el.innerHTML = rdResumo(); return; }
+  if (d.ri != null && ui.rdraft) { const it = ui.rdraft.itens[Number(d.ri)]; it[d.rk] = t.value; const el = $("rdres"); if (el) el.innerHTML = rdResumo(); return; }
+  if (d.calc && ui.calc) { ui.calc[d.calc] = t.value; const r = RC(ui.calc.id), el = $("calcRes"); if (r && el) el.innerHTML = calcRes(r); return; }
+  if (ui.sheet && ui.sheet.k === "produzir" && (d.f === "n" || d.f === "obtido")) { const el = $("prodDet"); if (el) el.innerHTML = prodDet(ui.sheet); }
+});
+document.addEventListener("change", e => {
+  const t = e.target, d = t.dataset;
+  /* trocar produto ou ingrediente redesenha: a lista de unidades depende da unidade do produto */
+  if (d.rd === "prod" && ui.rdraft) { ui.rdraft.prod = t.value; render(); }
+  if (d.ri != null && d.rk === "p" && ui.rdraft) { const it = ui.rdraft.itens[Number(d.ri)], p = P(t.value); it.p = t.value; if (p && !unCompat(unDe(p)).includes(it.u)) it.u = unDe(p) === "kg" ? "g" : unDe(p) === "l" ? "ml" : unDe(p); render(); }
 });
 
 boot();
