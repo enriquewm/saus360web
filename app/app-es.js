@@ -178,7 +178,7 @@ let CAN_WRITE = true;
 let cloudState = "idle";  // idle | connecting | on | off
 let loadState = "idle";   // idle | loading | ok | slow | erro | revogado
 const S = { emp: null, prod: [], cli: [], forn: [], ped: [], comp: [], fin: [], mov: [], mem: [], nf: [] };
-const COLS = ["prod", "cli", "forn", "ped", "comp", "fin", "mem", "mov", "nf", "rec"];
+const COLS = ["prod", "cli", "forn", "ped", "comp", "fin", "mem", "mov", "nf", "rec", "cx"];
 let unsubs = [], loadTimer = null, loadedCols = new Set();
 const DEMO_KEY = "decanta-demo-v2";
 
@@ -281,7 +281,8 @@ async function commit(ps) {
   try { await Promise.all(ps); renderAll(); return true; }
   catch (e) {
     const code = e && (e.code || (e.error && e.error.code)), msg = String((e && (e.message || e.details)) || "");
-    if (code === "invalid_argument" || code === "42501" || /row-level security|permission/i.test(msg)) { toast(MODE === "supa" ? "Tu rol no permite esta acción, o el plan de la empresa está inactivo." : "Sin permiso para guardar. Pide que te inviten como Editor."); if (MODE === "cloud") CAN_WRITE = false; }
+    if (/caixa_fechado/.test(msg)) toast("Esta caja ya fue cerrada. Actualiza la pantalla.");
+    else if (code === "invalid_argument" || code === "42501" || /row-level security|permission/i.test(msg)) { toast(MODE === "supa" ? "Tu rol no permite esta acción, o el plan de la empresa está inactivo." : "Sin permiso para guardar. Pide que te inviten como Editor."); if (MODE === "cloud") CAN_WRITE = false; }
     else if (code === "quota_exceeded") toast("Se alcanzó el límite de almacenamiento. Exporta y borra datos antiguos.");
     else toast("No se pudo guardar ahora. Revisa la conexión e inténtalo de nuevo.");
     Erros.enviar(/abort|fetch|network|conex/i.test(msg) ? "rede" : "salvar", msg || String(code || "error al guardar"), e && e.stack, { codigo: code || null });
@@ -1260,7 +1261,7 @@ function vVendas() {
     return true;
   }).sort((a, b) => (b.num || 0) - (a.num || 0));
   const chips = [["todos", "Todos"], ["orcamento", "Cotizaciones"], ["receber", "Por cobrar"], ["vencido", "Vencidos"], ["consig", "Consignación"], ["pago", "Pagados"], ["cancelado", "Cancelados"]];
-  return head("Ventas", "Pedidos, cotizaciones y consignaciones", { action: `<button class="btn sm" data-a="novoPedido">+ Nuevo</button>` }) + banners() +
+  return head("Ventas", "Pedidos, cotizaciones y consignaciones", { action: `<button class="btn sm" data-a="novoPedido">+ Nuevo</button>` }) + banners() + cxBanner() +
     toolbar(`<label class="search">${ico("search", 18)}<input id="vq" type="search" placeholder="Número, cliente o vendedor" value="${esc(ui.vq)}" aria-label="Buscar pedido"></label>
     <div class="chips">${chips.map(([k, l]) => `<button class="chip" data-a="vf" data-id="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</div>`) +
     `<div id="vlist"><p class="summary">${list.length} ${list.length === 1 ? "registro" : "registros"} · ${fmt(sum(list.filter(o => o.tipo !== "orcamento"), o => pedCalc(o).total))} facturado</p>${DESK() ? pedTable(list) : `<div class="list">${list.map(pedRow).join("") || empty("No se encontró nada.", "")}</div>`}</div>`;
@@ -1365,10 +1366,11 @@ function draftList() {
 function draftFoot() {
   const d = ui.draft, t = draftCalc();
   const label = !d.cli ? "Elige el cliente" : d.tipo === "orcamento" ? "Guardar cotización" : "Confirmar";
+  if (d.tipo !== "consig" && descExcede(t)) return `<div><small class="lim">Descuento de ${dec(r2(descPctDe(t)))}% supera tu límite de ${dec(descLim())}%</small><b>${fmt(t.total)}</b></div><button class="btn" disabled>${label}</button>`;
   return `<div><small>${t.n} un. · ${tipoPed(d.tipo).toLowerCase()}${t.desc ? ` · descuento ${fmt(t.desc)}` : ""}${t.iva ? ` · ${d.tipo === "consig" ? "+ IVA en la liquidación" : "IVA " + fmt(t.iva)}` : ""}</small><b>${fmt(d.tipo === "consig" ? t.bruto : t.total)}</b></div>
   <button class="btn" data-a="confirmPedido" ${!d.cli || !t.n ? "disabled" : ""}>${label}</button>`;
 }
-function updateDraft() { const a = $("dlist"), b = $("dfoot"), c = $("dcredit"); if (a) a.innerHTML = draftList(); if (b) b.innerHTML = draftFoot(); if (c) c.innerHTML = draftCredit(); }
+function updateDraft() { const a = $("dlist"), b = $("dfoot"), c = $("dcredit"), tr = $("dtroco"); if (a) a.innerHTML = draftList(); if (b) b.innerHTML = draftFoot(); if (c) c.innerHTML = draftCredit(); if (tr) tr.innerHTML = trocoTxt(); }
 function vNovoPedido() {
   if (!ui.draft) newDraft("venda");
   const d = ui.draft, cl = d.cli ? Cl(d.cli) : null;
@@ -1380,8 +1382,8 @@ function vNovoPedido() {
     <span class="lbl" style="margin-top:14px">Lista de precios</span><div class="chips wrap tight">${Object.entries(TABELAS).map(([k, l]) => `<button class="chip" data-a="dtab" data-id="${k}" aria-pressed="${d.tabela === k}">${l}</button>`).join("")}</div>
     ${d.tipo === "consig" ? `<span class="lbl" style="margin-top:14px">Liquidación en</span><div class="chips wrap tight">${[15, 30, 45, 60].map(t => `<button class="chip" data-a="dprazo" data-id="${t}" aria-pressed="${d.prazo == t}">${t} días</button>`).join("")}</div>`
     : `<span class="lbl" style="margin-top:14px">Condición de pago</span><div class="chips wrap tight">${Object.entries(CONDS).map(([k, l]) => `<button class="chip" data-a="dcond" data-id="${k}" aria-pressed="${d.cond === k}">${l}</button>`).join("")}</div>`}
-    ${d.tipo !== "consig" ? `<label class="field" style="margin-top:14px">Descuento para el cliente (${SIM()} o %)<input data-d="desc" inputmode="decimal" value="${esc(d.desc)}" placeholder="Ej: ${money(50)} o 5%"></label><div class="chips tight" style="margin-top:8px">${[5, 10, 15].map(x => `<button class="chip" data-a="ddesc" data-id="${x}%" aria-pressed="${String(d.desc).trim() === x + "%"}">${x}%</button>`).join("")}${d.desc ? `<button class="chip" data-a="ddesc" data-id="">Sin descuento</button>` : ""}</div>` : ""}
-    ${d.tipo === "venda" && d.cond === "0" && can("receber") ? `<label class="toggle">Ya cobrado ahora<input type="checkbox" data-a="dpago" ${d.pagoAgora ? "checked" : ""}></label>${d.pagoAgora ? `<div class="chips wrap tight" style="margin-top:8px">${FORMAS.map(f => `<button class="chip" data-a="dforma" data-id="${f}" aria-pressed="${d.forma === f}">${f}</button>`).join("")}</div>` : ""}` : ""}
+    ${d.tipo !== "consig" ? `<label class="field" style="margin-top:14px">Descuento para el cliente (${SIM()} o %)<input data-d="desc" inputmode="decimal" value="${esc(d.desc)}" placeholder="Ej: ${money(50)} o 5%"></label>${descLim() != null ? `<p class="hint" style="margin:4px 0 0">Tu límite de descuento: ${dec(descLim())}%</p>` : ""}<div class="chips tight" style="margin-top:8px">${[5, 10, 15].filter(x => descLim() == null || x <= descLim()).map(x => `<button class="chip" data-a="ddesc" data-id="${x}%" aria-pressed="${String(d.desc).trim() === x + "%"}">${x}%</button>`).join("")}${d.desc ? `<button class="chip" data-a="ddesc" data-id="">Sin descuento</button>` : ""}</div>` : ""}
+    ${d.tipo === "venda" && d.cond === "0" && can("receber") ? `<label class="toggle">Ya cobrado ahora<input type="checkbox" data-a="dpago" ${d.pagoAgora ? "checked" : ""}></label>${d.pagoAgora ? `<div class="chips wrap tight" style="margin-top:8px">${formas().map(f => `<button class="chip" data-a="dforma" data-id="${f}" aria-pressed="${d.forma === f}">${f}</button>`).join("")}</div>${ehDin(d.forma) ? `<label class="field" style="margin-top:10px">El cliente entregó (${SIM()})<input data-d="recebido" inputmode="decimal" value="${esc(d.recebido || "")}" placeholder="Para calcular el cambio"></label><div id="dtroco">${trocoTxt()}</div>` : ""}` : ""}` : ""}
   </section>`;
   const i1 = h.length;
   h += `<span class="lbl" style="margin:18px 2px 8px">Productos</span><label class="search">${ico("search", 18)}<input id="dq" type="search" placeholder="Buscar por nombre, uva, país o código" value="${esc(d.q)}" aria-label="Buscar producto"><button class="scanbtn" data-a="scan" aria-label="Leer código de barras">${ico("scan", 18)}</button></label>
@@ -1479,7 +1481,7 @@ function vMais() {
   h += `<div class="row"><span class="avatar">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${PAPEIS[m.papel]}${m.comissao ? ` · comisión ${m.comissao}%` : ""}</small></span></div>`;
   if (MODE === "demo") h += `<p class="sec">Ver la app como</p><div class="chips wrap tight">${S.mem.map(x => `<button class="chip" data-a="verComo" data-id="${x.id}" aria-pressed="${x.id === UID}">${esc(firstName(x.nome))} · ${PAPEIS[x.papel]}</button>`).join("")}</div><p class="hint">En la demostración puedes cambiar de usuario para ver lo que ve cada rol.</p>`;
   if (!D) h += `<p class="sec">Registros</p><div class="menu">${it("clientes", "users", "Clientes", "Ficha, crédito, historial y consignación", can("clientes"))}${it("fornecedores", "truck", "Proveedores", "Contactos, compras y cuentas por pagar", can("fornecedores"))}${it("estoque", "bottle", "Productos", ehVinho() ? "Ficha del vino, precios e inventario" : "Ficha, precios e inventario", can("estoque"))}</div>`;
-  const op = it("compras", "cart", "Compras", "Órdenes a proveedores y recepción", can("compras")) + it("financeiro", "wallet", "Finanzas", "Cuentas por cobrar, por pagar y flujo de caja", can("receber") || can("pagar")) + it("relatorios", "chart", "Reportes", "Ventas, curva ABC, margen, comisiones y atrasos", can("relatorios")) + it("movimentos", "list", "Movimientos de inventario", "Todo lo que pasó con cada producto", can("estoque")) + (ehFood() ? it("receitas", "clip", "Recetas y producción", "Fichas técnicas, costo real y producción", can("estoque")) : "");
+  const op = it("caixa", "cash", "Caja", "Apertura, retiros y cierre del día", can("receber")) + it("compras", "cart", "Compras", "Órdenes a proveedores y recepción", can("compras")) + it("financeiro", "wallet", "Finanzas", "Cuentas por cobrar, por pagar y flujo de caja", can("receber") || can("pagar")) + it("relatorios", "chart", "Reportes", "Ventas, curva ABC, margen, comisiones y atrasos", can("relatorios")) + it("movimentos", "list", "Movimientos de inventario", "Todo lo que pasó con cada producto", can("estoque")) + (ehFood() ? it("receitas", "clip", "Recetas y producción", "Fichas técnicas, costo real y producción", can("estoque")) : "");
   const fis = temFiscal() ? it("notas", "receipt", "Notas fiscales", "NF-e, NFC-e y consignación emitidas", can("fiscal")) + it("fiscal", "shield", "Configuración fiscal", "Datos del emisor, tributación y credenciales", can("empresa")) : ""; // nota fiscal brasileira
   const cat = can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span class="wmain"><b>Catálogo de productos</b><small>PDF con las existencias y los precios del cliente</small></span>${ico("chev", 18)}</button>` : "";
   if ((op || cat) && !D) h += `<p class="sec">Gestión</p><div class="menu">${cat}${op}</div>`;
@@ -1765,6 +1767,7 @@ function vEquipe() {
   if (adm && S.emp) h += `<div class="card"><span class="lbl">Código de acceso de la empresa</span><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span class="code">${esc(S.emp.codigo || "—")}</span><button class="btn sm ghost" data-a="copyCode">${ico("copy", 16)}Copiar</button></div>
     ${MODE === "cloud" ? `<p class="hint">Para invitar a alguien: 1) en claude.ai, comparte esta app con el correo de la persona como <b>Editor</b>; 2) envíale este código. Entra como Vendedor y tú ajustas el rol aquí.</p>` : `<p class="hint">Para quien todavía no tiene cuenta, toca <b>+ Agregar</b> y crea el acceso con correo y contraseña temporal. Quien ya usa ${APP} entra con este código, como Vendedor, y tú ajustas el rol aquí.</p>`}</div>`;
   h += `<p class="sec">Miembros <span class="count">${S.mem.length}</span></p><div class="list">${S.mem.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(m => `<button class="row" ${adm ? `data-a="sheet" data-k="membro" data-id="${m.id}"` : "disabled"}><span class="avatar">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}${m.id === UID ? " (tú)" : ""}</b><small>${PAPEIS[m.papel]}${m.comissao ? ` · comisión ${m.comissao}%` : ""}</small></span>${adm ? ico("chev", 18) : ""}</button>`).join("")}</div>`;
+  if (adm && S.emp) h += descMaxCard();
   h += `<p class="sec">Lo que puede hacer cada rol</p><div class="tbl"><table><thead><tr><th>Área</th><th class="n">Adm</th><th class="n">Ger</th><th class="n">Vend</th><th class="n">Alm</th></tr></thead><tbody>${[["Ventas y clientes", "vendas"], ["Cobrar pagos", "receber"], ["Inventario (ver)", "estoque"], ["Ajustar inventario", "ajuste"], ["Ver costos y margen", "custo"], ["Compras", "compras"], ["Cuentas por pagar", "pagar"], ["Reportes", "relatorios"], ["Cancelar pedidos", "cancelar"], ["Equipo y empresa", "equipe"]].map(([l, p]) => `<tr><td>${l}</td>${["admin", "gerente", "vendedor", "estoque"].map(r => `<td class="n">${PERMS[r].includes(p) ? '<span class="pos">✓</span>' : '<span style="color:var(--muted)">–</span>'}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
     <p class="hint">Los permisos organizan el uso del día a día. En el piloto, quien tiene acceso de Editor a la app técnicamente puede leer todos los datos de la empresa.</p>`;
   return h;
@@ -1935,7 +1938,7 @@ function sideNav() {
   return `<div class="sn-brand">${marcaSaus("escuro", "var(--side-bg)")}<b>Saus<span>360</span></b>${MODE === "demo" ? '<span class="demo-tag">DEMO</span>' : ""}</div>
     <button class="sn-new" data-a="sheet" data-k="quick">${ico("plus", 20)}<span>Nuevo</span></button>
     <div class="sn-nav">${it("inicio", "home", "Inicio")}
-    ${grp("Comercial", [it("vendas", "order", "Ventas", can("vendas")), it("clientes", "users", "Clientes", can("clientes")), can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span>Catálogo</span></button>` : ""])}
+    ${grp("Comercial", [it("vendas", "order", "Ventas", can("vendas")), it("caixa", "cash", "Caja", can("receber")), it("clientes", "users", "Clientes", can("clientes")), can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span>Catálogo</span></button>` : ""])}
     ${grp("Inventario", [it("estoque", "bottle", "Productos", can("estoque")), it("compras", "cart", "Compras", can("compras")), it("fornecedores", "truck", "Proveedores", can("fornecedores"))])}
     ${grp("Gestión", [it("financeiro", "wallet", "Finanzas", can("receber") || can("pagar")), it("relatorios", "chart", "Reportes", can("relatorios")), temFiscal() ? it("notas", "receipt", "Notas fiscales", can("fiscal")) : ""])}
     ${grp("Empresa", [it("equipe", "users", "Equipo"), it("empresa", "building", "Datos de la empresa", can("empresa")), it("atividade", "activity", "Actividad", can("atividade"))])}</div>
@@ -2022,7 +2025,7 @@ const SPEC = {
   emp: v => { const P = PAISES[v && PAISES[v.pais] ? v.pais : "BR"]; return [{ k: "nome", l: "Nombre de la empresa" }, { k: "pais", l: "País", t: "select", opts: Object.entries(PAISES).map(([k, x]) => [k, x.l]) }, { k: "cnpj", l: P.docEmp, t: P.dec === "," ? "tel" : "code", h: 1 }, { k: "fone", l: "Teléfono", t: "tel", h: 1, ph: P.fone }, { k: "cidade", l: "Ciudad", ph: P.cidadePh }, ...(P.iva ? [{ k: "ivaSomar", l: "IVA en los pedidos", t: "select", opts: IVA_OPTS(P) }] : [])]; },
   criarEmp: v => { const P = PAISES[v && PAISES[v.pais] ? v.pais : "BR"]; return [{ k: "nome", l: "Nombre de la empresa", ph: "Ej.: Vinoteca Central" }, { k: "pais", l: "País", t: "select", opts: Object.entries(PAISES).map(([k, x]) => [k, x.l]) }, { k: "rubro", l: "Giro de la empresa", t: "select", opts: Object.entries(RUBROS).map(([k, r]) => [k, r.l]) }, ...(P.iva ? [{ k: "ivaSomar", l: "IVA en los pedidos", t: "select", opts: IVA_OPTS(P) }] : []), { k: "cnpj", l: `${P.docEmp} (opcional)`, t: P.dec === "," ? "tel" : "code", h: 1 }, { k: "cidade", l: "Ciudad", h: 1, ph: P.cidadePh }, { k: "seuNome", l: "Tu nombre", ph: "Cómo te verá el equipo" }]; },
   entrarEmp: () => [{ k: "codigo", l: "Código de la empresa", t: "code", ph: "Ej.: K7P2QX" }, { k: "seuNome", l: "Tu nombre", ph: "Cómo te verá el equipo" }],
-  fin: () => [{ k: "desc", l: "Descripción", ph: "Ej.: Renta de noviembre" }, { k: "cat", l: "Categoría", t: "select", h: 1, opts: (ui.sheet.id === "receber" ? ["Eventos", "Servicios", "Otros"] : DESP_CATS).map(x => [x, x]) }, { k: "valor", l: `Valor (${SIM()})`, t: "money", h: 1 }, { k: "venc", l: "Vencimiento", t: "date" }]
+  fin: () => [{ k: "desc", l: "Descripción", ph: "Ej.: Renta de noviembre" }, { k: "cat", l: "Categoría", t: "select", h: 1, opts: (ui.sheet.id === "receber" ? ["Eventos", "Servicios", "Otros"] : DESP_CATS).map(x => [x, x]) }, { k: "valor", l: `Monto (${SIM()})`, t: "money", h: 1 }, { k: "venc", l: "Vencimiento", t: "date" }]
 };
 const SH = {
   quick: () => {
@@ -2085,7 +2088,7 @@ const SH = {
     const info = payInfo(s);
     return [s.src === "comp" || (s.src === "fin" && Fi(s.id) && Fi(s.id).tipo === "pagar") ? "Registrar pago" : "Registrar cobro", `
     <div class="row"><span class="avatar">${initials(info.quem)}</span><span class="wmain"><b>${esc(info.quem)}</b><small>${esc(info.desc)} · pendiente ${fmt(info.aberto)}</small></span></div>
-    <label class="field">Valor (${SIM()})<input data-f="valor" inputmode="decimal" value="${esc(s.vals.valor)}"></label>
+    <label class="field">Monto (${SIM()})<input data-f="valor" inputmode="decimal" value="${esc(s.vals.valor)}"></label>
     <label class="field">Fecha<input data-f="data" type="date" value="${esc(s.vals.data)}"></label>
     <span class="lbl" style="margin-top:16px">Forma</span><div class="chips wrap tight">${formas().map(f => `<button class="chip" data-a="pforma" data-id="${f}" aria-pressed="${s.forma === f}">${f}</button>`).join("")}</div>
     ${s.src === "ped" && info.parcelas > 1 ? `<p class="hint">El importe se aplica a la parcialidad pendiente más antigua.</p>` : ""}
@@ -2249,6 +2252,7 @@ async function confirmPedido0() {
   const d = ui.draft, t = draftCalc(), cf = d.cli === "CF", cl = cf ? { nome: "Consumidor final" } : Cl(d.cli); if (!cl || !t.n) return;
   const inat = Object.keys(d.qty).filter(pid => d.qty[pid] > 0 && P(pid) && P(pid).ativo === false);
   if (inat.length) { inat.forEach(pid => delete d.qty[pid]); avisoInativo(P(inat[0])); updateDraft(); return; }
+  if (d.tipo !== "consig" && descExcede(t)) { toast(`Descuento arriba de tu límite de ${dec(descLim())}%. Pide a un gerente.`); updateDraft(); return; }
   const itens = Object.entries(d.qty).filter(([, q]) => q > 0).map(([pid, q]) => { const p = P(pid), rf = naVenda(p) ? recDoProd(pid) : null; return { p: pid, q, preco: precoDraft(p), custo: rf ? r4(custoReceita(rf).unit) : p.custo || 0, vend: 0, dev: 0 }; });
   /* venda de produto com baixa na venda desconta os ingredientes da receita; consignação e o resto, o próprio produto */
   const chV = d.tipo === "orcamento" ? [] : d.tipo === "venda" ? baixaItens(itens.map(i => ({ id: i.p, q: i.q }))) : itens.map(i => ({ id: i.p, delta: -i.q }));
@@ -2260,7 +2264,7 @@ async function confirmPedido0() {
   if (d.tipo === "consig") { o.venc = addDays(today, Number(d.prazo) || 30); o.desc = 0; }
   else { o.desc = t.desc; o.cond = d.cond; o.parc = makeParcelas(t.total, d.cond, today); }
   if (cf) { o.consumidor = { cpf: d.cpf || "" }; o.cond = "0"; o.parc = makeParcelas(t.total, "0", today); }
-  if (d.tipo === "venda" && d.cond === "0" && d.pagoAgora && can("receber")) o.pag = [{ data: isoT(new Date()), valor: t.total, forma: d.forma, por: UID }];
+  if (d.tipo === "venda" && d.cond === "0" && d.pagoAgora && can("receber")) o.pag = [comCaixa({ data: isoT(new Date()), valor: t.total, forma: d.forma, por: UID })];
   if (d.tipo === "venda" && chV.some(c => !itens.some(i => i.p === c.id))) o.baixa = chV; // guarda o que baixou para estornar igual no cancelamento
   const ws = [Store.put("ped", id, o)], mvV = mvDe(chV);
   if (chV.length) ws.push(Store.stock(chV));
@@ -2278,6 +2282,7 @@ async function doPay(s) {
   const entry = { data: dt, valor: v, forma: s.forma, por: UID };
   const col = s.src === "ped" ? "ped" : s.src === "comp" ? "comp" : "fin", doc = (col === "ped" ? Pe : col === "comp" ? Co : Fi)(s.id);
   const entradaDinheiro = col === "ped" || (col === "fin" && doc.tipo === "receber");
+  if (entradaDinheiro) comCaixa(entry); // recebimento com caixa aberto entra no resumo do caixa (dinheiro vai para a gaveta)
   if (!(await commit([Store.appendPag(col, s.id, entry), logMov("fin", `${entradaDinheiro ? "Cobro" : "Pago"} ${fmt(v)} · ${info.quem} · ${info.desc} · ${s.forma}`, { ref: s.id })]))) return;
   closeSheet(); toast(`${entradaDinheiro ? "Cobro" : "Pago"} de ${fmt(v)} registrado`);
 }
@@ -2478,7 +2483,8 @@ document.addEventListener("click", travarAcao(async e => {
     case "repetir": { const o = Pe(id), q = {}; o.itens.forEach(i => { q[i.p] = (q[i.p] || 0) + i.q; }); newDraft(o.tipo === "consig" ? "consig" : "venda", { cli: o.cli, tabela: o.tabela, qty: q, cond: o.cond || "30", iva: ivaTaxa() ? o.iva > 0 : false }); go("novoPedido"); break; }
     case "copyTxt": try { await navigator.clipboard.writeText(pedText(Pe(id))); toast("Texto copiado"); } catch (er) { toast("No se pudo copiar en este dispositivo"); } break;
     case "doCancelPed": {
-      const o = Pe(s.id), ws = [Store.put("ped", o.id, Object.assign({}, o, { status: "cancelado", canceladoEm: isoT(new Date()), motivo: s.vals.motivo || "" }))];
+      const o = Pe(s.id), cxD = caixaAtual(), dinD = r2(sum((o.pag || []).filter(p => ehDin(p.forma)), p => p.valor));
+      const ws = [Store.put("ped", o.id, Object.assign({}, o, { status: "cancelado", canceladoEm: isoT(new Date()), motivo: s.vals.motivo || "" }, cxD && dinD > 0 ? { devCx: { cx: cxD.id, v: dinD } } : {}))]; // dinheiro devolvido sai do caixa aberto
       let mvC = [];
       if (o.tipo !== "orcamento") { let ch; if (o.baixa) ch = o.baixa.filter(c => P(c.id)).map(c => ({ id: c.id, delta: -c.delta })); else { const agg = {}; o.itens.forEach(i => { agg[i.p] = (agg[i.p] || 0) + (o.tipo === "consig" ? i.q - (i.dev || 0) : i.q); }); ch = Object.entries(agg).filter(([pid, q]) => P(pid) && q).map(([pid, q]) => ({ id: pid, delta: q })); } mvC = mvDe(ch); ws.push(Store.stock(ch)); }
       ws.push(logMov(o.tipo === "consig" ? "consig" : "venda", `${tipoPed(o.tipo)} #${o.num} cancelado${s.vals.motivo ? " · " + s.vals.motivo : ""}`, { ref: o.id, ps: [...new Set([...o.itens.map(i => i.p), ...(o.baixa || []).map(c => c.id)])], tm: o.tipo === "orcamento" ? "outro" : o.tipo === "consig" ? "est_consig" : "est_venda", mv: mvC }));
@@ -2662,7 +2668,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "saveFin": {
       const v = s.vals, val = r2(parseMoney(v.valor));
       if (!String(v.desc || "").trim() || !(val > 0) || !v.venc) { s.err = "Llena descripción, importe y vencimiento."; renderSheet(); break; }
-      const fid = rid(), doc = { tipo: s.id === "receber" ? "receber" : "pagar", desc: v.desc.trim(), cat: v.cat, valor: val, venc: v.venc, data: today, pag: s.pago ? [{ data: isoT(new Date()), valor: val, forma: s.forma, por: UID }] : [] };
+      const fid = rid(), doc = { tipo: s.id === "receber" ? "receber" : "pagar", desc: v.desc.trim(), cat: v.cat, valor: val, venc: v.venc, data: today, pag: s.pago ? [(e => s.id === "receber" ? comCaixa(e) : e)({ data: isoT(new Date()), valor: val, forma: s.forma, por: UID })] : [] };
       if (await commit([Store.put("fin", fid, doc), logMov("fin", `${doc.tipo === "pagar" ? "Nuevo gasto" : "Nuevo ingreso"} · ${doc.desc} · ${fmt(val)}${s.pago ? " · ya " + (doc.tipo === "pagar" ? "pagada" : "recibida") : ""}`, { ref: fid })])) { closeSheet(); toast("Movimiento guardado"); }
       break;
     }
@@ -2737,7 +2743,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "backup": saveFile(`backup-${norm(S.emp ? S.emp.nome : "decanta").replace(/\s+/g, "-")}-${today}.json`, JSON.stringify({ app: APP, exportadoEm: isoT(new Date()), empresa: S.emp, produtos: S.prod, clientes: S.cli, fornecedores: S.forn, pedidos: S.ped, compras: S.comp, financeiro: S.fin, equipe: S.mem, atividade: S.mov }, null, 2)); break;
     case "modeloCSV": { const m = impModelo(ui.impTipo); saveFile(`modelo-${ui.impTipo === "prod" ? "productos" : "clientes"}.csv`, "﻿" + m.cols.join(";") + "\n" + m.ex + "\n"); break; }
     case "importar": importar(); break;
-    default: if (typeof FOOD_A !== "undefined" && FOOD_A[a]) await FOOD_A[a](t, id, s);
+    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]); if (f) await f(t, id, s); }
   }
 }));
 document.addEventListener("input", e => {
@@ -2747,7 +2753,7 @@ document.addEventListener("input", e => {
   if (t.id === "cq") { ui.cq = t.value; const tmp = document.createElement("div"); tmp.innerHTML = vClientes(); $("clist").innerHTML = tmp.querySelector("#clist").innerHTML; return; }
   if (t.id === "dq") { ui.draft.q = t.value; $("dlist").innerHTML = draftList(); return; }
   if (t.id === "impTxt") { ui.impTxt = t.value; return; }
-  if (d.d && ui.draft) { ui.draft[d.d] = t.value; if (d.d === "desc") { $("dfoot").innerHTML = draftFoot(); $("dcredit").innerHTML = draftCredit(); } return; }
+  if (d.d && ui.draft) { ui.draft[d.d] = t.value; if (d.d === "desc") { $("dfoot").innerHTML = draftFoot(); $("dcredit").innerHTML = draftCredit(); } if ((d.d === "desc" || d.d === "recebido") && $("dtroco")) $("dtroco").innerHTML = trocoTxt(); return; }
   if (d.ci != null && ui.cdraft) { ui.cdraft.itens[Number(d.ci)][d.cf] = t.value; $("kfoot").innerHTML = cdraftFoot(); return; }
   if (d.kd && ui.cdraft) { ui.cdraft[d.kd] = t.value; return; }
   if (d.l && ui.login) { ui.login[d.l] = t.value; return; }
@@ -3648,6 +3654,216 @@ document.addEventListener("change", e => {
   /* trocar produto ou ingrediente redesenha: a lista de unidades depende da unidade do produto */
   if (d.rd === "prod" && ui.rdraft) { ui.rdraft.prod = t.value; render(); }
   if (d.ri != null && d.rk === "p" && ui.rdraft) { const it = ui.rdraft.itens[Number(d.ri)], p = P(t.value); it.p = t.value; if (p && !unCompat(unDe(p)).includes(it.u)) it.u = unDe(p) === "kg" ? "g" : unDe(p) === "l" ? "ml" : unDe(p); render(); }
+});
+
+/* ---- pdv.js ---- */
+/* ================= Ponto de venda: caixa, troco e limite de desconto =================
+   Caixa (coleção cx): abre com fundo de troco, recebe suprimentos e sangrias (em dados.pag, anexados
+   de forma atômica no servidor) e fecha com a contagem do dinheiro. Os recebimentos feitos com um caixa
+   aberto levam cx = id do caixa; o esperado na gaveta é calculado a partir deles. */
+/* Dinheiro em espécie: o app em espanhol grava "Efectivo" (comparação não é traduzida no build) */
+const ehDin = f => f === "Dinheiro" || f === "Efectivo";
+const CX = id => S.cx.find(x => x.id === id);
+const chefe = () => { const m = ME(); return !!m && (m.papel === "admin" || m.papel === "gerente"); };
+const cxAbertos = () => S.cx.filter(c => c.status === "aberto").sort((a, b) => String(b.abertoEm).localeCompare(String(a.abertoEm)));
+/* Caixa que recebe o dinheiro: o do próprio usuário; sem ele, o caixa aberto da loja */
+function caixaAtual() { const ab = cxAbertos(); return ab.find(c => c.por === UID) || ab[0] || null; }
+const usaCaixa = () => S.cx.length > 0;
+const gereCaixa = c => !!c && (c.por === UID || chefe());
+const hhmm = s => (s ? String(s).slice(11, 16) : "");
+function comCaixa(entry) { const c = caixaAtual(); if (c) entry.cx = c.id; return entry; }
+
+function cxResumo(c) {
+  const ent = [], formas = {};
+  S.ped.forEach(o => (o.pag || []).forEach(p => { if (p.cx === c.id) ent.push({ em: p.data, v: p.valor, f: p.forma, t: `Pedido #${o.num} · ${cliNome(o)}`, a: `data-a="go" data-r="pedido" data-id="${o.id}"` }); }));
+  S.fin.forEach(f => (f.pag || []).forEach(p => { if (p.cx === c.id) ent.push({ em: p.data, v: p.valor, f: p.forma, t: f.desc || "Ingreso extra", a: "" }); }));
+  ent.forEach(e => { formas[e.f] = r2((formas[e.f] || 0) + e.v); });
+  const dev = S.ped.filter(o => o.devCx && o.devCx.cx === c.id).map(o => ({ em: o.canceladoEm, v: o.devCx.v, t: `Devolución · pedido #${o.num} cancelado`, a: `data-a="go" data-r="pedido" data-id="${o.id}"` }));
+  const lanc = c.pag || [], sup = r2(sum(lanc.filter(l => l.t === "sup"), l => l.valor)), san = r2(sum(lanc.filter(l => l.t === "san"), l => l.valor));
+  const din = r2(sum(Object.keys(formas).filter(ehDin), f => formas[f])), devV = r2(sum(dev, d => d.v));
+  return { ent, formas, dev, lanc, sup, san, din, devV, fundo: c.fundo || 0, total: r2(sum(ent, e => e.v)), esperado: r2((c.fundo || 0) + din + sup - san - devV) };
+}
+const difTxt = d => Math.abs(d) < 0.005 ? "Cuadra" : d > 0 ? `Sobra ${fmt(d)}` : `Falta ${fmt(-d)}`;
+const difCls = d => Math.abs(d) < 0.005 ? "ok" : Math.abs(d) <= 2 ? "warn" : "bad";
+
+function cxRow(c) {
+  const ab = c.status === "aberto", r = ab ? cxResumo(c) : null;
+  return `<button class="row" data-a="go" data-r="caixa" data-id="${c.id}"><span class="avatar">${initials(nomeDe(c.por))}</span><span class="wmain"><b>${esc(nomeDe(c.por))} · ${fdy(c.abertoEm)}</b><small>${ab ? `Abierta a las ${hhmm(c.abertoEm)} · ${fmt(r.esperado)} en el cajón` : `${hhmm(c.abertoEm)}–${hhmm(c.fechadoEm)} · contado ${fmt(c.contado)}`}</small></span>${ab ? `<span class="pill info">Abierta ahora</span>` : `<span class="pill ${difCls(c.dif || 0)}">${difTxt(c.dif || 0)}</span>`}</button>`;
+}
+function cxLinhas(c, r) {
+  const L = [{ em: c.abertoEm, t: `Apertura · fondo de cambio · ${nomeDe(c.por)}`, v: r.fundo, din: true }];
+  r.ent.forEach(e => L.push({ em: e.em, t: e.t, f: e.f, v: e.v, din: ehDin(e.f), a: e.a }));
+  r.lanc.forEach(l => L.push({ em: l.data, t: `${l.t === "sup" ? "Aporte" : "Retiro"}${l.obs ? " · " + l.obs : ""} · ${nomeDe(l.por)}`, v: l.t === "san" ? -l.valor : l.valor, din: true }));
+  r.dev.forEach(d => L.push({ em: d.em, t: d.t, v: -d.v, din: true, a: d.a }));
+  if (c.status === "fechado") L.push({ em: c.fechadoEm, t: `Cierre · ${nomeDe(c.fechadoPor || c.por)}`, fim: true });
+  L.sort((a, b) => String(a.em).localeCompare(String(b.em)));
+  const dia0 = String(c.abertoEm).slice(0, 10);
+  return `<div class="list">${L.map(l => `<${l.a ? "button" : "div"} class="row" ${l.a || ""}><span class="wmain"><b>${esc(l.t)}</b><small>${String(l.em).slice(0, 10) !== dia0 ? fd(l.em) + " " : ""}${hhmm(l.em)}${l.f ? " · " + esc(l.f) + (l.din ? "" : " · fuera del cajón") : ""}</small></span>${l.fim ? "" : `<b class="${!l.din ? "muted" : l.v < 0 ? "neg" : "pos"}">${l.v < 0 ? "−" : "+"}${fmt(Math.abs(l.v))}</b>`}</${l.a ? "button" : "div"}>`).join("")}</div>`;
+}
+function cxFormas(r) {
+  const fs = Object.entries(r.formas).sort((a, b) => b[1] - a[1]);
+  if (!fs.length) return `<p class="hint">Todavía no hay cobros en esta caja.</p>`;
+  return `<div class="list">${fs.map(([f, v]) => `<div class="row"><span class="wmain"><b>${esc(f)}</b><small>${ehDin(f) ? "Entra al cajón" : "No entra al cajón"}</small></span><b>${fmt(v)}</b></div>`).join("")}<div class="row"><span class="wmain"><b>Total cobrado</b></span><b>${fmt(r.total)}</b></div></div>`;
+}
+function cxPainel(c) {
+  const r = cxResumo(c), meu = c.por === UID;
+  let h = `<section class="card ring"><span class="lbl">${meu ? "Tu caja está abierta" : `Caja de ${esc(nomeDe(c.por))}`}</span><p class="hint" style="margin-top:0">Abierta el ${fdy(c.abertoEm)} a las ${hhmm(c.abertoEm)}</p>
+    <div class="stats"><div class="stat"><span>Fondo de cambio</span><b>${fmt(r.fundo)}</b></div><div class="stat good"><span>Efectivo cobrado</span><b>${fmt(r.din)}</b></div><div class="stat"><span>Aportes</span><b>${fmt(r.sup)}</b></div><div class="stat ${r.san ? "warn" : ""}"><span>Retiros</span><b>${fmt(r.san)}</b></div>${r.devV ? `<div class="stat bad"><span>Devoluciones</span><b>${fmt(r.devV)}</b></div>` : ""}</div>
+    <div class="row" style="border:0;padding:12px 0 0"><span class="wmain"><b>Esperado en el cajón</b><small>Fondo + efectivo + aportes − retiros${r.devV ? " − devoluciones" : ""}</small></span><b style="font-size:1.25em">${fmt(r.esperado)}</b></div>
+    ${gereCaixa(c) ? `<div class="grid3" style="margin-top:12px"><button class="btn ghost" data-a="sheet" data-k="cxLanc" data-id="sup|${c.id}">+ Aporte</button><button class="btn ghost" data-a="sheet" data-k="cxLanc" data-id="san|${c.id}">− Retiro</button><button class="btn" data-a="sheet" data-k="cxFechar" data-id="${c.id}">Cerrar caja</button></div>` : ""}</section>`;
+  h += `<p class="sec">Cobrado en esta caja</p>${cxFormas(r)}`;
+  h += `<p class="sec">Movimientos</p>${cxLinhas(c, r)}`;
+  return h;
+}
+function vCaixaDet(c) {
+  if (!c) return head("Caja", "", { back: true }) + empty("Caja no encontrada.", "");
+  let h = head("Caja", `${esc(nomeDe(c.por))} · ${fdy(c.abertoEm)}`, { back: true, action: `<button class="btn sm ghost" data-a="cxCopiar" data-id="${c.id}">${ico("copy", 16)}Copiar resumen</button>` }) + banners();
+  if (c.status === "aberto") return h + cxPainel(c);
+  const r = cxResumo(c), d = c.dif || 0;
+  h += `<section class="card"><div class="stats"><div class="stat"><span>Esperado</span><b>${fmt(c.esperado)}</b></div><div class="stat"><span>Contado</span><b>${fmt(c.contado)}</b></div><div class="stat ${difCls(d) === "ok" ? "good" : difCls(d)}"><span>Diferencia</span><b>${difTxt(d)}</b></div><div class="stat"><span>Quedó de cambio</span><b>${fmt(c.fica || 0)}</b><small>retirado ${fmt(r2((c.contado || 0) - (c.fica || 0)))}</small></div></div>
+    <p class="hint" style="margin-bottom:0">Abierta a las ${hhmm(c.abertoEm)} y cerrada a las ${hhmm(c.fechadoEm)}${c.fechadoPor && c.fechadoPor !== c.por ? ` por ${esc(nomeDe(c.fechadoPor))}` : ""}.${c.obs ? ` Observación: ${esc(c.obs)}` : ""}</p></section>`;
+  h += `<p class="sec">Cobrado en esta caja</p>${cxFormas(r)}`;
+  h += `<p class="sec">Movimientos</p>${cxLinhas(c, r)}`;
+  return h;
+}
+function vCaixa() {
+  if (ui.id) return vCaixaDet(CX(ui.id));
+  const meu = cxAbertos().find(c => c.por === UID), outros = cxAbertos().filter(c => c.por !== UID);
+  let h = head("Caja", "Apertura, retiros y cierre", { back: ui.stack.length > 0 }) + banners();
+  if (meu) h += cxPainel(meu);
+  else {
+    const loja = outros[0];
+    h += `<section class="card"><span class="lbl">Tu caja está cerrada</span><p class="hint" style="margin-top:0">${loja ? `Las ventas en efectivo que registres entran en la caja de ${esc(nomeDe(loja.por))}. Si tienes tu propio cajón, abre tu caja.` : "Abre la caja al comenzar el día con el efectivo para dar cambio. Las ventas y los cobros en efectivo entran solos, y al final del día revisas el cajón."}</p>
+      <button class="btn block" data-a="sheet" data-k="cxAbrir">${loja ? "Abrir mi caja" : "Abrir caja"}</button></section>`;
+  }
+  if (outros.length) h += `<p class="sec">${meu ? "Otras cajas abiertas" : "Cajas abiertas"}</p><div class="list">${outros.map(cxRow).join("")}</div>`;
+  const hist = S.cx.filter(c => c.status === "fechado" && (chefe() || c.por === UID)).sort((a, b) => String(b.fechadoEm).localeCompare(String(a.fechadoEm))).slice(0, 60);
+  if (hist.length) {
+    const falta = r2(sum(hist.filter(c => (c.dif || 0) < 0), c => -c.dif));
+    h += `<p class="sec">Cierres <span class="count">${hist.length}</span></p>${falta > 0 && chefe() ? `<p class="hint">Faltantes sumados en los cierres listados: ${fmt(falta)}</p>` : ""}<div class="list">${hist.map(cxRow).join("")}</div>`;
+  }
+  return h;
+}
+/* Aviso no topo de Vendas */
+function cxBanner() {
+  if (!can("receber")) return "";
+  const c = caixaAtual();
+  if (c) return `<div class="note good cxnote"><span>Caja abierta${c.por !== UID ? ` de ${esc(firstName(nomeDe(c.por)))}` : ""} · <b>${fmt(cxResumo(c).esperado)}</b> en el cajón</span><button class="btn sm ghost" data-a="go" data-r="caixa">Ver caja</button></div>`;
+  if (usaCaixa()) return `<div class="note warn cxnote"><span>No hay caja abierta. El efectivo de las ventas no entra en ninguna caja.</span><button class="btn sm ghost" data-a="go" data-r="caixa">Abrir caja</button></div>`;
+  return "";
+}
+/* Na venda em dinheiro: para onde vai o dinheiro e quanto de troco */
+function trocoTxt() {
+  const d = ui.draft; if (!d) return "";
+  const rec = parseMoney(d.recebido || ""), tot = draftCalc().total, c = caixaAtual();
+  let h = c ? `<p class="hint" style="margin:6px 0 0">Entra en la caja ${c.por === UID ? "abierta por ti" : `de ${esc(firstName(nomeDe(c.por)))}`}.</p>` : usaCaixa() ? `<div class="note warn" style="margin-top:8px">No hay caja abierta: este efectivo no entra en ninguna caja.</div>` : "";
+  if (rec > 0) { const tr = r2(rec - tot); h += tr < -0.004 ? `<div class="note warn" style="margin-top:8px">Faltan ${fmt(-tr)}</div>` : `<div class="note good" style="margin-top:8px">Cambio: <b>${fmt(tr)}</b></div>`; }
+  return h;
+}
+
+/* ---- Limite de desconto por papel: vendedor até o % da empresa; administrador e gerente sem limite ---- */
+function descLim() {
+  if (chefe() || !S.emp || S.emp.descMax == null || S.emp.descMax === "") return null;
+  const v = Number(S.emp.descMax); return isFinite(v) && v >= 0 ? v : null;
+}
+const descPctDe = t => (t.bruto > 0 ? t.desc / t.bruto * 100 : 0);
+function descExcede(t) { const l = descLim(); return l != null && descPctDe(t) > l + 0.005; }
+function descMaxCard() {
+  const v = S.emp && S.emp.descMax != null && S.emp.descMax !== "" ? Number(S.emp.descMax) : null;
+  return `<p class="sec">Descuento en las ventas</p><div class="menu"><button data-a="sheet" data-k="descMaxForm">${ico("tag")}<span class="wmain"><b>${v == null ? "Vendedor sin límite de descuento" : `El vendedor da hasta ${dec(v)}% de descuento`}</b><small>Administrador y gerente no tienen límite</small></span>${ico("chev", 18)}</button></div>`;
+}
+
+Object.assign(SH, {
+  cxAbrir: s => {
+    if (s.vals.fundo == null) { const ult = S.cx.filter(c => c.status === "fechado").sort((a, b) => String(b.fechadoEm).localeCompare(String(a.fechadoEm)))[0]; s.vals.fundo = ult && ult.fica ? money(ult.fica) : ""; }
+    return ["Abrir caja", `<p class="hint" style="margin-top:0">Cuenta el efectivo que hay en el cajón para dar cambio. Mientras la caja esté abierta, las ventas y los cobros en efectivo entran aquí solos.</p>
+      <label class="field">Fondo de cambio (${SIM()})<input data-f="fundo" inputmode="decimal" value="${esc(s.vals.fundo)}" placeholder="${money(0)}"></label>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" data-a="cxAbrir">Abrir caja</button>`];
+  },
+  cxLanc: s => {
+    const [tp, cid] = String(s.id).split("|"), sup = tp === "sup", c = CX(cid), r = c ? cxResumo(c) : null;
+    return [sup ? "Aporte" : "Retiro", `<p class="hint" style="margin-top:0">${sup ? "Efectivo que entra al cajón sin ser venta, por ejemplo refuerzo de cambio." : "Efectivo que sale del cajón, por ejemplo depósito en el banco o un pago en efectivo."}${r ? ` Ahora en el cajón: <b>${fmt(r.esperado)}</b>.` : ""}</p>
+      <label class="field">Monto (${SIM()})<input data-f="valor" inputmode="decimal" value="${esc(s.vals.valor || "")}"></label>
+      <label class="field">Motivo<input data-f="obs" value="${esc(s.vals.obs || "")}" placeholder="${sup ? "Ej: refuerzo de cambio" : "Ej: depósito en el banco"}"></label>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" data-a="cxLanc">${sup ? "Registrar aporte" : "Registrar retiro"}</button>`];
+  },
+  cxFechar: s => {
+    const c = CX(s.id); if (!c) return ["Cerrar caja", empty("Caja no encontrada.", "")];
+    const r = cxResumo(c);
+    if (s.vals.fica == null) s.vals.fica = money(r.fundo);
+    return ["Cerrar caja", `<div class="list"><div class="row"><span class="wmain"><b>Esperado en el cajón</b><small>Fondo ${fmt(r.fundo)} + efectivo ${fmt(r.din)} + aportes ${fmt(r.sup)} − retiros ${fmt(r.san)}${r.devV ? ` − devoluciones ${fmt(r.devV)}` : ""}</small></span><b>${fmt(r.esperado)}</b></div></div>
+      <label class="field" style="margin-top:12px">Efectivo contado en el cajón (${SIM()})<input data-f="contado" inputmode="decimal" value="${esc(s.vals.contado || "")}" placeholder="Cuenta billetes y monedas"></label>
+      <div id="cxDif">${cxDif(s)}</div>
+      <label class="field">Queda en el cajón para la próxima caja (${SIM()})<input data-f="fica" inputmode="decimal" value="${esc(s.vals.fica)}"></label>
+      <label class="field">Observación<input data-f="obs" value="${esc(s.vals.obs || "")}" placeholder="Ej: cambio equivocado en una venta"></label>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" data-a="cxFechar">Cerrar caja</button>`];
+  },
+  descMaxForm: s => {
+    if (s.vals.pct == null) s.vals.pct = S.emp && S.emp.descMax != null && S.emp.descMax !== "" ? dec(S.emp.descMax) : "";
+    return ["Límite de descuento", `<p class="hint" style="margin-top:0">Descuento máximo que el vendedor puede dar en una venta, sobre el total de los productos. Administrador y gerente dan cualquier descuento. Déjalo en blanco para no limitar.</p>
+      <label class="field">Descuento máximo del vendedor (%)<input data-f="pct" inputmode="decimal" value="${esc(s.vals.pct)}" placeholder="Ej: 10"></label>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" data-a="descMaxSalvar">Guardar</button>`];
+  }
+});
+function cxDif(s) {
+  const c = CX(s.id); if (!c || String(s.vals.contado || "").trim() === "") return "";
+  const d = r2(parseMoney(s.vals.contado) - cxResumo(c).esperado);
+  return `<div class="note ${difCls(d) === "ok" ? "good" : difCls(d)}">${difTxt(d)}${Math.abs(d) >= 0.005 ? ". Revisa el conteo antes de cerrar." : "."}</div>`;
+}
+function cxTexto(c) {
+  const r = cxResumo(c), L = [`Caja ${fdy(c.abertoEm)} · ${nomeDe(c.por)}`, `Apertura ${hhmm(c.abertoEm)}${c.fechadoEm ? ` · cierre ${hhmm(c.fechadoEm)}` : ""}`, "", `Fondo de cambio: ${fmt(r.fundo)}`];
+  Object.entries(r.formas).forEach(([f, v]) => L.push(`${f}: ${fmt(v)}`));
+  L.push(`Aportes: ${fmt(r.sup)}`, `Retiros: ${fmt(r.san)}`);
+  if (r.devV) L.push(`Devoluciones: ${fmt(r.devV)}`);
+  if (c.status === "fechado") L.push("", `Esperado: ${fmt(c.esperado)}`, `Contado: ${fmt(c.contado)}`, `Diferencia: ${difTxt(c.dif || 0)}`, `Quedó de cambio: ${fmt(c.fica || 0)}`);
+  else L.push("", `Esperado en el cajón: ${fmt(r.esperado)}`);
+  if (c.obs) L.push(`Obs.: ${c.obs}`);
+  return L.join("\n");
+}
+
+const CX_A = {
+  cxAbrir: async (t, id, s) => {
+    const v = String(s.vals.fundo || "").trim() === "" ? 0 : r2(parseMoney(s.vals.fundo));
+    if (!(v >= 0)) { s.err = "Indica el fondo de cambio, aunque sea cero."; renderSheet(); return; }
+    if (cxAbertos().some(c => c.por === UID)) { s.err = "Ya tienes una caja abierta."; renderSheet(); return; }
+    const cid = rid(), doc = { por: UID, abertoEm: isoT(new Date()), fundo: v, status: "aberto", pag: [] };
+    if (await commit([Store.put("cx", cid, doc), logMov("fin", `Caja abierta · fondo de cambio ${fmt(v)}`, { ref: cid })])) { closeSheet(); if (ui.route === "caixa") { ui.id = null; render(); } else go("caixa"); toast("Caja abierta"); }
+  },
+  cxLanc: async (t, id, s) => {
+    const [tp, cid] = String(s.id).split("|"), c = CX(cid), sup = tp === "sup", v = r2(parseMoney(s.vals.valor || ""));
+    if (!c || c.status !== "aberto" || !gereCaixa(c)) { s.err = "No hay caja abierta para este movimiento."; renderSheet(); return; }
+    if (!(v > 0)) { s.err = "Indica el monto."; renderSheet(); return; }
+    if (!sup && v > cxResumo(c).esperado + 0.004) { s.err = `En el cajón debería haber solo ${fmt(cxResumo(c).esperado)}.`; renderSheet(); return; }
+    const obs = String(s.vals.obs || "").trim(), e = { data: isoT(new Date()), valor: v, t: sup ? "sup" : "san", obs, por: UID };
+    if (await commit([Store.appendPag("cx", c.id, e), logMov("fin", `${sup ? "Aporte" : "Retiro"} ${fmt(v)}${obs ? " · " + obs : ""} · caja de ${nomeDe(c.por)}`, { ref: c.id })])) { closeSheet(); render(); toast(sup ? "Aporte registrado" : "Retiro registrado"); }
+  },
+  cxFechar: async (t, id, s) => {
+    const c = CX(s.id); if (!c || c.status !== "aberto") { closeSheet(); return; }
+    if (!gereCaixa(c)) { s.err = "Solo quien abrió la caja, un gerente o un administrador puede cerrarla."; renderSheet(); return; }
+    if (String(s.vals.contado || "").trim() === "") { s.err = "Indica el efectivo contado en el cajón."; renderSheet(); return; }
+    const contado = r2(parseMoney(s.vals.contado)), fica = String(s.vals.fica || "").trim() === "" ? 0 : r2(parseMoney(s.vals.fica));
+    if (!(contado >= 0) || !(fica >= 0)) { s.err = "Revisa los valores."; renderSheet(); return; }
+    if (fica > contado + 0.004) { s.err = "Lo que queda en el cajón no puede ser mayor que lo contado."; renderSheet(); return; }
+    const r = cxResumo(c), dif = r2(contado - r.esperado), obs = String(s.vals.obs || "").trim();
+    const patch = { status: "fechado", fechadoEm: isoT(new Date()), fechadoPor: UID, contado, esperado: r.esperado, dif, fica, obs, resumo: { formas: r.formas, sup: r.sup, san: r.san, dev: r.devV, din: r.din } };
+    if (await commit([Store.patch("cx", c.id, patch), logMov("fin", `Caja cerrada · ${nomeDe(c.por)} · esperado ${fmt(r.esperado)} · contado ${fmt(contado)} · ${difTxt(dif)}${obs ? " · " + obs : ""}`, { ref: c.id })])) {
+      closeSheet(); if (ui.route === "caixa" && ui.id === c.id) render(); else go("caixa", c.id); toast(`Caja cerrada · ${difTxt(dif)}`);
+    }
+  },
+  cxCopiar: async (t, id) => { const c = CX(id); if (!c) return; try { await navigator.clipboard.writeText(cxTexto(c)); toast("Resumen copiado"); } catch (e) { toast("No se pudo copiar en este dispositivo"); } },
+  descMaxSalvar: async (t, id, s) => {
+    const raw = String(s.vals.pct || "").replace("%", "").trim(), v = raw === "" ? null : r2(parseMoney(raw));
+    if (v != null && !(v >= 0 && v <= 100)) { s.err = "Indica un número entre 0 y 100, o déjalo en blanco."; renderSheet(); return; }
+    const emp = Object.assign({}, S.emp); if (v == null) delete emp.descMax; else emp.descMax = v;
+    if (await commit([Store.putEmp(emp), logMov("equipe", v == null ? "Límite de descuento del vendedor eliminado" : `Límite de descuento del vendedor: ${dec(v)}%`)])) { closeSheet(); render(); toast("Límite de descuento guardado"); }
+  }
+};
+
+Object.assign(ROUTES, { caixa: { v: vCaixa, tab: "mais", p: "receber" } });
+
+document.addEventListener("input", e => {
+  const d = e.target.dataset;
+  if (ui.sheet && ui.sheet.k === "cxFechar" && d.f === "contado") { const el = $("cxDif"); if (el) el.innerHTML = cxDif(ui.sheet); }
 });
 
 boot();

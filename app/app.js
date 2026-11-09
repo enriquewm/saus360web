@@ -178,7 +178,7 @@ let CAN_WRITE = true;
 let cloudState = "idle";  // idle | connecting | on | off
 let loadState = "idle";   // idle | loading | ok | slow | erro | revogado
 const S = { emp: null, prod: [], cli: [], forn: [], ped: [], comp: [], fin: [], mov: [], mem: [], nf: [] };
-const COLS = ["prod", "cli", "forn", "ped", "comp", "fin", "mem", "mov", "nf", "rec"];
+const COLS = ["prod", "cli", "forn", "ped", "comp", "fin", "mem", "mov", "nf", "rec", "cx"];
 let unsubs = [], loadTimer = null, loadedCols = new Set();
 const DEMO_KEY = "decanta-demo-v2";
 
@@ -281,7 +281,8 @@ async function commit(ps) {
   try { await Promise.all(ps); renderAll(); return true; }
   catch (e) {
     const code = e && (e.code || (e.error && e.error.code)), msg = String((e && (e.message || e.details)) || "");
-    if (code === "invalid_argument" || code === "42501" || /row-level security|permission/i.test(msg)) { toast(MODE === "supa" ? "Seu papel não permite esta ação, ou o plano da empresa está inativo." : "Sem permissão para salvar. Peça para ser convidado como Editor."); if (MODE === "cloud") CAN_WRITE = false; }
+    if (/caixa_fechado/.test(msg)) toast("Este caixa já foi fechado. Atualize a tela.");
+    else if (code === "invalid_argument" || code === "42501" || /row-level security|permission/i.test(msg)) { toast(MODE === "supa" ? "Seu papel não permite esta ação, ou o plano da empresa está inativo." : "Sem permissão para salvar. Peça para ser convidado como Editor."); if (MODE === "cloud") CAN_WRITE = false; }
     else if (code === "quota_exceeded") toast("Limite de armazenamento atingido. Exporte e apague dados antigos.");
     else toast("Não foi possível salvar agora. Verifique a conexão e tente de novo.");
     Erros.enviar(/abort|fetch|network|conex/i.test(msg) ? "rede" : "salvar", msg || String(code || "erro ao salvar"), e && e.stack, { codigo: code || null });
@@ -1260,7 +1261,7 @@ function vVendas() {
     return true;
   }).sort((a, b) => (b.num || 0) - (a.num || 0));
   const chips = [["todos", "Todos"], ["orcamento", "Orçamentos"], ["receber", "A receber"], ["vencido", "Vencidos"], ["consig", "Consignação"], ["pago", "Pagos"], ["cancelado", "Cancelados"]];
-  return head("Vendas", "Pedidos, orçamentos e consignações", { action: `<button class="btn sm" data-a="novoPedido">+ Novo</button>` }) + banners() +
+  return head("Vendas", "Pedidos, orçamentos e consignações", { action: `<button class="btn sm" data-a="novoPedido">+ Novo</button>` }) + banners() + cxBanner() +
     toolbar(`<label class="search">${ico("search", 18)}<input id="vq" type="search" placeholder="Número, cliente ou vendedor" value="${esc(ui.vq)}" aria-label="Buscar pedido"></label>
     <div class="chips">${chips.map(([k, l]) => `<button class="chip" data-a="vf" data-id="${k}" aria-pressed="${f === k}">${l}</button>`).join("")}</div>`) +
     `<div id="vlist"><p class="summary">${list.length} ${list.length === 1 ? "registro" : "registros"} · ${fmt(sum(list.filter(o => o.tipo !== "orcamento"), o => pedCalc(o).total))} faturado</p>${DESK() ? pedTable(list) : `<div class="list">${list.map(pedRow).join("") || empty("Nada encontrado.", "")}</div>`}</div>`;
@@ -1365,10 +1366,11 @@ function draftList() {
 function draftFoot() {
   const d = ui.draft, t = draftCalc();
   const label = !d.cli ? "Escolha o cliente" : d.tipo === "orcamento" ? "Salvar orçamento" : "Confirmar";
+  if (d.tipo !== "consig" && descExcede(t)) return `<div><small class="lim">Desconto de ${dec(r2(descPctDe(t)))}% passa o seu limite de ${dec(descLim())}%</small><b>${fmt(t.total)}</b></div><button class="btn" disabled>${label}</button>`;
   return `<div><small>${t.n} un. · ${tipoPed(d.tipo).toLowerCase()}${t.desc ? ` · desconto ${fmt(t.desc)}` : ""}${t.iva ? ` · ${d.tipo === "consig" ? "+ IVA no acerto" : "IVA " + fmt(t.iva)}` : ""}</small><b>${fmt(d.tipo === "consig" ? t.bruto : t.total)}</b></div>
   <button class="btn" data-a="confirmPedido" ${!d.cli || !t.n ? "disabled" : ""}>${label}</button>`;
 }
-function updateDraft() { const a = $("dlist"), b = $("dfoot"), c = $("dcredit"); if (a) a.innerHTML = draftList(); if (b) b.innerHTML = draftFoot(); if (c) c.innerHTML = draftCredit(); }
+function updateDraft() { const a = $("dlist"), b = $("dfoot"), c = $("dcredit"), tr = $("dtroco"); if (a) a.innerHTML = draftList(); if (b) b.innerHTML = draftFoot(); if (c) c.innerHTML = draftCredit(); if (tr) tr.innerHTML = trocoTxt(); }
 function vNovoPedido() {
   if (!ui.draft) newDraft("venda");
   const d = ui.draft, cl = d.cli ? Cl(d.cli) : null;
@@ -1380,8 +1382,8 @@ function vNovoPedido() {
     <span class="lbl" style="margin-top:14px">Tabela de preço</span><div class="chips wrap tight">${Object.entries(TABELAS).map(([k, l]) => `<button class="chip" data-a="dtab" data-id="${k}" aria-pressed="${d.tabela === k}">${l}</button>`).join("")}</div>
     ${d.tipo === "consig" ? `<span class="lbl" style="margin-top:14px">Acerto em</span><div class="chips wrap tight">${[15, 30, 45, 60].map(t => `<button class="chip" data-a="dprazo" data-id="${t}" aria-pressed="${d.prazo == t}">${t} dias</button>`).join("")}</div>`
     : `<span class="lbl" style="margin-top:14px">Condição de pagamento</span><div class="chips wrap tight">${Object.entries(CONDS).map(([k, l]) => `<button class="chip" data-a="dcond" data-id="${k}" aria-pressed="${d.cond === k}">${l}</button>`).join("")}</div>`}
-    ${d.tipo !== "consig" ? `<label class="field" style="margin-top:14px">Desconto para o cliente (${SIM()} ou %)<input data-d="desc" inputmode="decimal" value="${esc(d.desc)}" placeholder="Ex: ${money(50)} ou 5%"></label><div class="chips tight" style="margin-top:8px">${[5, 10, 15].map(x => `<button class="chip" data-a="ddesc" data-id="${x}%" aria-pressed="${String(d.desc).trim() === x + "%"}">${x}%</button>`).join("")}${d.desc ? `<button class="chip" data-a="ddesc" data-id="">Sem desconto</button>` : ""}</div>` : ""}
-    ${d.tipo === "venda" && d.cond === "0" && can("receber") ? `<label class="toggle">Já recebido agora<input type="checkbox" data-a="dpago" ${d.pagoAgora ? "checked" : ""}></label>${d.pagoAgora ? `<div class="chips wrap tight" style="margin-top:8px">${FORMAS.map(f => `<button class="chip" data-a="dforma" data-id="${f}" aria-pressed="${d.forma === f}">${f}</button>`).join("")}</div>` : ""}` : ""}
+    ${d.tipo !== "consig" ? `<label class="field" style="margin-top:14px">Desconto para o cliente (${SIM()} ou %)<input data-d="desc" inputmode="decimal" value="${esc(d.desc)}" placeholder="Ex: ${money(50)} ou 5%"></label>${descLim() != null ? `<p class="hint" style="margin:4px 0 0">Seu limite de desconto: ${dec(descLim())}%</p>` : ""}<div class="chips tight" style="margin-top:8px">${[5, 10, 15].filter(x => descLim() == null || x <= descLim()).map(x => `<button class="chip" data-a="ddesc" data-id="${x}%" aria-pressed="${String(d.desc).trim() === x + "%"}">${x}%</button>`).join("")}${d.desc ? `<button class="chip" data-a="ddesc" data-id="">Sem desconto</button>` : ""}</div>` : ""}
+    ${d.tipo === "venda" && d.cond === "0" && can("receber") ? `<label class="toggle">Já recebido agora<input type="checkbox" data-a="dpago" ${d.pagoAgora ? "checked" : ""}></label>${d.pagoAgora ? `<div class="chips wrap tight" style="margin-top:8px">${formas().map(f => `<button class="chip" data-a="dforma" data-id="${f}" aria-pressed="${d.forma === f}">${f}</button>`).join("")}</div>${ehDin(d.forma) ? `<label class="field" style="margin-top:10px">Cliente entregou (${SIM()})<input data-d="recebido" inputmode="decimal" value="${esc(d.recebido || "")}" placeholder="Para calcular o troco"></label><div id="dtroco">${trocoTxt()}</div>` : ""}` : ""}` : ""}
   </section>`;
   const i1 = h.length;
   h += `<span class="lbl" style="margin:18px 2px 8px">Produtos</span><label class="search">${ico("search", 18)}<input id="dq" type="search" placeholder="Buscar por nome, uva, país ou código" value="${esc(d.q)}" aria-label="Buscar produto"><button class="scanbtn" data-a="scan" aria-label="Ler código de barras">${ico("scan", 18)}</button></label>
@@ -1479,7 +1481,7 @@ function vMais() {
   h += `<div class="row"><span class="avatar">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${PAPEIS[m.papel]}${m.comissao ? ` · comissão ${m.comissao}%` : ""}</small></span></div>`;
   if (MODE === "demo") h += `<p class="sec">Ver o app como</p><div class="chips wrap tight">${S.mem.map(x => `<button class="chip" data-a="verComo" data-id="${x.id}" aria-pressed="${x.id === UID}">${esc(firstName(x.nome))} · ${PAPEIS[x.papel]}</button>`).join("")}</div><p class="hint">Na demonstração você pode trocar de usuário para ver o que cada papel enxerga.</p>`;
   if (!D) h += `<p class="sec">Cadastros</p><div class="menu">${it("clientes", "users", "Clientes", "Ficha, crédito, histórico e consignação", can("clientes"))}${it("fornecedores", "truck", "Fornecedores", "Contatos, compras e contas a pagar", can("fornecedores"))}${it("estoque", "bottle", "Produtos", ehVinho() ? "Ficha do vinho, preços e estoque" : "Ficha, preços e estoque", can("estoque"))}</div>`;
-  const op = it("compras", "cart", "Compras", "Pedidos a fornecedores e recebimento", can("compras")) + it("financeiro", "wallet", "Financeiro", "Contas a receber, a pagar e fluxo de caixa", can("receber") || can("pagar")) + it("relatorios", "chart", "Relatórios", "Vendas, curva ABC, margem, comissões e atrasos", can("relatorios")) + it("movimentos", "list", "Movimentos de estoque", "Tudo o que aconteceu com cada produto", can("estoque")) + (ehFood() ? it("receitas", "clip", "Receitas e produção", "Fichas técnicas, custo real e produção", can("estoque")) : "");
+  const op = it("caixa", "cash", "Caixa", "Abertura, sangria e fechamento do dia", can("receber")) + it("compras", "cart", "Compras", "Pedidos a fornecedores e recebimento", can("compras")) + it("financeiro", "wallet", "Financeiro", "Contas a receber, a pagar e fluxo de caixa", can("receber") || can("pagar")) + it("relatorios", "chart", "Relatórios", "Vendas, curva ABC, margem, comissões e atrasos", can("relatorios")) + it("movimentos", "list", "Movimentos de estoque", "Tudo o que aconteceu com cada produto", can("estoque")) + (ehFood() ? it("receitas", "clip", "Receitas e produção", "Fichas técnicas, custo real e produção", can("estoque")) : "");
   const fis = temFiscal() ? it("notas", "receipt", "Notas fiscais", "NF-e, NFC-e e consignação emitidas", can("fiscal")) + it("fiscal", "shield", "Configuração fiscal", "Dados do emitente, tributação e credenciais", can("empresa")) : ""; // nota fiscal brasileira
   const cat = can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span class="wmain"><b>Catálogo de produtos</b><small>PDF com o estoque e os preços do cliente</small></span>${ico("chev", 18)}</button>` : "";
   if ((op || cat) && !D) h += `<p class="sec">Gestão</p><div class="menu">${cat}${op}</div>`;
@@ -1765,6 +1767,7 @@ function vEquipe() {
   if (adm && S.emp) h += `<div class="card"><span class="lbl">Código de acesso da empresa</span><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><span class="code">${esc(S.emp.codigo || "—")}</span><button class="btn sm ghost" data-a="copyCode">${ico("copy", 16)}Copiar</button></div>
     ${MODE === "cloud" ? `<p class="hint">Para convidar alguém: 1) no claude.ai, compartilhe este app com o e-mail da pessoa como <b>Editor</b>; 2) envie este código. Ela entra como Vendedor e você ajusta o papel aqui.</p>` : `<p class="hint">Para quem ainda não tem conta, toque em <b>+ Adicionar</b> e crie o acesso com e-mail e senha temporária. Quem já usa o ${APP} entra com este código, como Vendedor, e você ajusta o papel aqui.</p>`}</div>`;
   h += `<p class="sec">Membros <span class="count">${S.mem.length}</span></p><div class="list">${S.mem.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(m => `<button class="row" ${adm ? `data-a="sheet" data-k="membro" data-id="${m.id}"` : "disabled"}><span class="avatar">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}${m.id === UID ? " (você)" : ""}</b><small>${PAPEIS[m.papel]}${m.comissao ? ` · comissão ${m.comissao}%` : ""}</small></span>${adm ? ico("chev", 18) : ""}</button>`).join("")}</div>`;
+  if (adm && S.emp) h += descMaxCard();
   h += `<p class="sec">O que cada papel pode fazer</p><div class="tbl"><table><thead><tr><th>Área</th><th class="n">Adm</th><th class="n">Ger</th><th class="n">Vend</th><th class="n">Est</th></tr></thead><tbody>${[["Vendas e clientes", "vendas"], ["Receber pagamentos", "receber"], ["Estoque (ver)", "estoque"], ["Ajustar estoque", "ajuste"], ["Ver custos e margem", "custo"], ["Compras", "compras"], ["Contas a pagar", "pagar"], ["Relatórios", "relatorios"], ["Cancelar pedidos", "cancelar"], ["Equipe e empresa", "equipe"]].map(([l, p]) => `<tr><td>${l}</td>${["admin", "gerente", "vendedor", "estoque"].map(r => `<td class="n">${PERMS[r].includes(p) ? '<span class="pos">✓</span>' : '<span style="color:var(--muted)">–</span>'}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
     <p class="hint">As permissões organizam o uso no dia a dia. No piloto, quem tem acesso de Editor ao app tecnicamente pode ler todos os dados da empresa.</p>`;
   return h;
@@ -1935,7 +1938,7 @@ function sideNav() {
   return `<div class="sn-brand">${marcaSaus("escuro", "var(--side-bg)")}<b>Saus<span>360</span></b>${MODE === "demo" ? '<span class="demo-tag">DEMO</span>' : ""}</div>
     <button class="sn-new" data-a="sheet" data-k="quick">${ico("plus", 20)}<span>Novo</span></button>
     <div class="sn-nav">${it("inicio", "home", "Início")}
-    ${grp("Comercial", [it("vendas", "order", "Vendas", can("vendas")), it("clientes", "users", "Clientes", can("clientes")), can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span>Catálogo</span></button>` : ""])}
+    ${grp("Comercial", [it("vendas", "order", "Vendas", can("vendas")), it("caixa", "cash", "Caixa", can("receber")), it("clientes", "users", "Clientes", can("clientes")), can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span>Catálogo</span></button>` : ""])}
     ${grp("Estoque", [it("estoque", "bottle", "Produtos", can("estoque")), it("compras", "cart", "Compras", can("compras")), it("fornecedores", "truck", "Fornecedores", can("fornecedores"))])}
     ${grp("Gestão", [it("financeiro", "wallet", "Financeiro", can("receber") || can("pagar")), it("relatorios", "chart", "Relatórios", can("relatorios")), temFiscal() ? it("notas", "receipt", "Notas fiscais", can("fiscal")) : ""])}
     ${grp("Empresa", [it("equipe", "users", "Equipe"), it("empresa", "building", "Dados da empresa", can("empresa")), it("atividade", "activity", "Atividade", can("atividade"))])}</div>
@@ -2249,6 +2252,7 @@ async function confirmPedido0() {
   const d = ui.draft, t = draftCalc(), cf = d.cli === "CF", cl = cf ? { nome: "Consumidor final" } : Cl(d.cli); if (!cl || !t.n) return;
   const inat = Object.keys(d.qty).filter(pid => d.qty[pid] > 0 && P(pid) && P(pid).ativo === false);
   if (inat.length) { inat.forEach(pid => delete d.qty[pid]); avisoInativo(P(inat[0])); updateDraft(); return; }
+  if (d.tipo !== "consig" && descExcede(t)) { toast(`Desconto acima do seu limite de ${dec(descLim())}%. Peça a um gerente.`); updateDraft(); return; }
   const itens = Object.entries(d.qty).filter(([, q]) => q > 0).map(([pid, q]) => { const p = P(pid), rf = naVenda(p) ? recDoProd(pid) : null; return { p: pid, q, preco: precoDraft(p), custo: rf ? r4(custoReceita(rf).unit) : p.custo || 0, vend: 0, dev: 0 }; });
   /* venda de produto com baixa na venda desconta os ingredientes da receita; consignação e o resto, o próprio produto */
   const chV = d.tipo === "orcamento" ? [] : d.tipo === "venda" ? baixaItens(itens.map(i => ({ id: i.p, q: i.q }))) : itens.map(i => ({ id: i.p, delta: -i.q }));
@@ -2260,7 +2264,7 @@ async function confirmPedido0() {
   if (d.tipo === "consig") { o.venc = addDays(today, Number(d.prazo) || 30); o.desc = 0; }
   else { o.desc = t.desc; o.cond = d.cond; o.parc = makeParcelas(t.total, d.cond, today); }
   if (cf) { o.consumidor = { cpf: d.cpf || "" }; o.cond = "0"; o.parc = makeParcelas(t.total, "0", today); }
-  if (d.tipo === "venda" && d.cond === "0" && d.pagoAgora && can("receber")) o.pag = [{ data: isoT(new Date()), valor: t.total, forma: d.forma, por: UID }];
+  if (d.tipo === "venda" && d.cond === "0" && d.pagoAgora && can("receber")) o.pag = [comCaixa({ data: isoT(new Date()), valor: t.total, forma: d.forma, por: UID })];
   if (d.tipo === "venda" && chV.some(c => !itens.some(i => i.p === c.id))) o.baixa = chV; // guarda o que baixou para estornar igual no cancelamento
   const ws = [Store.put("ped", id, o)], mvV = mvDe(chV);
   if (chV.length) ws.push(Store.stock(chV));
@@ -2278,6 +2282,7 @@ async function doPay(s) {
   const entry = { data: dt, valor: v, forma: s.forma, por: UID };
   const col = s.src === "ped" ? "ped" : s.src === "comp" ? "comp" : "fin", doc = (col === "ped" ? Pe : col === "comp" ? Co : Fi)(s.id);
   const entradaDinheiro = col === "ped" || (col === "fin" && doc.tipo === "receber");
+  if (entradaDinheiro) comCaixa(entry); // recebimento com caixa aberto entra no resumo do caixa (dinheiro vai para a gaveta)
   if (!(await commit([Store.appendPag(col, s.id, entry), logMov("fin", `${entradaDinheiro ? "Recebimento" : "Pagamento"} ${fmt(v)} · ${info.quem} · ${info.desc} · ${s.forma}`, { ref: s.id })]))) return;
   closeSheet(); toast(`${entradaDinheiro ? "Recebimento" : "Pagamento"} de ${fmt(v)} registrado`);
 }
@@ -2478,7 +2483,8 @@ document.addEventListener("click", travarAcao(async e => {
     case "repetir": { const o = Pe(id), q = {}; o.itens.forEach(i => { q[i.p] = (q[i.p] || 0) + i.q; }); newDraft(o.tipo === "consig" ? "consig" : "venda", { cli: o.cli, tabela: o.tabela, qty: q, cond: o.cond || "30", iva: ivaTaxa() ? o.iva > 0 : false }); go("novoPedido"); break; }
     case "copyTxt": try { await navigator.clipboard.writeText(pedText(Pe(id))); toast("Texto copiado"); } catch (er) { toast("Não foi possível copiar neste aparelho"); } break;
     case "doCancelPed": {
-      const o = Pe(s.id), ws = [Store.put("ped", o.id, Object.assign({}, o, { status: "cancelado", canceladoEm: isoT(new Date()), motivo: s.vals.motivo || "" }))];
+      const o = Pe(s.id), cxD = caixaAtual(), dinD = r2(sum((o.pag || []).filter(p => ehDin(p.forma)), p => p.valor));
+      const ws = [Store.put("ped", o.id, Object.assign({}, o, { status: "cancelado", canceladoEm: isoT(new Date()), motivo: s.vals.motivo || "" }, cxD && dinD > 0 ? { devCx: { cx: cxD.id, v: dinD } } : {}))]; // dinheiro devolvido sai do caixa aberto
       let mvC = [];
       if (o.tipo !== "orcamento") { let ch; if (o.baixa) ch = o.baixa.filter(c => P(c.id)).map(c => ({ id: c.id, delta: -c.delta })); else { const agg = {}; o.itens.forEach(i => { agg[i.p] = (agg[i.p] || 0) + (o.tipo === "consig" ? i.q - (i.dev || 0) : i.q); }); ch = Object.entries(agg).filter(([pid, q]) => P(pid) && q).map(([pid, q]) => ({ id: pid, delta: q })); } mvC = mvDe(ch); ws.push(Store.stock(ch)); }
       ws.push(logMov(o.tipo === "consig" ? "consig" : "venda", `${tipoPed(o.tipo)} #${o.num} cancelado${s.vals.motivo ? " · " + s.vals.motivo : ""}`, { ref: o.id, ps: [...new Set([...o.itens.map(i => i.p), ...(o.baixa || []).map(c => c.id)])], tm: o.tipo === "orcamento" ? "outro" : o.tipo === "consig" ? "est_consig" : "est_venda", mv: mvC }));
@@ -2662,7 +2668,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "saveFin": {
       const v = s.vals, val = r2(parseMoney(v.valor));
       if (!String(v.desc || "").trim() || !(val > 0) || !v.venc) { s.err = "Preencha descrição, valor e vencimento."; renderSheet(); break; }
-      const fid = rid(), doc = { tipo: s.id === "receber" ? "receber" : "pagar", desc: v.desc.trim(), cat: v.cat, valor: val, venc: v.venc, data: today, pag: s.pago ? [{ data: isoT(new Date()), valor: val, forma: s.forma, por: UID }] : [] };
+      const fid = rid(), doc = { tipo: s.id === "receber" ? "receber" : "pagar", desc: v.desc.trim(), cat: v.cat, valor: val, venc: v.venc, data: today, pag: s.pago ? [(e => s.id === "receber" ? comCaixa(e) : e)({ data: isoT(new Date()), valor: val, forma: s.forma, por: UID })] : [] };
       if (await commit([Store.put("fin", fid, doc), logMov("fin", `${doc.tipo === "pagar" ? "Nova despesa" : "Nova receita"} · ${doc.desc} · ${fmt(val)}${s.pago ? " · já " + (doc.tipo === "pagar" ? "paga" : "recebida") : ""}`, { ref: fid })])) { closeSheet(); toast("Lançamento salvo"); }
       break;
     }
@@ -2737,7 +2743,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "backup": saveFile(`backup-${norm(S.emp ? S.emp.nome : "decanta").replace(/\s+/g, "-")}-${today}.json`, JSON.stringify({ app: APP, exportadoEm: isoT(new Date()), empresa: S.emp, produtos: S.prod, clientes: S.cli, fornecedores: S.forn, pedidos: S.ped, compras: S.comp, financeiro: S.fin, equipe: S.mem, atividade: S.mov }, null, 2)); break;
     case "modeloCSV": { const m = impModelo(ui.impTipo); saveFile(`modelo-${ui.impTipo === "prod" ? "produtos" : "clientes"}.csv`, "﻿" + m.cols.join(";") + "\n" + m.ex + "\n"); break; }
     case "importar": importar(); break;
-    default: if (typeof FOOD_A !== "undefined" && FOOD_A[a]) await FOOD_A[a](t, id, s);
+    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]); if (f) await f(t, id, s); }
   }
 }));
 document.addEventListener("input", e => {
@@ -2747,7 +2753,7 @@ document.addEventListener("input", e => {
   if (t.id === "cq") { ui.cq = t.value; const tmp = document.createElement("div"); tmp.innerHTML = vClientes(); $("clist").innerHTML = tmp.querySelector("#clist").innerHTML; return; }
   if (t.id === "dq") { ui.draft.q = t.value; $("dlist").innerHTML = draftList(); return; }
   if (t.id === "impTxt") { ui.impTxt = t.value; return; }
-  if (d.d && ui.draft) { ui.draft[d.d] = t.value; if (d.d === "desc") { $("dfoot").innerHTML = draftFoot(); $("dcredit").innerHTML = draftCredit(); } return; }
+  if (d.d && ui.draft) { ui.draft[d.d] = t.value; if (d.d === "desc") { $("dfoot").innerHTML = draftFoot(); $("dcredit").innerHTML = draftCredit(); } if ((d.d === "desc" || d.d === "recebido") && $("dtroco")) $("dtroco").innerHTML = trocoTxt(); return; }
   if (d.ci != null && ui.cdraft) { ui.cdraft.itens[Number(d.ci)][d.cf] = t.value; $("kfoot").innerHTML = cdraftFoot(); return; }
   if (d.kd && ui.cdraft) { ui.cdraft[d.kd] = t.value; return; }
   if (d.l && ui.login) { ui.login[d.l] = t.value; return; }
@@ -3648,6 +3654,216 @@ document.addEventListener("change", e => {
   /* trocar produto ou ingrediente redesenha: a lista de unidades depende da unidade do produto */
   if (d.rd === "prod" && ui.rdraft) { ui.rdraft.prod = t.value; render(); }
   if (d.ri != null && d.rk === "p" && ui.rdraft) { const it = ui.rdraft.itens[Number(d.ri)], p = P(t.value); it.p = t.value; if (p && !unCompat(unDe(p)).includes(it.u)) it.u = unDe(p) === "kg" ? "g" : unDe(p) === "l" ? "ml" : unDe(p); render(); }
+});
+
+/* ---- pdv.js ---- */
+/* ================= Ponto de venda: caixa, troco e limite de desconto =================
+   Caixa (coleção cx): abre com fundo de troco, recebe suprimentos e sangrias (em dados.pag, anexados
+   de forma atômica no servidor) e fecha com a contagem do dinheiro. Os recebimentos feitos com um caixa
+   aberto levam cx = id do caixa; o esperado na gaveta é calculado a partir deles. */
+/* Dinheiro em espécie: o app em espanhol grava "Efectivo" (comparação não é traduzida no build) */
+const ehDin = f => f === "Dinheiro" || f === "Efectivo";
+const CX = id => S.cx.find(x => x.id === id);
+const chefe = () => { const m = ME(); return !!m && (m.papel === "admin" || m.papel === "gerente"); };
+const cxAbertos = () => S.cx.filter(c => c.status === "aberto").sort((a, b) => String(b.abertoEm).localeCompare(String(a.abertoEm)));
+/* Caixa que recebe o dinheiro: o do próprio usuário; sem ele, o caixa aberto da loja */
+function caixaAtual() { const ab = cxAbertos(); return ab.find(c => c.por === UID) || ab[0] || null; }
+const usaCaixa = () => S.cx.length > 0;
+const gereCaixa = c => !!c && (c.por === UID || chefe());
+const hhmm = s => (s ? String(s).slice(11, 16) : "");
+function comCaixa(entry) { const c = caixaAtual(); if (c) entry.cx = c.id; return entry; }
+
+function cxResumo(c) {
+  const ent = [], formas = {};
+  S.ped.forEach(o => (o.pag || []).forEach(p => { if (p.cx === c.id) ent.push({ em: p.data, v: p.valor, f: p.forma, t: `Pedido #${o.num} · ${cliNome(o)}`, a: `data-a="go" data-r="pedido" data-id="${o.id}"` }); }));
+  S.fin.forEach(f => (f.pag || []).forEach(p => { if (p.cx === c.id) ent.push({ em: p.data, v: p.valor, f: p.forma, t: f.desc || "Receita extra", a: "" }); }));
+  ent.forEach(e => { formas[e.f] = r2((formas[e.f] || 0) + e.v); });
+  const dev = S.ped.filter(o => o.devCx && o.devCx.cx === c.id).map(o => ({ em: o.canceladoEm, v: o.devCx.v, t: `Devolução · pedido #${o.num} cancelado`, a: `data-a="go" data-r="pedido" data-id="${o.id}"` }));
+  const lanc = c.pag || [], sup = r2(sum(lanc.filter(l => l.t === "sup"), l => l.valor)), san = r2(sum(lanc.filter(l => l.t === "san"), l => l.valor));
+  const din = r2(sum(Object.keys(formas).filter(ehDin), f => formas[f])), devV = r2(sum(dev, d => d.v));
+  return { ent, formas, dev, lanc, sup, san, din, devV, fundo: c.fundo || 0, total: r2(sum(ent, e => e.v)), esperado: r2((c.fundo || 0) + din + sup - san - devV) };
+}
+const difTxt = d => Math.abs(d) < 0.005 ? "Confere" : d > 0 ? `Sobra ${fmt(d)}` : `Falta ${fmt(-d)}`;
+const difCls = d => Math.abs(d) < 0.005 ? "ok" : Math.abs(d) <= 2 ? "warn" : "bad";
+
+function cxRow(c) {
+  const ab = c.status === "aberto", r = ab ? cxResumo(c) : null;
+  return `<button class="row" data-a="go" data-r="caixa" data-id="${c.id}"><span class="avatar">${initials(nomeDe(c.por))}</span><span class="wmain"><b>${esc(nomeDe(c.por))} · ${fdy(c.abertoEm)}</b><small>${ab ? `Aberto às ${hhmm(c.abertoEm)} · ${fmt(r.esperado)} na gaveta` : `${hhmm(c.abertoEm)}–${hhmm(c.fechadoEm)} · contado ${fmt(c.contado)}`}</small></span>${ab ? `<span class="pill info">Aberto agora</span>` : `<span class="pill ${difCls(c.dif || 0)}">${difTxt(c.dif || 0)}</span>`}</button>`;
+}
+function cxLinhas(c, r) {
+  const L = [{ em: c.abertoEm, t: `Abertura · fundo de troco · ${nomeDe(c.por)}`, v: r.fundo, din: true }];
+  r.ent.forEach(e => L.push({ em: e.em, t: e.t, f: e.f, v: e.v, din: ehDin(e.f), a: e.a }));
+  r.lanc.forEach(l => L.push({ em: l.data, t: `${l.t === "sup" ? "Suprimento" : "Sangria"}${l.obs ? " · " + l.obs : ""} · ${nomeDe(l.por)}`, v: l.t === "san" ? -l.valor : l.valor, din: true }));
+  r.dev.forEach(d => L.push({ em: d.em, t: d.t, v: -d.v, din: true, a: d.a }));
+  if (c.status === "fechado") L.push({ em: c.fechadoEm, t: `Fechamento · ${nomeDe(c.fechadoPor || c.por)}`, fim: true });
+  L.sort((a, b) => String(a.em).localeCompare(String(b.em)));
+  const dia0 = String(c.abertoEm).slice(0, 10);
+  return `<div class="list">${L.map(l => `<${l.a ? "button" : "div"} class="row" ${l.a || ""}><span class="wmain"><b>${esc(l.t)}</b><small>${String(l.em).slice(0, 10) !== dia0 ? fd(l.em) + " " : ""}${hhmm(l.em)}${l.f ? " · " + esc(l.f) + (l.din ? "" : " · fora da gaveta") : ""}</small></span>${l.fim ? "" : `<b class="${!l.din ? "muted" : l.v < 0 ? "neg" : "pos"}">${l.v < 0 ? "−" : "+"}${fmt(Math.abs(l.v))}</b>`}</${l.a ? "button" : "div"}>`).join("")}</div>`;
+}
+function cxFormas(r) {
+  const fs = Object.entries(r.formas).sort((a, b) => b[1] - a[1]);
+  if (!fs.length) return `<p class="hint">Nenhum recebimento neste caixa ainda.</p>`;
+  return `<div class="list">${fs.map(([f, v]) => `<div class="row"><span class="wmain"><b>${esc(f)}</b><small>${ehDin(f) ? "Entra na gaveta" : "Não entra na gaveta"}</small></span><b>${fmt(v)}</b></div>`).join("")}<div class="row"><span class="wmain"><b>Total recebido</b></span><b>${fmt(r.total)}</b></div></div>`;
+}
+function cxPainel(c) {
+  const r = cxResumo(c), meu = c.por === UID;
+  let h = `<section class="card ring"><span class="lbl">${meu ? "Seu caixa está aberto" : `Caixa de ${esc(nomeDe(c.por))}`}</span><p class="hint" style="margin-top:0">Aberto em ${fdy(c.abertoEm)} às ${hhmm(c.abertoEm)}</p>
+    <div class="stats"><div class="stat"><span>Fundo de troco</span><b>${fmt(r.fundo)}</b></div><div class="stat good"><span>Dinheiro recebido</span><b>${fmt(r.din)}</b></div><div class="stat"><span>Suprimentos</span><b>${fmt(r.sup)}</b></div><div class="stat ${r.san ? "warn" : ""}"><span>Sangrias</span><b>${fmt(r.san)}</b></div>${r.devV ? `<div class="stat bad"><span>Devoluções</span><b>${fmt(r.devV)}</b></div>` : ""}</div>
+    <div class="row" style="border:0;padding:12px 0 0"><span class="wmain"><b>Esperado na gaveta</b><small>Fundo + dinheiro + suprimentos − sangrias${r.devV ? " − devoluções" : ""}</small></span><b style="font-size:1.25em">${fmt(r.esperado)}</b></div>
+    ${gereCaixa(c) ? `<div class="grid3" style="margin-top:12px"><button class="btn ghost" data-a="sheet" data-k="cxLanc" data-id="sup|${c.id}">+ Suprimento</button><button class="btn ghost" data-a="sheet" data-k="cxLanc" data-id="san|${c.id}">− Sangria</button><button class="btn" data-a="sheet" data-k="cxFechar" data-id="${c.id}">Fechar caixa</button></div>` : ""}</section>`;
+  h += `<p class="sec">Recebido neste caixa</p>${cxFormas(r)}`;
+  h += `<p class="sec">Movimentos</p>${cxLinhas(c, r)}`;
+  return h;
+}
+function vCaixaDet(c) {
+  if (!c) return head("Caixa", "", { back: true }) + empty("Caixa não encontrado.", "");
+  let h = head("Caixa", `${esc(nomeDe(c.por))} · ${fdy(c.abertoEm)}`, { back: true, action: `<button class="btn sm ghost" data-a="cxCopiar" data-id="${c.id}">${ico("copy", 16)}Copiar resumo</button>` }) + banners();
+  if (c.status === "aberto") return h + cxPainel(c);
+  const r = cxResumo(c), d = c.dif || 0;
+  h += `<section class="card"><div class="stats"><div class="stat"><span>Esperado</span><b>${fmt(c.esperado)}</b></div><div class="stat"><span>Contado</span><b>${fmt(c.contado)}</b></div><div class="stat ${difCls(d) === "ok" ? "good" : difCls(d)}"><span>Diferença</span><b>${difTxt(d)}</b></div><div class="stat"><span>Ficou de troco</span><b>${fmt(c.fica || 0)}</b><small>retirado ${fmt(r2((c.contado || 0) - (c.fica || 0)))}</small></div></div>
+    <p class="hint" style="margin-bottom:0">Aberto às ${hhmm(c.abertoEm)} e fechado às ${hhmm(c.fechadoEm)}${c.fechadoPor && c.fechadoPor !== c.por ? ` por ${esc(nomeDe(c.fechadoPor))}` : ""}.${c.obs ? ` Observação: ${esc(c.obs)}` : ""}</p></section>`;
+  h += `<p class="sec">Recebido neste caixa</p>${cxFormas(r)}`;
+  h += `<p class="sec">Movimentos</p>${cxLinhas(c, r)}`;
+  return h;
+}
+function vCaixa() {
+  if (ui.id) return vCaixaDet(CX(ui.id));
+  const meu = cxAbertos().find(c => c.por === UID), outros = cxAbertos().filter(c => c.por !== UID);
+  let h = head("Caixa", "Abertura, sangria e fechamento", { back: ui.stack.length > 0 }) + banners();
+  if (meu) h += cxPainel(meu);
+  else {
+    const loja = outros[0];
+    h += `<section class="card"><span class="lbl">Seu caixa está fechado</span><p class="hint" style="margin-top:0">${loja ? `As vendas em dinheiro que você registrar entram no caixa de ${esc(nomeDe(loja.por))}. Se você tem gaveta própria, abra o seu caixa.` : "Abra o caixa no começo do dia com o dinheiro de troco. As vendas e os recebimentos em dinheiro entram nele sozinhos, e no fim do dia você confere a gaveta."}</p>
+      <button class="btn block" data-a="sheet" data-k="cxAbrir">${loja ? "Abrir meu caixa" : "Abrir caixa"}</button></section>`;
+  }
+  if (outros.length) h += `<p class="sec">${meu ? "Outros caixas abertos" : "Caixas abertos"}</p><div class="list">${outros.map(cxRow).join("")}</div>`;
+  const hist = S.cx.filter(c => c.status === "fechado" && (chefe() || c.por === UID)).sort((a, b) => String(b.fechadoEm).localeCompare(String(a.fechadoEm))).slice(0, 60);
+  if (hist.length) {
+    const falta = r2(sum(hist.filter(c => (c.dif || 0) < 0), c => -c.dif));
+    h += `<p class="sec">Fechamentos <span class="count">${hist.length}</span></p>${falta > 0 && chefe() ? `<p class="hint">Faltas somadas nos fechamentos listados: ${fmt(falta)}</p>` : ""}<div class="list">${hist.map(cxRow).join("")}</div>`;
+  }
+  return h;
+}
+/* Aviso no topo de Vendas */
+function cxBanner() {
+  if (!can("receber")) return "";
+  const c = caixaAtual();
+  if (c) return `<div class="note good cxnote"><span>Caixa aberto${c.por !== UID ? ` de ${esc(firstName(nomeDe(c.por)))}` : ""} · <b>${fmt(cxResumo(c).esperado)}</b> na gaveta</span><button class="btn sm ghost" data-a="go" data-r="caixa">Ver caixa</button></div>`;
+  if (usaCaixa()) return `<div class="note warn cxnote"><span>Nenhum caixa aberto. O dinheiro das vendas não entra em nenhum caixa.</span><button class="btn sm ghost" data-a="go" data-r="caixa">Abrir caixa</button></div>`;
+  return "";
+}
+/* Na venda em dinheiro: para onde vai o dinheiro e quanto de troco */
+function trocoTxt() {
+  const d = ui.draft; if (!d) return "";
+  const rec = parseMoney(d.recebido || ""), tot = draftCalc().total, c = caixaAtual();
+  let h = c ? `<p class="hint" style="margin:6px 0 0">Entra no caixa ${c.por === UID ? "aberto por você" : `de ${esc(firstName(nomeDe(c.por)))}`}.</p>` : usaCaixa() ? `<div class="note warn" style="margin-top:8px">Nenhum caixa aberto: este dinheiro não entra em nenhum caixa.</div>` : "";
+  if (rec > 0) { const tr = r2(rec - tot); h += tr < -0.004 ? `<div class="note warn" style="margin-top:8px">Faltam ${fmt(-tr)}</div>` : `<div class="note good" style="margin-top:8px">Troco: <b>${fmt(tr)}</b></div>`; }
+  return h;
+}
+
+/* ---- Limite de desconto por papel: vendedor até o % da empresa; administrador e gerente sem limite ---- */
+function descLim() {
+  if (chefe() || !S.emp || S.emp.descMax == null || S.emp.descMax === "") return null;
+  const v = Number(S.emp.descMax); return isFinite(v) && v >= 0 ? v : null;
+}
+const descPctDe = t => (t.bruto > 0 ? t.desc / t.bruto * 100 : 0);
+function descExcede(t) { const l = descLim(); return l != null && descPctDe(t) > l + 0.005; }
+function descMaxCard() {
+  const v = S.emp && S.emp.descMax != null && S.emp.descMax !== "" ? Number(S.emp.descMax) : null;
+  return `<p class="sec">Desconto nas vendas</p><div class="menu"><button data-a="sheet" data-k="descMaxForm">${ico("tag")}<span class="wmain"><b>${v == null ? "Vendedor sem limite de desconto" : `Vendedor dá até ${dec(v)}% de desconto`}</b><small>Administrador e gerente não têm limite</small></span>${ico("chev", 18)}</button></div>`;
+}
+
+Object.assign(SH, {
+  cxAbrir: s => {
+    if (s.vals.fundo == null) { const ult = S.cx.filter(c => c.status === "fechado").sort((a, b) => String(b.fechadoEm).localeCompare(String(a.fechadoEm)))[0]; s.vals.fundo = ult && ult.fica ? money(ult.fica) : ""; }
+    return ["Abrir caixa", `<p class="hint" style="margin-top:0">Conte o dinheiro que está na gaveta para dar troco. Durante o caixa, as vendas e os recebimentos em dinheiro entram aqui sozinhos.</p>
+      <label class="field">Fundo de troco (${SIM()})<input data-f="fundo" inputmode="decimal" value="${esc(s.vals.fundo)}" placeholder="${money(0)}"></label>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" data-a="cxAbrir">Abrir caixa</button>`];
+  },
+  cxLanc: s => {
+    const [tp, cid] = String(s.id).split("|"), sup = tp === "sup", c = CX(cid), r = c ? cxResumo(c) : null;
+    return [sup ? "Suprimento" : "Sangria", `<p class="hint" style="margin-top:0">${sup ? "Dinheiro que entra na gaveta sem ser venda, por exemplo reforço de troco." : "Dinheiro que sai da gaveta, por exemplo depósito no banco ou pagamento em dinheiro."}${r ? ` Agora na gaveta: <b>${fmt(r.esperado)}</b>.` : ""}</p>
+      <label class="field">Valor (${SIM()})<input data-f="valor" inputmode="decimal" value="${esc(s.vals.valor || "")}"></label>
+      <label class="field">Motivo<input data-f="obs" value="${esc(s.vals.obs || "")}" placeholder="${sup ? "Ex: reforço de troco" : "Ex: depósito no banco"}"></label>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" data-a="cxLanc">${sup ? "Registrar suprimento" : "Registrar sangria"}</button>`];
+  },
+  cxFechar: s => {
+    const c = CX(s.id); if (!c) return ["Fechar caixa", empty("Caixa não encontrado.", "")];
+    const r = cxResumo(c);
+    if (s.vals.fica == null) s.vals.fica = money(r.fundo);
+    return ["Fechar caixa", `<div class="list"><div class="row"><span class="wmain"><b>Esperado na gaveta</b><small>Fundo ${fmt(r.fundo)} + dinheiro ${fmt(r.din)} + suprimentos ${fmt(r.sup)} − sangrias ${fmt(r.san)}${r.devV ? ` − devoluções ${fmt(r.devV)}` : ""}</small></span><b>${fmt(r.esperado)}</b></div></div>
+      <label class="field" style="margin-top:12px">Dinheiro contado na gaveta (${SIM()})<input data-f="contado" inputmode="decimal" value="${esc(s.vals.contado || "")}" placeholder="Conte as notas e moedas"></label>
+      <div id="cxDif">${cxDif(s)}</div>
+      <label class="field">Fica na gaveta para o próximo caixa (${SIM()})<input data-f="fica" inputmode="decimal" value="${esc(s.vals.fica)}"></label>
+      <label class="field">Observação<input data-f="obs" value="${esc(s.vals.obs || "")}" placeholder="Ex: troco errado em uma venda"></label>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" data-a="cxFechar">Fechar caixa</button>`];
+  },
+  descMaxForm: s => {
+    if (s.vals.pct == null) s.vals.pct = S.emp && S.emp.descMax != null && S.emp.descMax !== "" ? dec(S.emp.descMax) : "";
+    return ["Limite de desconto", `<p class="hint" style="margin-top:0">Desconto máximo que o vendedor pode dar em uma venda, sobre o total dos produtos. Administrador e gerente dão qualquer desconto. Deixe em branco para não limitar.</p>
+      <label class="field">Desconto máximo do vendedor (%)<input data-f="pct" inputmode="decimal" value="${esc(s.vals.pct)}" placeholder="Ex: 10"></label>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" data-a="descMaxSalvar">Salvar</button>`];
+  }
+});
+function cxDif(s) {
+  const c = CX(s.id); if (!c || String(s.vals.contado || "").trim() === "") return "";
+  const d = r2(parseMoney(s.vals.contado) - cxResumo(c).esperado);
+  return `<div class="note ${difCls(d) === "ok" ? "good" : difCls(d)}">${difTxt(d)}${Math.abs(d) >= 0.005 ? ". Confira a contagem antes de fechar." : "."}</div>`;
+}
+function cxTexto(c) {
+  const r = cxResumo(c), L = [`Caixa ${fdy(c.abertoEm)} · ${nomeDe(c.por)}`, `Abertura ${hhmm(c.abertoEm)}${c.fechadoEm ? ` · fechamento ${hhmm(c.fechadoEm)}` : ""}`, "", `Fundo de troco: ${fmt(r.fundo)}`];
+  Object.entries(r.formas).forEach(([f, v]) => L.push(`${f}: ${fmt(v)}`));
+  L.push(`Suprimentos: ${fmt(r.sup)}`, `Sangrias: ${fmt(r.san)}`);
+  if (r.devV) L.push(`Devoluções: ${fmt(r.devV)}`);
+  if (c.status === "fechado") L.push("", `Esperado: ${fmt(c.esperado)}`, `Contado: ${fmt(c.contado)}`, `Diferença: ${difTxt(c.dif || 0)}`, `Ficou de troco: ${fmt(c.fica || 0)}`);
+  else L.push("", `Esperado na gaveta: ${fmt(r.esperado)}`);
+  if (c.obs) L.push(`Obs.: ${c.obs}`);
+  return L.join("\n");
+}
+
+const CX_A = {
+  cxAbrir: async (t, id, s) => {
+    const v = String(s.vals.fundo || "").trim() === "" ? 0 : r2(parseMoney(s.vals.fundo));
+    if (!(v >= 0)) { s.err = "Informe o fundo de troco, mesmo que seja zero."; renderSheet(); return; }
+    if (cxAbertos().some(c => c.por === UID)) { s.err = "Você já tem um caixa aberto."; renderSheet(); return; }
+    const cid = rid(), doc = { por: UID, abertoEm: isoT(new Date()), fundo: v, status: "aberto", pag: [] };
+    if (await commit([Store.put("cx", cid, doc), logMov("fin", `Caixa aberto · fundo de troco ${fmt(v)}`, { ref: cid })])) { closeSheet(); if (ui.route === "caixa") { ui.id = null; render(); } else go("caixa"); toast("Caixa aberto"); }
+  },
+  cxLanc: async (t, id, s) => {
+    const [tp, cid] = String(s.id).split("|"), c = CX(cid), sup = tp === "sup", v = r2(parseMoney(s.vals.valor || ""));
+    if (!c || c.status !== "aberto" || !gereCaixa(c)) { s.err = "Não há caixa aberto para este lançamento."; renderSheet(); return; }
+    if (!(v > 0)) { s.err = "Informe o valor."; renderSheet(); return; }
+    if (!sup && v > cxResumo(c).esperado + 0.004) { s.err = `Na gaveta deveria ter só ${fmt(cxResumo(c).esperado)}.`; renderSheet(); return; }
+    const obs = String(s.vals.obs || "").trim(), e = { data: isoT(new Date()), valor: v, t: sup ? "sup" : "san", obs, por: UID };
+    if (await commit([Store.appendPag("cx", c.id, e), logMov("fin", `${sup ? "Suprimento" : "Sangria"} ${fmt(v)}${obs ? " · " + obs : ""} · caixa de ${nomeDe(c.por)}`, { ref: c.id })])) { closeSheet(); render(); toast(sup ? "Suprimento registrado" : "Sangria registrada"); }
+  },
+  cxFechar: async (t, id, s) => {
+    const c = CX(s.id); if (!c || c.status !== "aberto") { closeSheet(); return; }
+    if (!gereCaixa(c)) { s.err = "Só quem abriu o caixa, um gerente ou um administrador pode fechar."; renderSheet(); return; }
+    if (String(s.vals.contado || "").trim() === "") { s.err = "Informe o dinheiro contado na gaveta."; renderSheet(); return; }
+    const contado = r2(parseMoney(s.vals.contado)), fica = String(s.vals.fica || "").trim() === "" ? 0 : r2(parseMoney(s.vals.fica));
+    if (!(contado >= 0) || !(fica >= 0)) { s.err = "Confira os valores."; renderSheet(); return; }
+    if (fica > contado + 0.004) { s.err = "O que fica na gaveta não pode ser maior que o contado."; renderSheet(); return; }
+    const r = cxResumo(c), dif = r2(contado - r.esperado), obs = String(s.vals.obs || "").trim();
+    const patch = { status: "fechado", fechadoEm: isoT(new Date()), fechadoPor: UID, contado, esperado: r.esperado, dif, fica, obs, resumo: { formas: r.formas, sup: r.sup, san: r.san, dev: r.devV, din: r.din } };
+    if (await commit([Store.patch("cx", c.id, patch), logMov("fin", `Caixa fechado · ${nomeDe(c.por)} · esperado ${fmt(r.esperado)} · contado ${fmt(contado)} · ${difTxt(dif)}${obs ? " · " + obs : ""}`, { ref: c.id })])) {
+      closeSheet(); if (ui.route === "caixa" && ui.id === c.id) render(); else go("caixa", c.id); toast(`Caixa fechado · ${difTxt(dif)}`);
+    }
+  },
+  cxCopiar: async (t, id) => { const c = CX(id); if (!c) return; try { await navigator.clipboard.writeText(cxTexto(c)); toast("Resumo copiado"); } catch (e) { toast("Não foi possível copiar neste aparelho"); } },
+  descMaxSalvar: async (t, id, s) => {
+    const raw = String(s.vals.pct || "").replace("%", "").trim(), v = raw === "" ? null : r2(parseMoney(raw));
+    if (v != null && !(v >= 0 && v <= 100)) { s.err = "Informe um número entre 0 e 100, ou deixe em branco."; renderSheet(); return; }
+    const emp = Object.assign({}, S.emp); if (v == null) delete emp.descMax; else emp.descMax = v;
+    if (await commit([Store.putEmp(emp), logMov("equipe", v == null ? "Limite de desconto do vendedor removido" : `Limite de desconto do vendedor: ${dec(v)}%`)])) { closeSheet(); render(); toast("Limite de desconto salvo"); }
+  }
+};
+
+Object.assign(ROUTES, { caixa: { v: vCaixa, tab: "mais", p: "receber" } });
+
+document.addEventListener("input", e => {
+  const d = e.target.dataset;
+  if (ui.sheet && ui.sheet.k === "cxFechar" && d.f === "contado") { const el = $("cxDif"); if (el) el.innerHTML = cxDif(ui.sheet); }
 });
 
 boot();
