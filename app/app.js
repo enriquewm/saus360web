@@ -1351,13 +1351,13 @@ function draftList() {
   const d = ui.draft, q = norm(d.q);
   const list = S.prod.filter(p => p.ativo !== false && !ehInsumo(p) && (!q || norm([p.nome, p.uva, p.regiao, p.pais, p.ean].join(" ")).includes(q)));
   return list.map(p => {
-    const n = d.qty[p.id] || 0, after = p.estoque - n, pr = precoDraft(p), orc = d.tipo === "orcamento", dcl = d.cli && d.cli !== "CF" ? Cl(d.cli) : null, esp = temEspecial(p, dcl) ? " · especial" : "";
-    let cls = "", t = `${p.estoque} disp. · ${fmt(pr)}${esp}`;
-    if (p.estoque <= 0 && !orc) { cls = "bad"; t = "Sem estoque"; }
+    const est = d.tipo === "venda" ? dispVenda(p) : p.estoque, nv = d.tipo === "venda" && naVenda(p), n = d.qty[p.id] || 0, after = est - n, pr = precoDraft(p), orc = d.tipo === "orcamento", dcl = d.cli && d.cli !== "CF" ? Cl(d.cli) : null, esp = temEspecial(p, dcl) ? " · especial" : "";
+    let cls = "", t = `${est} ${nv ? "dá para fazer" : "disp."} · ${fmt(pr)}${esp}`;
+    if (est <= 0 && !orc) { cls = "bad"; t = nv ? "Faltam ingredientes" : "Sem estoque"; }
     else if (n > 0 && !orc && after <= (p.min || 0)) { cls = "warn"; t = `${n} × ${fmt(pr)} · restam ${after}, abaixo do mínimo`; }
     else if (n > 0) { cls = "good"; t = `${n} × ${fmt(pr)}${esp} = ${fmt(n * pr)}${orc ? "" : ` · restam ${after}`}`; }
-    const max = orc ? 9999 : p.estoque;
-    return `<div class="row ${n ? "on" : ""} ${p.estoque <= 0 && !orc ? "off" : ""}"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}${p.safra && p.safra !== "NV" ? " " + esc(p.safra) : ""}</b><small class="${cls}">${t}</small></span>
+    const max = orc ? 9999 : est;
+    return `<div class="row ${n ? "on" : ""} ${est <= 0 && !orc ? "off" : ""}"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}${p.safra && p.safra !== "NV" ? " " + esc(p.safra) : ""}</b><small class="${cls}">${t}</small></span>
       <div class="stepper"><button data-a="dstep" data-id="${p.id}" data-d="-1" aria-label="Diminuir" ${n <= 0 ? "disabled" : ""}>−</button><output>${n}</output><button data-a="dstep" data-id="${p.id}" data-d="1" aria-label="Aumentar" ${n >= max ? "disabled" : ""}>+</button></div></div>`;
   }).join("") || empty("Nenhum produto encontrado.", "");
 }
@@ -2041,6 +2041,7 @@ const SH = {
     return ["Ficha do produto", `
     <div class="whead"><span class="bt lg">${bottle(p.tipo)}</span><div><p class="eyebrow">${esc(catLabel(p.tipo))}${p.produtor ? " · " + esc(p.produtor) : p.marca ? " · " + esc(p.marca) : ""}</p><h4>${esc(p.nome)}</h4><p class="eyebrow" style="margin:6px 0 0">${esc((ehVinho() ? [p.uva, p.safra && "Safra " + p.safra] : [p.ref && "ref. " + p.ref, p.material, p.medida]).filter(Boolean).join(" · "))}</p></div></div>
     <div class="stockbox ${st.cls}"><div><span>Em estoque</span><b>${p.estoque}</b><small>${ehVinho() ? `${Math.floor(Math.max(0, p.estoque) / 6)} cx + ${Math.max(0, p.estoque) % 6} un.` : "unidades"}</small></div><div><span>Mínimo</span><b>${p.min || 0}</b><small>un.</small></div><div><span>Consignado</span><b>${cc}</b><small>com clientes</small></div></div>
+    ${ehFood() ? fichaFood(p) : ""}
     ${can("ajuste") ? `<div class="actions3"><button data-a="sheet" data-k="entrada" data-id="${p.id}">+ Entrada</button><button data-a="sheet" data-k="baixa" data-id="${p.id}" ${p.estoque > 0 ? "" : "disabled"}>− Baixa</button><button data-a="sheet" data-k="contagem" data-id="${p.id}">Contagem</button></div>` : ""}
     <dl class="specs">${Object.entries(TABELAS).map(([k, l]) => `<div><dt>Preço ${l.toLowerCase()}</dt><dd>${fmt(preco(p, k))}</dd></div>`).join("")}${can("custo") ? `<div><dt>Custo médio</dt><dd>${fmt(p.custo)} · margem ${pct(m)}</dd></div>` : ""}
       ${ehVinho() ? `<div><dt>Origem</dt><dd>${esc([p.regiao, p.pais].filter(Boolean).join(", ") || "—")}</dd></div><div><dt>Volume</dt><dd>${p.vol ? p.vol + " ml" : "—"}${p.teor ? " · " + esc(p.teor) : ""}</dd></div>` : `<div><dt>Marca</dt><dd>${esc(p.marca || "—")}</dd></div><div><dt>${rubro() === "emporio" ? "Peso ou volume" : rubro() === "limpeza" ? "Tamanho ou conteúdo" : "Medida"}</dt><dd>${esc(p.medida || "—")}</dd></div>`}
@@ -2239,8 +2240,10 @@ async function confirmPedido0() {
   const d = ui.draft, t = draftCalc(), cf = d.cli === "CF", cl = cf ? { nome: "Consumidor final" } : Cl(d.cli); if (!cl || !t.n) return;
   const inat = Object.keys(d.qty).filter(pid => d.qty[pid] > 0 && P(pid) && P(pid).ativo === false);
   if (inat.length) { inat.forEach(pid => delete d.qty[pid]); avisoInativo(P(inat[0])); updateDraft(); return; }
-  const itens = Object.entries(d.qty).filter(([, q]) => q > 0).map(([pid, q]) => { const p = P(pid); return { p: pid, q, preco: precoDraft(p), custo: p.custo || 0, vend: 0, dev: 0 }; });
-  if (d.tipo !== "orcamento") { const bad = itens.find(i => i.q > P(i.p).estoque); if (bad) { toast("Estoque insuficiente: " + P(bad.p).nome); updateDraft(); return; } }
+  const itens = Object.entries(d.qty).filter(([, q]) => q > 0).map(([pid, q]) => { const p = P(pid), rf = naVenda(p) ? recDoProd(pid) : null; return { p: pid, q, preco: precoDraft(p), custo: rf ? r4(custoReceita(rf).unit) : p.custo || 0, vend: 0, dev: 0 }; });
+  /* venda de produto com baixa na venda desconta os ingredientes da receita; consignação e o resto, o próprio produto */
+  const chV = d.tipo === "orcamento" ? [] : d.tipo === "venda" ? baixaItens(itens.map(i => ({ id: i.p, q: i.q }))) : itens.map(i => ({ id: i.p, delta: -i.q }));
+  if (d.tipo !== "orcamento") { const bad = chV.find(c => -c.delta > (P(c.id).estoque || 0) + 1e-9); if (bad) { toast("Estoque insuficiente: " + P(bad.id).nome); updateDraft(); return; } }
   let numero; try { numero = await Store.nextNum("ped"); } catch (e) { toast("Sem conexão com o servidor. Tente de novo."); return; }
   const id = rid();
   const o = { num: numero, tipo: d.tipo, status: d.tipo === "orcamento" ? "orcamento" : "aberto", cli: cf ? null : d.cli, data: today, tabela: d.tabela, itens, vendedor: UID, pag: [], obs: d.obs || "", criadoEm: isoT(new Date()) };
@@ -2249,9 +2252,10 @@ async function confirmPedido0() {
   else { o.desc = t.desc; o.cond = d.cond; o.parc = makeParcelas(t.total, d.cond, today); }
   if (cf) { o.consumidor = { cpf: d.cpf || "" }; o.cond = "0"; o.parc = makeParcelas(t.total, "0", today); }
   if (d.tipo === "venda" && d.cond === "0" && d.pagoAgora && can("receber")) o.pag = [{ data: isoT(new Date()), valor: t.total, forma: d.forma, por: UID }];
-  const ws = [Store.put("ped", id, o)], chV = d.tipo !== "orcamento" ? itens.map(i => ({ id: i.p, delta: -i.q })) : [], mvV = mvDe(chV);
+  if (d.tipo === "venda" && chV.some(c => !itens.some(i => i.p === c.id))) o.baixa = chV; // guarda o que baixou para estornar igual no cancelamento
+  const ws = [Store.put("ped", id, o)], mvV = mvDe(chV);
   if (chV.length) ws.push(Store.stock(chV));
-  ws.push(logMov(d.tipo === "consig" ? "consig" : "venda", `${tipoPed(d.tipo)} #${numero} · ${cl.nome} · ${fmt(d.tipo === "consig" ? t.bruto : t.total)}`, { ref: id, ps: itens.map(i => i.p), ...(chV.length ? { tm: d.tipo === "consig" ? "consig" : "venda", mv: mvV } : { tm: "outro" }) }));
+  ws.push(logMov(d.tipo === "consig" ? "consig" : "venda", `${tipoPed(d.tipo)} #${numero} · ${cl.nome} · ${fmt(d.tipo === "consig" ? t.bruto : t.total)}`, { ref: id, ps: [...new Set([...itens.map(i => i.p), ...chV.map(c => c.id)])], ...(chV.length ? { tm: d.tipo === "consig" ? "consig" : "venda", mv: mvV } : { tm: "outro" }) }));
   if (o.pag.length) ws.push(logMov("fin", `Recebimento ${fmt(t.total)} · ${cl.nome} · pedido #${numero} · ${d.forma}`, { ref: id }));
   if (d.fromOrc) { const orc = Pe(d.fromOrc); if (orc) ws.push(Store.put("ped", orc.id, Object.assign({}, orc, { status: "convertido", convertidoEm: id }))); }
   if (!(await commit(ws))) return;
@@ -2448,7 +2452,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "prod": openSheet({ k: "prod", id }, true); break;
     /* pedido */
     case "novoPedido": closeSheet(); newDraft(id || "venda"); if (t.dataset.cli) { const c = Cl(t.dataset.cli); ui.draft.cli = c.id; ui.draft.tabela = c.tabela || "varejo"; } go("novoPedido"); break;
-    case "dstep": { const p = P(id), max = ui.draft.tipo === "orcamento" ? 9999 : p.estoque; ui.draft.qty[id] = Math.max(0, Math.min(max, (ui.draft.qty[id] || 0) + Number(t.dataset.d))); updateDraft(); break; }
+    case "dstep": { const p = P(id), max = ui.draft.tipo === "orcamento" ? 9999 : ui.draft.tipo === "venda" ? dispVenda(p) : p.estoque; ui.draft.qty[id] = Math.max(0, Math.min(max, (ui.draft.qty[id] || 0) + Number(t.dataset.d))); updateDraft(); break; }
     case "dtipo": { const dc = ui.draft.cli && ui.draft.cli !== "CF" ? Cl(ui.draft.cli) : null; if (id === "consig") ui.draft.tabela = "consig"; else if (ui.draft.tipo === "consig") ui.draft.tabela = dc ? dc.tabela || "varejo" : "varejo"; ui.draft.tipo = id; render(); break; }
     case "dtab": ui.draft.tabela = id; render(); break;
     case "dprazo": ui.draft.prazo = Number(id); render(); break;
@@ -2467,8 +2471,8 @@ document.addEventListener("click", travarAcao(async e => {
     case "doCancelPed": {
       const o = Pe(s.id), ws = [Store.put("ped", o.id, Object.assign({}, o, { status: "cancelado", canceladoEm: isoT(new Date()), motivo: s.vals.motivo || "" }))];
       let mvC = [];
-      if (o.tipo !== "orcamento") { const agg = {}; o.itens.forEach(i => { agg[i.p] = (agg[i.p] || 0) + (o.tipo === "consig" ? i.q - (i.dev || 0) : i.q); }); const ch = Object.entries(agg).filter(([pid, q]) => P(pid) && q).map(([pid, q]) => ({ id: pid, delta: q })); mvC = mvDe(ch); ws.push(Store.stock(ch)); }
-      ws.push(logMov(o.tipo === "consig" ? "consig" : "venda", `${tipoPed(o.tipo)} #${o.num} cancelado${s.vals.motivo ? " · " + s.vals.motivo : ""}`, { ref: o.id, ps: o.itens.map(i => i.p), tm: o.tipo === "orcamento" ? "outro" : o.tipo === "consig" ? "est_consig" : "est_venda", mv: mvC }));
+      if (o.tipo !== "orcamento") { let ch; if (o.baixa) ch = o.baixa.filter(c => P(c.id)).map(c => ({ id: c.id, delta: -c.delta })); else { const agg = {}; o.itens.forEach(i => { agg[i.p] = (agg[i.p] || 0) + (o.tipo === "consig" ? i.q - (i.dev || 0) : i.q); }); ch = Object.entries(agg).filter(([pid, q]) => P(pid) && q).map(([pid, q]) => ({ id: pid, delta: q })); } mvC = mvDe(ch); ws.push(Store.stock(ch)); }
+      ws.push(logMov(o.tipo === "consig" ? "consig" : "venda", `${tipoPed(o.tipo)} #${o.num} cancelado${s.vals.motivo ? " · " + s.vals.motivo : ""}`, { ref: o.id, ps: [...new Set([...o.itens.map(i => i.p), ...(o.baixa || []).map(c => c.id)])], tm: o.tipo === "orcamento" ? "outro" : o.tipo === "consig" ? "est_consig" : "est_venda", mv: mvC }));
       const devolver = r2(sum(o.pag || [], p => p.valor)); if (devolver > 0) ws.push(logMov("fin", `Devolução ${fmt(devolver)} · ${Cl(o.cli) ? Cl(o.cli).nome : "Consumidor final"} · pedido #${o.num} cancelado`, { ref: o.id }));
       if (await commit(ws)) { closeSheet(); toast("Cancelado e estoque devolvido"); }
       break;
@@ -3033,7 +3037,8 @@ function onScan(code, origem) {
   if (ui.route === "novoPedido" && ui.draft) {
     if (!p) { toast("Código " + code + " não cadastrado"); return; }
     if (p.ativo === false) { avisoInativo(p); return; }
-    const max = ui.draft.tipo === "orcamento" ? 9999 : p.estoque, cur = ui.draft.qty[p.id] || 0;
+    if (ehInsumo(p)) { toast(`${p.nome} é ingrediente ou embalagem: não entra na venda.`); return; }
+    const max = ui.draft.tipo === "orcamento" ? 9999 : ui.draft.tipo === "venda" ? dispVenda(p) : p.estoque, cur = ui.draft.qty[p.id] || 0;
     if (cur >= max) { toast("Sem estoque disponível de " + p.nome); return; }
     ui.draft.qty[p.id] = cur + 1; updateDraft(); toast(`+1 ${p.nome} (${cur + 1})`); return;
   }
@@ -3394,6 +3399,40 @@ function conv(q, de, para) {
 const qtdTxt = (q, u) => `${dec(r4(q))} ${u || "un"}`;
 const pnum = v => { const n = parseMoney(v); return isNaN(n) ? 0 : n; };
 const RC = id => S.rec.find(r => r.id === id);
+/* Baixa na venda: produto feito na hora ou por encomenda. Vender baixa os ingredientes da receita, não o produto. */
+function naVenda(p) { const r = p && recDoProd(p.id); return !!(r && r.baixa === "venda"); }
+/* Consumo de cada ingrediente para 1 unidade do produto (na unidade do estoque de cada ingrediente) */
+function consumoPorUn(r) {
+  const c = custoReceita(r); if (!(c.util > 0)) return null;
+  if (c.linhas.some(l => l.erro || l.consumo == null)) return null;
+  return c.linhas.map(l => ({ id: l.p.id, q: l.consumo / c.util }));
+}
+/* Quanto dá para vender agora: estoque do produto, ou o que os ingredientes permitem fazer */
+function dispVenda(p) {
+  if (!p) return 0;
+  if (!naVenda(p)) return p.estoque;
+  const cs = consumoPorUn(recDoProd(p.id)); if (!cs || !cs.length) return 0;
+  return Math.max(0, Math.floor(Math.min(...cs.map(c => { const i = P(c.id); return c.q > 0 ? ((i && i.estoque) || 0) / c.q + 1e-9 : Infinity; }))));
+}
+/* Troca itens vendidos {id, q} pelas baixas reais de estoque: produto de baixa na venda vira seus ingredientes */
+function baixaItens(itens) {
+  const agg = {};
+  itens.forEach(it => {
+    const p = P(it.id), cs = naVenda(p) ? consumoPorUn(recDoProd(p.id)) : null;
+    if (cs) cs.forEach(c => { agg[c.id] = (agg[c.id] || 0) + c.q * it.q; });
+    else agg[it.id] = (agg[it.id] || 0) + it.q;
+  });
+  return Object.entries(agg).filter(([id, q]) => q > 0 && P(id)).map(([id, q]) => ({ id, delta: -r4(q) }));
+}
+/* Bloco da ficha do produto: liga o produto à receita (ou como ingrediente) */
+function fichaFood(p) {
+  const r = recDoProd(p.id), usos = S.rec.filter(x => x.ativo !== false && (x.itens || []).some(i => i.p === p.id)).map(x => P(x.prod)).filter(Boolean);
+  let h = `<div class="note" style="margin:10px 0">`;
+  if (r) { const c = custoReceita(r); h += `<b>Receita:</b> rende ${qtdTxt(c.util, unDe(p))}${can("custo") ? ` · custo ${fmt(c.unit)}/${unDe(p)}` : ""} · ${r.baixa === "venda" ? "ingredientes baixam na venda (feito na hora)" : "ingredientes baixam na produção"}${r.baixa === "venda" ? ` · dá para fazer ${dispVenda(p)} agora` : ""}<br><button class="btn sm line" style="margin-top:8px" data-a="go" data-r="receita" data-id="${r.id}">Ver receita</button>`; }
+  else if (!ehInsumo(p) && can("ajuste")) h += `Sem receita: vender este produto baixa só o estoque dele.<br><button class="btn sm line" style="margin-top:8px" data-a="recNova" data-id="${p.id}">Criar receita</button>`;
+  else h += `Ingrediente${usos.length ? ` usado em: ${usos.map(x => esc(x.nome)).join(", ")}` : " ainda não usado em receitas"}.`;
+  return h + `</div>`;
+}
 const recDoProd = pid => S.rec.find(r => r.prod === pid && r.ativo !== false);
 
 /* Custo de 1 unidade (na unidade do estoque) de um ingrediente: se tem receita, usa a receita (preços atuais); senão o custo médio */
@@ -3442,7 +3481,8 @@ function vReceita() {
   if (!ui.calc || ui.calc.id !== r.id) ui.calc = { id: r.id, ind: "", taxa: "", marg: "30" };
   let h = head(p.nome, `Receita · rende ${qtdTxt(c.util, unDe(p))}`, { back: true, action: can("ajuste") ? `<button class="btn sm line" data-a="recEditar" data-id="${r.id}">Editar</button>` : "" }) + banners();
   h += `<div class="stats"><div class="stat"><span>Custo da receita</span><b>${cst ? fmt(c.total) : "—"}</b><small>${c.linhas.length} ingredientes</small></div><div class="stat good"><span>Custo por ${unDe(p)}</span><b>${cst ? fmt(c.unit) : "—"}</b><small>com perdas</small></div><div class="stat"><span>Em estoque</span><b>${dec(r4(p.estoque || 0))}</b><small>${unDe(p)}</small></div></div>`;
-  if (can("ajuste")) h += `<button class="btn block" style="margin:12px 0" data-a="sheet" data-k="produzir" data-id="${r.id}">${ico("plus", 18)}Registrar produção</button>`;
+  if (r.baixa === "venda") h += `<div class="note good" style="margin:12px 0">Ingredientes baixam na venda: cada ${unDe(p)} vendido desconta a receita proporcional. Com o estoque atual dá para fazer <b>${dispVenda(p)}</b>.</div>`;
+  else if (can("ajuste")) h += `<button class="btn block" style="margin:12px 0" data-a="sheet" data-k="produzir" data-id="${r.id}">${ico("plus", 18)}Registrar produção</button>`;
   h += `<p class="sec">Ingredientes</p><div class="list">${c.linhas.map(l => `<div class="row"><span class="wmain"><b>${esc(l.p ? l.p.nome : "Ingrediente removido")}</b><small>${qtdTxt(l.it.q, l.it.u)}${l.aprov < 100 ? ` · aproveitamento ${dec(l.aprov)}% → compra ${l.consumo == null ? "—" : qtdTxt(l.consumo, unDe(l.p))}` : ""}${recDoProd(l.it.p) ? " · sub-receita" : ""}${l.erro ? ` · <span class="neg">${esc(l.erro)}</span>` : ""}</small></span>${cst ? `<b>${fmt(l.custo)}</b>` : ""}</div>`).join("")}${c.extra ? `<div class="row"><span class="wmain"><b>Outros custos da receita</b><small>gás, energia, mão de obra</small></span>${cst ? `<b>${fmt(c.extra)}</b>` : ""}</div>` : ""}</div>`;
   h += `<p class="hint">Rende ${qtdTxt(c.rend, unDe(p))}${c.perda ? `, com ${dec(c.perda)}% de perda prevista: ${qtdTxt(c.util, unDe(p))} aproveitáveis` : ""}.${p.validade ? ` Validade: ${p.validade} dias.` : ""}${p.alerg ? ` Alérgenos: ${esc(p.alerg)}.` : ""}</p>`;
   if (r.obs) h += `<p class="sec">Modo de preparo</p><div class="card" style="white-space:pre-wrap">${esc(r.obs)}</div>`;
@@ -3470,12 +3510,15 @@ function vReceitaEdit() {
   const d = ui.rdraft; if (!d) return head("Receita", "", { back: true }) + empty("Nada em edição.", "");
   const vendaveis = S.prod.filter(p => p.ativo !== false).sort((a, b) => a.nome.localeCompare(b.nome));
   const ings = vendaveis.filter(p => p.id !== d.prod);
-  let h = head(d.id ? "Editar receita" : "Nova receita", "Ficha técnica", { back: true }) + banners();
+  let h = head(d.id ? "Editar receita" : "Criar receita", "Ficha técnica", { back: true }) + banners();
   h += `<section class="card"><label class="field">Produto que a receita produz<select data-rd="prod"><option value="">Escolha…</option>${vendaveis.filter(p => !recDoProd(p.id) || recDoProd(p.id).id === d.id).map(p => `<option value="${p.id}" ${d.prod === p.id ? "selected" : ""}>${esc(p.nome)} (${unDe(p)})</option>`).join("")}</select></label>
     <p class="hint" style="margin:4px 0 10px">Pode ser um produto de venda ou um preparo usado em outra receita (massa, recheio, calda).</p>
     <div class="grid2"><label class="field">Rendimento (${d.prod ? unDe(P(d.prod)) : "un"})<input data-rd="rend" inputmode="decimal" value="${esc(d.rend)}" placeholder="Ex: 30"></label>
     <label class="field">Perda prevista (%)<input data-rd="perda" inputmode="decimal" value="${esc(d.perda)}" placeholder="0"></label></div>
-    <label class="field">Outros custos por receita (${SIM()})<input data-rd="extra" inputmode="decimal" value="${esc(d.extra)}" placeholder="Gás, energia, mão de obra"></label></section>`;
+    <label class="field">Outros custos por receita (${SIM()})<input data-rd="extra" inputmode="decimal" value="${esc(d.extra)}" placeholder="Gás, energia, mão de obra"></label>
+    <p class="field" style="margin:10px 0 6px">Quando os ingredientes saem do estoque</p>
+    <div class="seg">${[["producao", "Na produção"], ["venda", "Na venda"]].map(([k, l]) => `<button data-a="recBaixa" data-id="${k}" aria-pressed="${d.baixa === k}">${l}</button>`).join("")}</div>
+    <p class="hint" style="margin:6px 2px 0">${d.baixa === "venda" ? "Feito na hora ou por encomenda: ao vender 5, o app baixa os ingredientes de 5. O produto não precisa ter estoque." : "Produz antes e vende do estoque: “Registrar produção” baixa os ingredientes e soma o produto; a venda baixa o produto pronto."}</p></section>`;
   h += `<p class="sec">Ingredientes</p><div class="list">${d.itens.map((it, i) => { const p = P(it.p), us = p ? unCompat(unDe(p)) : UNIDADES;
     return `<div class="card ring" style="padding:10px 12px"><label class="field" style="margin:0 0 8px">Ingrediente<select data-ri="${i}" data-rk="p"><option value="">Escolha…</option>${ings.map(x => `<option value="${x.id}" ${it.p === x.id ? "selected" : ""}>${esc(x.nome)}${ehInsumo(x) ? "" : " · preparo"}</option>`).join("")}</select></label>
       <div class="grid3"><label class="field" style="margin:0">Quantidade<input data-ri="${i}" data-rk="q" inputmode="decimal" value="${esc(it.q)}"></label>
@@ -3493,7 +3536,7 @@ function vReceitaEdit() {
 }
 function rdDoc() {
   const d = ui.rdraft;
-  return { prod: d.prod, rend: pnum(d.rend), perda: pnum(d.perda), extra: pnum(d.extra), obs: String(d.obs || "").trim(),
+  return { prod: d.prod, rend: pnum(d.rend), perda: pnum(d.perda), extra: pnum(d.extra), obs: String(d.obs || "").trim(), baixa: d.baixa === "venda" ? "venda" : "producao",
     itens: d.itens.filter(it => it.p && pnum(it.q) > 0).map(it => ({ p: it.p, q: pnum(it.q), u: it.u || unDe(P(it.p)), aprov: pnum(it.aprov) || 100 })) };
 }
 function rdResumo() {
@@ -3541,8 +3584,9 @@ Object.assign(SH, {
 });
 
 const FOOD_A = {
-  recNova: () => { ui.rdraft = { id: null, prod: "", rend: "", perda: "", extra: "", obs: "", itens: [{ p: "", q: "", u: "g", aprov: "" }] }; go("receitaEdit"); },
-  recEditar: (t, id) => { const r = RC(id); if (!r) return; ui.rdraft = { id, prod: r.prod, rend: dec(r.rend || ""), perda: r.perda ? dec(r.perda) : "", extra: r.extra ? money(r.extra) : "", obs: r.obs || "", itens: (r.itens || []).map(it => ({ p: it.p, q: dec(it.q), u: it.u, aprov: it.aprov && it.aprov !== 100 ? dec(it.aprov) : "" })) }; go("receitaEdit"); },
+  recNova: (t, id) => { closeSheet(); ui.rdraft = { id: null, prod: id && P(id) ? id : "", rend: "", perda: "", extra: "", obs: "", baixa: ["food_rest", "food_cafe"].includes(rubro()) ? "venda" : "producao", itens: [{ p: "", q: "", u: "g", aprov: "" }] }; go("receitaEdit"); },
+  recEditar: (t, id) => { const r = RC(id); if (!r) return; ui.rdraft = { id, prod: r.prod, rend: dec(r.rend || ""), perda: r.perda ? dec(r.perda) : "", extra: r.extra ? money(r.extra) : "", obs: r.obs || "", baixa: r.baixa || "producao", itens: (r.itens || []).map(it => ({ p: it.p, q: dec(it.q), u: it.u, aprov: it.aprov && it.aprov !== 100 ? dec(it.aprov) : "" })) }; go("receitaEdit"); },
+  recBaixa: (t, id) => { ui.rdraft.baixa = id; render(); },
   recAddItem: () => { ui.rdraft.itens.push({ p: "", q: "", u: "g", aprov: "" }); render(); },
   recDelItem: (t, id) => { ui.rdraft.itens.splice(Number(id), 1); render(); },
   recSalvar: async () => {
@@ -3550,7 +3594,10 @@ const FOOD_A = {
     d.err = !p ? "Escolha o produto que a receita produz." : !(doc.rend > 0) ? "Informe o rendimento, por exemplo 30." : !doc.itens.length ? "Inclua pelo menos um ingrediente com quantidade." : doc.perda >= 90 ? "A perda prevista precisa ser menor que 90%." : temCiclo(doc.prod, doc.itens) ? "Um ingrediente usa esta mesma receita. Revise as sub-receitas." : custoReceita(doc).linhas.find(l => l.erro) ? custoReceita(doc).linhas.find(l => l.erro).erro : "";
     if (d.err) { render(); return; }
     const old = d.id ? RC(d.id) : null, id = d.id || rid(), full = Object.assign({ ativo: true, ver: ((old && old.ver) || 0) + 1, hist: ((old && old.hist) || []).concat(old ? [{ ts: old.ts || "", custo: r2(custoReceita(old).unit), rend: old.rend }] : []).slice(-20) }, doc, { ts: isoT(new Date()), por: UID });
-    if (await commit([Store.put("rec", id, full), logMov("cadastro", `${old ? "Receita editada" : "Nova receita"} · ${p.nome} · custo ${fmt(custoReceita(doc).unit)}/${unDe(p)}`, { ps: [p.id, ...doc.itens.map(i => i.p)] })])) { ui.rdraft = null; back(); if (!old) go("receita", id); toast(old ? "Receita atualizada" : "Receita criada"); }
+    /* primeiro a receita; o histórico só é gravado se ela salvou */
+    if (!(await commit([Store.put("rec", id, full)]))) return;
+    commit([logMov("cadastro", `${old ? "Receita editada" : "Receita criada"} · ${p.nome} · custo ${fmt(custoReceita(doc).unit)}/${unDe(p)}${doc.baixa === "venda" ? " · baixa na venda" : ""}`, { ps: [p.id, ...doc.itens.map(i => i.p)] })]);
+    ui.rdraft = null; if (old) back(); else { ui.stack.pop(); ui.route = "receita"; ui.id = id; render(); } toast(old ? "Receita atualizada" : "Receita criada");
   },
   recArquivar: async () => { const d = ui.rdraft, r = RC(d.id); if (!r) return; if (await commit([Store.put("rec", r.id, Object.assign({}, r, { ativo: false }))])) { ui.rdraft = null; go("receitas"); toast("Receita arquivada"); } },
   recUsarPreco: async (t, id) => { const r = RC(id), p = r && P(r.prod), v = Number(t.dataset.v); if (!p || !(v > 0)) return; if (await commit([Store.patch("prod", p.id, { precos: Object.assign({}, p.precos || {}, { varejo: v }) }), logMov("cadastro", `Preço de ${p.nome} → ${fmt(v)} (calculadora da receita)`, { ps: [p.id] })])) { render(); toast("Preço de varejo atualizado"); } },
