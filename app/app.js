@@ -1484,7 +1484,7 @@ function vMais() {
   h += `<div class="row"><span class="avatar">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${PAPEIS[m.papel]}${m.comissao ? ` · comissão ${m.comissao}%` : ""}</small></span></div>`;
   if (MODE === "demo") h += `<p class="sec">Ver o app como</p><div class="chips wrap tight">${S.mem.map(x => `<button class="chip" data-a="verComo" data-id="${x.id}" aria-pressed="${x.id === UID}">${esc(firstName(x.nome))} · ${PAPEIS[x.papel]}</button>`).join("")}</div><p class="hint">Na demonstração você pode trocar de usuário para ver o que cada papel enxerga.</p>`;
   if (!D) h += `<p class="sec">Cadastros</p><div class="menu">${it("clientes", "users", "Clientes", "Ficha, crédito, histórico e consignação", can("clientes"))}${it("fornecedores", "truck", "Fornecedores", "Contatos, compras e contas a pagar", can("fornecedores"))}${it("estoque", "bottle", "Produtos", ehVinho() ? "Ficha do vinho, preços e estoque" : "Ficha, preços e estoque", can("estoque"))}</div>`;
-  const op = it("encomendas", "cal", "Encomendas", "Agenda de entregas e o que produzir", usaEnc() && can("vendas")) + it("caixa", "cash", "Caixa", "Abertura, sangria e fechamento do dia", can("receber")) + it("compras", "cart", "Compras", "Pedidos a fornecedores e recebimento", can("compras")) + it("financeiro", "wallet", "Financeiro", "Contas a receber, a pagar e fluxo de caixa", can("receber") || can("pagar")) + it("relatorios", "chart", "Relatórios", "Vendas, curva ABC, margem, comissões e atrasos", can("relatorios")) + it("movimentos", "list", "Movimentos de estoque", "Tudo o que aconteceu com cada produto", can("estoque")) + (ehFood() ? it("receitas", "clip", "Receitas e produção", "Fichas técnicas, custo real e produção", can("estoque")) : "");
+  const op = it("encomendas", "cal", "Encomendas", "Agenda de entregas e o que produzir", usaEnc() && can("vendas")) + it("caixa", "cash", "Caixa", "Abertura, sangria e fechamento do dia", can("receber")) + it("compras", "cart", "Compras", "Pedidos a fornecedores e recebimento", can("compras")) + it("listaCompras", "cart", "Lista de compras", "O que comprar para as encomendas", usaEnc() && can("compras")) + it("financeiro", "wallet", "Financeiro", "Contas a receber, a pagar e fluxo de caixa", can("receber") || can("pagar")) + it("relatorios", "chart", "Relatórios", "Vendas, curva ABC, margem, comissões e atrasos", can("relatorios")) + it("movimentos", "list", "Movimentos de estoque", "Tudo o que aconteceu com cada produto", can("estoque")) + (ehFood() ? it("receitas", "clip", "Receitas e produção", "Fichas técnicas, custo real e produção", can("estoque")) : "");
   const fis = temFiscal() ? it("notas", "receipt", "Notas fiscais", "NF-e, NFC-e e consignação emitidas", can("fiscal")) + it("fiscal", "shield", "Configuração fiscal", "Dados do emitente, tributação e credenciais", can("empresa")) : ""; // nota fiscal brasileira
   const cat = can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span class="wmain"><b>Catálogo de produtos</b><small>PDF com o estoque e os preços do cliente</small></span>${ico("chev", 18)}</button>` : "";
   if ((op || cat) && !D) h += `<p class="sec">Gestão</p><div class="menu">${cat}${op}</div>`;
@@ -1601,7 +1601,7 @@ function sugestoes() {
 function vCompras() {
   const f = ui.kFiltro, list = S.comp.filter(c => { const k = compCalc(c); if (f === "abertas") return c.status === "pedido" || k.aberto > 0.004; if (f === "pedido") return c.status === "pedido"; return true; }).sort((a, b) => b.num - a.num);
   const sg = sugestoes();
-  let h = head("Compras", "Pedidos a fornecedores", { back: ui.stack.length > 0, action: `<button class="btn sm" data-a="novaCompra">+ Compra</button>` }) + banners();
+  let h = head("Compras", "Pedidos a fornecedores", { back: ui.stack.length > 0, action: `<button class="btn sm" data-a="novaCompra">+ Compra</button>` }) + banners() + lcAtalho();
   if (can("ajuste") && temFiscal()) h += `<button class="row" data-a="xmlCompra"><span class="dot acc">${ico("file", 18)}</span><span class="wmain"><b>Importar XML da nota do fornecedor</b><small>Cria a compra, cadastra produtos novos e dá entrada no estoque</small></span>${ico("chev", 18)}</button><input type="file" id="xmlFile" accept=".xml,text/xml,application/xml" hidden>`;
   const ks = Object.keys(sg);
   if (ks.length) h += `<p class="sec">Sugestão de reposição</p><div class="list">${ks.map(k => { const fo = Fo(k); return `<div class="row"><span class="dot warn">!</span><span class="wmain"><b>${esc(fo ? fo.nome : "Sem fornecedor definido")}</b><small>${sg[k].length} ${sg[k].length === 1 ? "produto abaixo" : "produtos abaixo"} do mínimo: ${sg[k].slice(0, 3).map(p => esc(p.nome)).join(", ")}${sg[k].length > 3 ? "…" : ""}</small></span>${fo ? `<button class="btn sm" data-a="sugCompra" data-id="${k}">Criar</button>` : ""}</div>`; }).join("")}</div>`;
@@ -1614,18 +1614,19 @@ function vCompra() {
   const k = compCalc(c), f = Fo(c.forn);
   let h = head(`Compra #${c.num}`, `${fdy(c.data)} · ${esc(f ? f.nome : "")}`, { back: true, sm: true, action: statusComp(k) }) + banners();
   h += `<div class="card"><div class="kv"><span>Fornecedor</span><b>${esc(f ? f.nome : "—")}</b></div><div class="kv"><span>Previsão de entrega</span><b>${fdy(c.prev)}</b></div>${c.recebidoEm ? `<div class="kv"><span>Recebida em</span><b>${fdy(c.recebidoEm)}</b></div>` : ""}<div class="kv"><span>Condição</span><b>${CONDS[c.cond] || "À vista"}</b></div></div>`;
-  h += `<p class="sec">Itens</p><div class="list">${c.itens.map(i => { const p = P(i.p) || { nome: "Produto removido", tipo: "outros" }; return `<div class="row"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>${i.q} × ${fmt(i.custo)}</small></span><span class="right"><b>${fmt(i.q * i.custo)}</b></span></div>`; }).join("")}</div>`;
+  h += `<p class="sec">Itens</p><div class="list">${c.itens.map(i => { const p = P(i.p) || { nome: "Produto removido", tipo: "outros" }; return `<div class="row"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>${dec(i.q)}${ehFood() && p.un ? " " + unDe(p) : ""} × ${fmt(i.custo)}</small></span><span class="right"><b>${fmt(r2(i.q * i.custo))}</b></span></div>`; }).join("")}</div>`;
   h += `<div class="card" style="margin-top:12px"><div class="tot"><span>Total</span><span>${fmt(k.total)}</span></div>${c.status === "recebido" ? `<div class="tot"><span>Pago</span><span>${fmt(k.pago)}</span></div><div class="tot big"><span>A pagar</span><span>${fmt(k.aberto)}</span></div>` : ""}</div>`;
   if (k.parcelas.length) h += `<p class="sec">Parcelas</p><div class="list">${k.parcelas.map((p, ix) => `<div class="row"><span class="dot ${p.aberto <= 0.004 ? "good" : p.venc < today ? "bad" : "info"}">${ix + 1}</span><span class="wmain"><b>${fmt(p.valor)}</b><small>Vencimento ${fdy(p.venc)}</small></span>${p.aberto <= 0.004 ? '<span class="pill ok">Paga</span>' : p.venc < today ? '<span class="pill bad">Vencida</span>' : '<span class="pill info">Aberta</span>'}</div>`).join("")}</div>`;
   if ((c.pag || []).length) h += `<p class="sec">Pagamentos</p><div class="list">${c.pag.map(p => `<div class="row"><span class="dot good">${SIM()}</span><span class="wmain"><b>${fmt(p.valor)}</b><small>${p.forma} · ${fdy(p.data)} · ${esc(nomeDe(p.por))}</small></span></div>`).join("")}</div>`;
   if (c.obs) h += `<p class="sec">Observações</p><div class="card">${esc(c.obs)}</div>`;
   if (c.status === "pedido" && can("ajuste")) h += `<button class="btn block" data-a="sheet" data-k="receberCompra" data-id="${c.id}">Receber mercadoria</button>`;
   if (k.aberto > 0.004 && can("pagar")) h += `<button class="btn block" data-a="pay" data-src="comp" data-id="${c.id}">Registrar pagamento</button>`;
-  let t = `*Pedido de compra #${c.num} · ${S.emp ? S.emp.nome : APP}*\n`; c.itens.forEach(i => { const p = P(i.p); t += `${i.q}× ${p ? p.nome : ""} · ${fmt(i.custo)}\n`; }); t += `Total: ${fmt(k.total)}\nCondição: ${CONDS[c.cond] || "À vista"}\nEntrega prevista: ${fdy(c.prev)}`;
+  let t = `*Pedido de compra #${c.num} · ${S.emp ? S.emp.nome : APP}*\n`; c.itens.forEach(i => { const p = P(i.p); t += `${dec(i.q)}${ehFood() && p && p.un ? " " + unDe(p) : "×"} ${p ? p.nome : ""} · ${fmt(i.custo)}\n`; }); t += `Total: ${fmt(k.total)}\nCondição: ${CONDS[c.cond] || "À vista"}\nEntrega prevista: ${fdy(c.prev)}`;
   h += `<div class="btns"><a class="btn ghost" href="${waLink(f && f.fone, t)}" target="_blank" rel="noopener">${ico("whats", 18)}Enviar ao fornecedor</a>${c.status === "pedido" && can("compras") ? `<button class="btn danger" data-a="cancelCompra" data-id="${c.id}">Cancelar compra</button>` : ""}</div>`;
   return h;
 }
-function cdraftFoot() { const d = ui.cdraft, t = r2(sum(d.itens, i => (Number(i.q) || 0) * (parseMoney(i.custo) || 0))); return `<div><small>${sum(d.itens, i => Number(i.q) || 0)} un. · ${d.itens.length} itens</small><b>${fmt(t)}</b></div><button class="btn" data-a="salvarCompra" ${d.forn && d.itens.length ? "" : "disabled"}>${d.jaRecebido ? "Salvar e receber" : "Salvar pedido"}</button>`; }
+const cq = q => (ehFood() ? parseMoney(String(q)) || 0 : Number(q) || 0); // Food aceita 2,5 kg
+function cdraftFoot() { const d = ui.cdraft, t = r2(sum(d.itens, i => cq(i.q) * (parseMoney(i.custo) || 0))); return `<div><small>${ehFood() ? "" : `${sum(d.itens, i => cq(i.q))} un. · `}${d.itens.length} itens</small><b>${fmt(t)}</b></div><button class="btn" data-a="salvarCompra" ${d.forn && d.itens.length ? "" : "disabled"}>${d.jaRecebido ? "Salvar e receber" : "Salvar pedido"}</button>`; }
 function vNovaCompra() {
   if (!ui.cdraft) ui.cdraft = { forn: null, itens: [], prev: 7, cond: "30", obs: "", jaRecebido: false };
   const d = ui.cdraft, f = d.forn ? Fo(d.forn) : null;
@@ -1633,7 +1634,7 @@ function vNovaCompra() {
   const i0 = h.length;
   h += `<section class="card"><span class="lbl">Fornecedor</span><button class="picker" data-a="sheet" data-k="pickForn">${f ? `<span class="avatar">${initials(f.nome)}</span><span class="wmain"><b>${esc(f.nome)}</b><small>prazo ${f.prazo || 30} dias</small></span>` : `<span class="wmain"><b>Escolher fornecedor</b><small>Importadora, vinícola ou distribuidor</small></span>`}${ico("chev", 18)}</button></section>`;
   const i1 = h.length;
-  h += `<span class="lbl" style="margin:16px 2px 8px">Itens</span><div class="list">${d.itens.map((i, ix) => { const p = P(i.p) || { nome: "Produto" }; return `<div class="crow"><span><b>${esc(p.nome)}</b><small>estoque ${p.estoque != null ? p.estoque : "—"}</small></span><input type="number" inputmode="numeric" min="1" data-ci="${ix}" data-cf="q" value="${esc(i.q)}" aria-label="Quantidade"><input inputmode="decimal" data-ci="${ix}" data-cf="custo" value="${esc(i.custo)}" aria-label="Custo unitário"><button class="xbtn" data-a="rmItemCompra" data-id="${ix}" aria-label="Remover item">×</button></div>`; }).join("")}</div>
+  h += `<span class="lbl" style="margin:16px 2px 8px">Itens</span><div class="list">${d.itens.map((i, ix) => { const p = P(i.p) || { nome: "Produto" }; return `<div class="crow"><span><b>${esc(p.nome)}</b><small>estoque ${p.estoque != null ? dec(r4(p.estoque)) : "—"}${ehFood() && p.un ? " " + unDe(p) : ""}</small></span>${ehFood() ? `<input inputmode="decimal" data-ci="${ix}" data-cf="q" value="${esc(i.q)}" aria-label="Quantidade">` : `<input type="number" inputmode="numeric" min="1" data-ci="${ix}" data-cf="q" value="${esc(i.q)}" aria-label="Quantidade">`}<input inputmode="decimal" data-ci="${ix}" data-cf="custo" value="${esc(i.custo)}" aria-label="Custo unitário"><button class="xbtn" data-a="rmItemCompra" data-id="${ix}" aria-label="Remover item">×</button></div>`; }).join("")}</div>
     ${d.itens.length ? `<p class="hint">Quantidade e custo unitário (${SIM()}) de cada item.</p>` : ""}<button class="btn line block" style="margin-top:10px" data-a="sheet" data-k="pickProd">+ Adicionar produto</button>`;
   const i2 = h.length;
   h += `<section class="card" style="margin-top:14px"><span class="lbl">Condição de pagamento</span><div class="chips wrap tight">${Object.entries(CONDS).map(([k, l]) => `<button class="chip" data-a="kcond" data-id="${k}" aria-pressed="${d.cond === k}">${l}</button>`).join("")}</div>
@@ -1942,7 +1943,7 @@ function sideNav() {
     <button class="sn-new" data-a="sheet" data-k="quick">${ico("plus", 20)}<span>Novo</span></button>
     <div class="sn-nav">${it("inicio", "home", "Início")}
     ${grp("Comercial", [it("vendas", "order", "Vendas", can("vendas")), it("caixa", "cash", "Caixa", can("receber")), it("encomendas", "cal", "Encomendas", usaEnc() && can("vendas")), it("clientes", "users", "Clientes", can("clientes")), can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span>Catálogo</span></button>` : ""])}
-    ${grp("Estoque", [it("estoque", "bottle", "Produtos", can("estoque")), it("compras", "cart", "Compras", can("compras")), it("fornecedores", "truck", "Fornecedores", can("fornecedores"))])}
+    ${grp("Estoque", [it("estoque", "bottle", "Produtos", can("estoque")), it("compras", "cart", "Compras", can("compras")), it("listaCompras", "cart", "Lista de compras", usaEnc() && can("compras")), it("fornecedores", "truck", "Fornecedores", can("fornecedores"))])}
     ${grp("Gestão", [it("financeiro", "wallet", "Financeiro", can("receber") || can("pagar")), it("relatorios", "chart", "Relatórios", can("relatorios")), temFiscal() ? it("notas", "receipt", "Notas fiscais", can("fiscal")) : ""])}
     ${grp("Empresa", [it("equipe", "users", "Equipe"), it("empresa", "building", "Dados da empresa", can("empresa")), it("atividade", "activity", "Atividade", can("atividade"))])}</div>
     <button class="sn-me" data-a="tab" data-r="mais" aria-current="${cur === "mais" ? "page" : "false"}"><span class="avatar sm">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${esc(S.emp ? S.emp.nome : "")}</small></span>${ico("grid", 18)}</button>`;
@@ -1986,7 +1987,7 @@ const SPEC = {
     const esp = r === "vinhos" ? [{ k: "safra", l: "Safra", h: 1, ph: "2022 ou NV" }, { k: "uva", l: "Uva", h: 1, ph: "Ex: Malbec" }, { k: "vol", l: "Volume (ml)", t: "num", h: 1 }, { k: "pais", l: "País", h: 1 }, { k: "regiao", l: "Região", h: 1 }, { k: "produtor", l: "Produtor", h: 1 }, { k: "teor", l: "Teor alcoólico", h: 1, ph: "13,5%" }]
       : r === "semijoias" ? [{ k: "ref", l: "Referência", h: 1, ph: "Código do fornecedor" }, { k: "material", l: "Banho ou material", h: 1, ph: "Ouro 18k, ródio, prata" }, { k: "medida", l: "Tamanho ou medida", h: 1, ph: "Aro 16, 45 cm" }, { k: "marca", l: "Marca", h: 1 }]
       : r === "limpeza" ? [{ k: "marca", l: "Marca", h: 1 }, { k: "ref", l: "Referência", h: 1, ph: "Código do fornecedor" }, { k: "medida", l: "Tamanho ou conteúdo", h: 1, ph: "1 L, 60 cm, pacote com 12" }, { k: "material", l: "Material", h: 1, ph: "Plástico, ixtle, microfibra" }]
-      : ehFood() ? [{ k: "tipoItem", l: "Tipo de item", t: "select", h: 1, opts: [["venda", "Produto de venda"], ["insumo", "Ingrediente / insumo"], ["embalagem", "Embalagem"]] }, { k: "un", l: "Unidade do estoque", t: "select", h: 1, opts: UNIDADES.map(u => [u, UN_NOME[u]]) }, { k: "marca", l: "Marca", h: 1 }, { k: "validade", l: "Validade (dias)", t: "num", h: 1, ph: "Ex: 5" }, { k: "alerg", l: "Alérgenos", ph: "Leite, glúten, ovo, castanhas" }]
+      : ehFood() ? [{ k: "tipoItem", l: "Tipo de item", t: "select", h: 1, opts: [["venda", "Produto de venda"], ["insumo", "Ingrediente / insumo"], ["embalagem", "Embalagem"]] }, { k: "un", l: "Unidade do estoque", t: "select", h: 1, opts: UNIDADES.map(u => [u, UN_NOME[u]]) }, { k: "marca", l: "Marca", h: 1 }, { k: "validade", l: "Validade (dias)", t: "num", h: 1, ph: "Ex: 5" }, { k: "pack", l: "Compra em embalagem de", h: 1, ph: "Ex: 395 (lata de 395 g)" }, { k: "alerg", l: "Alérgenos", ph: "Leite, glúten, ovo, castanhas" }]
       : r === "emporio" ? [{ k: "marca", l: "Marca", h: 1 }, { k: "medida", l: "Peso ou volume", h: 1, ph: "500 g, 1 L" }, { k: "produtor", l: "Fabricante", h: 1 }, { k: "pais", l: "País de origem", h: 1 }]
       : [{ k: "marca", l: "Marca", h: 1 }, { k: "ref", l: "Referência", h: 1 }, { k: "medida", l: "Tamanho ou medida" }];
     return [
@@ -2007,7 +2008,7 @@ const SPEC = {
     ];
   },
   /* Campos que dependem do ramo (os demais são comuns a todos) */
-  campos: ["safra", "uva", "vol", "pais", "regiao", "produtor", "teor", "ref", "material", "medida", "marca", "temp", "tipoItem", "un", "validade", "alerg"],
+  campos: ["safra", "uva", "vol", "pais", "regiao", "produtor", "teor", "ref", "material", "medida", "marca", "temp", "tipoItem", "un", "validade", "pack", "alerg"],
   cli: () => { const P = PC(); return [
     { k: "nome", l: "Nome fantasia", ph: "Ex: Bistrô Maré" }, { k: "razao", l: "Razão social" },
     { k: "doc", l: P.docCli, h: 1, t: P.dec === "," ? "tel" : "code" }, { k: "tipo", l: "Tipo", t: "select", h: 1, opts: CLI_TIPOS.map(x => [x, x]) },
@@ -2155,7 +2156,7 @@ const SH = {
     ${c.pago > 0 ? `<div class="note warn">Este pedido já tem ${fmt(c.pago)} recebido. Ao cancelar, esse valor sai do caixa como devolvido ao cliente.</div>` : ""}
     <label class="field">Motivo<input data-f="motivo" value="${esc(s.vals.motivo || "")}" placeholder="Ex: cliente desistiu"></label>
     <button class="btn danger block" data-a="doCancelPed">Confirmar cancelamento</button>`]; },
-  receberCompra: s => { const c = Co(s.id), k = compCalc(c); return [`Receber compra #${c.num}`, `<div class="list">${c.itens.map(i => { const p = P(i.p) || { nome: "Produto", tipo: "outros", estoque: 0 }; return `<div class="row"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>estoque ${p.estoque} → ${p.estoque + i.q}</small></span><span class="right"><b>+${i.q}</b></span></div>`; }).join("")}</div>
+  receberCompra: s => { const c = Co(s.id), k = compCalc(c); return [`Receber compra #${c.num}`, `<div class="list">${c.itens.map(i => { const p = P(i.p) || { nome: "Produto", tipo: "outros", estoque: 0 }; return `<div class="row"><span class="bt">${bottle(p.tipo)}</span><span class="wmain"><b>${esc(p.nome)}</b><small>estoque ${dec(r4(p.estoque || 0))} → ${dec(r4((p.estoque || 0) + i.q))}</small></span><span class="right"><b>+${dec(i.q)}</b></span></div>`; }).join("")}</div>
     <p class="hint">O estoque sobe, o custo médio de cada produto é recalculado e ${fmt(k.total)} entra no contas a pagar (${CONDS[c.cond] || "à vista"}).</p>
     <button class="btn block" data-a="doReceberCompra">Confirmar recebimento</button>`]; }
 };
@@ -2316,7 +2317,7 @@ function receiveWrites(c, cid) {
 }
 async function salvarCompra() {
   const d = ui.cdraft, f = Fo(d.forn);
-  const itens = d.itens.map(i => ({ p: i.p, q: parseInt(i.q, 10) || 0, custo: r2(parseMoney(i.custo) || 0) })).filter(i => i.q > 0);
+  const itens = d.itens.map(i => ({ p: i.p, q: ehFood() ? r4(parseMoney(String(i.q)) || 0) : parseInt(i.q, 10) || 0, custo: ehFood() ? r4(parseMoney(i.custo) || 0) : r2(parseMoney(i.custo) || 0) })).filter(i => i.q > 0); // Food: 2,5 kg
   if (!f || !itens.length) { toast("Escolha o fornecedor e ao menos um item com quantidade."); return; }
   let numero; try { numero = await Store.nextNum("comp"); } catch (e) { toast("Sem conexão com o servidor. Tente de novo."); return; }
   const id = rid();
@@ -2660,7 +2661,7 @@ document.addEventListener("click", travarAcao(async e => {
     /* compras */
     case "novaCompra": closeSheet(); ui.cdraft = { forn: id || null, itens: [], prev: 7, cond: "30", obs: "", jaRecebido: false }; go("novaCompra"); break;
     case "setForn": ui.cdraft.forn = id; closeSheet(); render(); break;
-    case "addItemCompra": { const p = P(id); if (!ui.cdraft.itens.some(i => i.p === id)) ui.cdraft.itens.push({ p: id, q: 6, custo: money(p.custo) }); if (!ui.cdraft.forn && p.forn) ui.cdraft.forn = p.forn; closeSheet(); render(); break; }
+    case "addItemCompra": { const p = P(id); if (!ui.cdraft.itens.some(i => i.p === id)) ui.cdraft.itens.push({ p: id, q: ehFood() ? 1 : 6, custo: money(p.custo) }); if (!ui.cdraft.forn && p.forn) ui.cdraft.forn = p.forn; closeSheet(); render(); break; }
     case "rmItemCompra": ui.cdraft.itens.splice(Number(id), 1); render(); break;
     case "kcond": ui.cdraft.cond = id; render(); break;
     case "kprev": ui.cdraft.prev = Number(id); render(); break;
@@ -2753,7 +2754,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "backup": saveFile(`backup-${norm(S.emp ? S.emp.nome : "decanta").replace(/\s+/g, "-")}-${today}.json`, JSON.stringify({ app: APP, exportadoEm: isoT(new Date()), empresa: S.emp, produtos: S.prod, clientes: S.cli, fornecedores: S.forn, pedidos: S.ped, compras: S.comp, financeiro: S.fin, equipe: S.mem, atividade: S.mov }, null, 2)); break;
     case "modeloCSV": { const m = impModelo(ui.impTipo); saveFile(`modelo-${ui.impTipo === "prod" ? "produtos" : "clientes"}.csv`, "﻿" + m.cols.join(";") + "\n" + m.ex + "\n"); break; }
     case "importar": importar(); break;
-    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]) || (typeof ENC_A !== "undefined" && ENC_A[a]); if (f) await f(t, id, s); }
+    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]) || (typeof ENC_A !== "undefined" && ENC_A[a]) || (typeof LC_A !== "undefined" && LC_A[a]); if (f) await f(t, id, s); }
   }
 }));
 document.addEventListener("input", e => {
@@ -3927,16 +3928,19 @@ function encRow(o) {
     <span class="wmain"><b>#${o.num} · ${esc(cliNome(o))}</b><small>${esc(resumoItens(o))} · ${encModo(e)}</small></span>
     <span class="right">${e.entregue ? `<span class="pill ok">Entregue</span>` : c.aberto > 0.004 ? `<b>${fmt(c.aberto)}</b><small>a receber</small>` : `<span class="pill ok">Pago</span>`}</span></button>`;
 }
-/* O que produzir: soma das encomendas até amanhã (e atrasadas) contra o que já está pronto */
+/* O que produzir: soma das encomendas até a data (e atrasadas) contra o que já está pronto.
+   Mostra os produtos encomendados e, abaixo, o que precisa ser feito antes (massa, recheio...). */
 function encProducao(ate) {
   const need = {};
   S.ped.filter(o => encPend(o) && o.enc.data <= ate).forEach(o => o.itens.forEach(i => { need[i.p] = (need[i.p] || 0) + i.q; }));
-  return Object.entries(need).map(([pid, q]) => { const p = P(pid); if (!p) return null; const pronto = Math.max(0, r4(p.estoque || 0)), r = recDoProd(pid); return { p, q: r4(q), pronto, falta: r4(Math.max(0, q - pronto)), r, naHora: naVenda(p) }; })
+  const topo = Object.entries(need).map(([pid, q]) => { const p = P(pid); if (!p) return null; const pronto = Math.max(0, r4(p.estoque || 0)), r = recDoProd(pid); return { p, q: r4(q), pronto, falta: r4(Math.max(0, q - pronto)), r, naHora: naVenda(p) }; })
     .filter(Boolean).sort((a, b) => b.falta - a.falta || a.p.nome.localeCompare(b.p.nome));
+  const antes = listaCompras(ate, false).produzir.filter(x => !x.top && x.q > 0).sort((a, b) => a.p.nome.localeCompare(b.p.nome));
+  return { topo, antes };
 }
 function vEncomendas() {
   const ver = ui.encVer || "prox";
-  let h = head("Encomendas", "Entregas e retiradas agendadas", { back: ui.stack.length > 0, action: can("vendas") ? `<button class="btn sm" data-a="novaEnc">+ Nova</button>` : "" }) + banners();
+  let h = head("Encomendas", "Entregas e retiradas agendadas", { back: ui.stack.length > 0, action: can("vendas") ? `<button class="btn sm" data-a="novaEnc">+ Nova</button>` : "" }) + banners() + lcAtalho();
   h += `<div class="chips">${[["prox", "Próximas"], ["feitas", "Entregues"]].map(([k, l]) => `<button class="chip" data-a="encVer" data-id="${k}" aria-pressed="${ver === k}">${l}</button>`).join("")}</div>`;
   if (ver === "feitas") {
     const L = S.ped.filter(o => o.enc && o.enc.entregue && o.status !== "cancelado").sort((a, b) => String(b.enc.entregue).localeCompare(String(a.enc.entregue))).slice(0, 60);
@@ -3944,10 +3948,11 @@ function vEncomendas() {
   }
   const pend = S.ped.filter(encPend).sort((a, b) => (a.enc.data + (a.enc.hora || "99")).localeCompare(b.enc.data + (b.enc.hora || "99")));
   if (!pend.length) return h + empty("Nenhuma encomenda agendada.", "Em Vendas, toque em + Novo e escolha Encomenda: você marca a data, o horário e o sinal.");
-  const amanha = addDays(today, 1), prod = encProducao(amanha);
+  const amanha = addDays(today, 1), pl = encProducao(amanha), prod = pl.topo;
   if (prod.length) {
-    h += `<section class="card ring" style="margin-top:12px"><span class="lbl">Produção para hoje e amanhã</span><div class="list">${prod.map(x => `<div class="row"><span class="wmain"><b>${esc(x.p.nome)}</b><small>Encomendado ${dec(x.q)} · pronto ${dec(x.pronto)}${x.naHora ? " · feito na hora" : ""}</small></span>
-      <span class="right">${x.falta > 0 && x.naHora ? (podeFazer(x.p) >= x.falta ? `<span class="pill ok">Dá para fazer</span>` : `<span class="pill bad">Faltam ingredientes</span>`) : x.falta > 0 ? (x.r && can("ajuste") ? `<button class="btn sm" data-a="encProduzir" data-id="${x.r.id}" data-q="${x.falta}">Produzir ${dec(x.falta)}</button>` : `<span class="pill warn">Faltam ${dec(x.falta)}</span>`) : `<span class="pill ok">Pronto</span>`}</span></div>`).join("")}</div></section>`;
+    h += `<section class="card ring" style="margin-top:12px"><span class="lbl">Produção para hoje e amanhã</span><div class="list">${pl.antes.map(x => `<div class="row"><span class="wmain"><b>${esc(x.p.nome)}</b><small>Fazer antes · para ${esc(x.para.join(", "))} · tem ${dec(r4(x.p.estoque || 0))}</small></span>
+      <span class="right">${can("ajuste") ? `<button class="btn sm" data-a="encProduzir" data-id="${x.r.id}" data-q="${x.q}">Produzir ${dec(x.q)}</button>` : `<span class="pill warn">Faltam ${dec(x.q)}</span>`}</span></div>`).join("")}${prod.map(x => `<div class="row"><span class="wmain"><b>${esc(x.p.nome)}</b><small>Encomendado ${dec(x.q)} · pronto ${dec(x.pronto)}${x.naHora ? " · feito na hora" : ""}</small></span>
+      <span class="right">${x.falta > 0 && x.naHora ? (podeFazer(x.p) >= x.falta ? `<span class="pill ok">Dá para fazer</span>` : x.r && (x.r.itens || []).some(i => pl.antes.some(a => a.p.id === i.p)) ? `<span class="pill info">Depois dos preparos</span>` : `<span class="pill bad">Faltam ingredientes</span>`) : x.falta > 0 ? (x.r && can("ajuste") ? `<button class="btn sm" data-a="encProduzir" data-id="${x.r.id}" data-q="${x.falta}">Produzir ${dec(x.falta)}</button>` : `<span class="pill warn">Faltam ${dec(x.falta)}</span>`) : `<span class="pill ok">Pronto</span>`}</span></div>`).join("")}</div></section>`;
   }
   const grupos = [];
   pend.forEach(o => { const k = o.enc.data < today ? "atraso" : o.enc.data; let g = grupos.find(x => x.k === k); if (!g) grupos.push(g = { k, L: [] }); g.L.push(o); });
@@ -4039,5 +4044,109 @@ const ENC_A = {
 };
 
 Object.assign(ROUTES, { encomendas: { v: vEncomendas, tab: "vendas", p: "vendas" } });
+
+/* ---- listacompras.js ---- */
+/* ================= Lista de compras (Food): o que comprar para as encomendas =================
+   Cálculo tipo MRP: para cada produto encomendado até a data escolhida, usa primeiro o estoque pronto;
+   o que faltar é "aberto" pela receita (inclusive receitas dentro de receitas, como massa e recheio),
+   sempre descontando o estoque livre de cada nível. O que não tem receita entra na lista para comprar.
+   Opcionalmente repõe o estoque mínimo dos ingredientes e desconta o que já está em pedidos de compra. */
+const packDe = p => { const v = parseMoney(p && p.pack); return v > 0 ? v : 0; };
+function listaCompras(ate, comMin) {
+  const livre = {}, comprar = {}, produzir = {}, problemas = new Set();
+  const L = id => (livre[id] != null ? livre[id] : (livre[id] = Math.max(0, r4((P(id) && P(id).estoque) || 0))));
+  const add = (id, q, para) => { const x = comprar[id] || (comprar[id] = { q: 0, para: new Set() }); x.q = r4(x.q + q); x.para.add(para); };
+  function precisa(id, q, para, nivel) {
+    const p = P(id); if (!p || !(q > 1e-9) || nivel > 8) return;
+    const usa = Math.min(L(id), q); livre[id] = r4(livre[id] - usa);
+    const falta = r4(q - usa); if (!(falta > 1e-9)) return;
+    fazerOuComprar(p, falta, para, nivel);
+  }
+  function fazerOuComprar(p, falta, para, nivel) {
+    const id = p.id, r = recDoProd(id);
+    if (r && r.ativo !== false) {
+      const cs = consumoPorUn(r);
+      if (!cs) { problemas.add(p.nome); return; }
+      /* feito aqui: entra no plano de produção (o produto encomendado "feito na hora" sai na entrega) */
+      const x = produzir[id] || (produzir[id] = { p, r, q: 0, para: new Set(), top: false, naHora: false });
+      x.q = r4(x.q + falta); x.para.add(para); if (nivel === 0) { x.top = true; x.naHora = naVenda(p); }
+      cs.forEach(c => precisa(c.id, c.q * falta, para, nivel + 1));
+      return;
+    }
+    add(id, falta, para);
+  }
+  const encs = S.ped.filter(o => encPend(o) && o.enc.data <= ate);
+  encs.forEach(o => o.itens.forEach(i => { const p = P(i.p); precisa(i.p, i.q, p ? p.nome : "Produto", 0); }));
+  /* preparos primeiro: repor a massa consome ingredientes que também têm mínimo */
+  if (comMin) S.prod.filter(p => p.ativo !== false && ehInsumo(p) && (p.min || 0) > 0).sort((a, b) => !!recDoProd(b.id) - !!recDoProd(a.id)).forEach(p => {
+    const deficit = r4((p.min || 0) - L(p.id)); if (deficit > 1e-9) fazerOuComprar(p, deficit, "Estoque mínimo", 1); // preparo (massa, recheio) vira produção
+  });
+  const pedido = {};
+  S.comp.filter(c => c.status === "pedido").forEach(c => c.itens.forEach(i => { pedido[i.p] = r4((pedido[i.p] || 0) + i.q); }));
+  const linhas = Object.entries(comprar).map(([id, x]) => {
+    const p = P(id), ja = pedido[id] || 0, liq = r4(Math.max(0, x.q - ja)), pk = packDe(p);
+    let q = liq; if (q > 0) q = pk ? r4(Math.ceil(q / pk - 1e-9) * pk) : unDe(p) === "un" ? Math.ceil(q - 1e-9) : r4(q);
+    return { p, precisa: x.q, ja, q, emb: pk && q ? Math.round(q / pk) : 0, pk, custo: r2(q * (p.custo || 0)), para: [...x.para] };
+  }).filter(l => l.q > 0 || l.ja > 0).sort((a, b) => a.p.nome.localeCompare(b.p.nome));
+  return { encs, linhas, problemas: [...problemas], produzir: Object.values(produzir).map(x => Object.assign(x, { para: [...x.para] })) };
+}
+function lcGrupos(linhas) {
+  const g = {};
+  linhas.filter(l => l.q > 0).forEach(l => { const k = l.p.forn && Fo(l.p.forn) ? l.p.forn : "sem"; (g[k] = g[k] || []).push(l); });
+  return Object.entries(g).sort((a, b) => (a[0] === "sem") - (b[0] === "sem") || String(Fo(a[0]) ? Fo(a[0]).nome : "").localeCompare(Fo(b[0]) ? Fo(b[0]).nome : ""));
+}
+const lcQtd = l => `${dec(l.q)} ${unDe(l.p)}`;
+function lcRow(l) {
+  const est = r4(l.p.estoque || 0);
+  return `<div class="row"><span class="wmain"><b>${esc(l.p.nome)}</b><small>Precisa ${dec(l.precisa)} ${unDe(l.p)} · tem ${dec(est)}${l.ja ? ` · já pedido ${dec(l.ja)}` : ""}</small><small class="muted">Para: ${esc(l.para.join(", "))}</small></span>
+    <span class="right"><b>${l.q > 0 ? lcQtd(l) : "Já pedido"}</b>${l.emb ? `<small>${l.emb} × ${dec(l.pk)} ${unDe(l.p)}</small>` : ""}${l.q > 0 && can("custo") && l.custo ? `<small>${fmt(l.custo)}</small>` : ""}</span></div>`;
+}
+function lcTexto(linhas, forn) {
+  const e = S.emp ? S.emp.nome : APP;
+  return `*Lista de compras · ${e}*\n${forn ? `Fornecedor: ${forn.nome}\n` : ""}\n${linhas.map(l => `• ${lcQtd(l)}${l.emb ? ` (${l.emb} × ${dec(l.pk)} ${unDe(l.p)})` : ""} · ${l.p.nome}`).join("\n")}`;
+}
+const lcAte = () => addDays(today, Number(ui.lcDias || 7));
+function vListaCompras() {
+  const dias = String(ui.lcDias || 7), comMin = ui.lcMin !== false, ate = lcAte();
+  const R = listaCompras(ate, comMin), grupos = lcGrupos(R.linhas), aComprar = R.linhas.filter(l => l.q > 0), total = r2(sum(aComprar, l => l.custo));
+  let h = head("Lista de compras", "Ingredientes para as encomendas", { back: ui.stack.length > 0, action: aComprar.length ? `<button class="btn sm ghost" data-a="lcCopiar">${ico("copy", 16)}Copiar</button>` : "" }) + banners();
+  h += `<span class="lbl">Encomendas até</span><div class="chips">${[["1", "Amanhã"], ["7", "7 dias"], ["15", "15 dias"], ["30", "30 dias"]].map(([k, l]) => `<button class="chip" data-a="lcDias" data-id="${k}" aria-pressed="${dias === k}">${l}</button>`).join("")}</div>
+    <label class="toggle" style="margin-top:6px">Repor o estoque mínimo dos ingredientes<input type="checkbox" data-a="lcMin" ${comMin ? "checked" : ""}></label>`;
+  h += `<section class="card" style="margin-top:12px"><div class="stats"><div class="stat"><span>Encomendas até ${fd(ate)}</span><b>${R.encs.length}</b></div><div class="stat ${aComprar.length ? "warn" : "good"}"><span>Itens para comprar</span><b>${aComprar.length}</b></div>${can("custo") ? `<div class="stat"><span>Custo estimado</span><b>${fmt(total)}</b><small>pelo último custo</small></div>` : ""}</div></section>`;
+  if (R.problemas.length) h += `<div class="note warn" style="margin-top:12px">Receita incompleta, não entrou na conta: ${esc(R.problemas.join(", "))}. Abra a receita e confira os ingredientes e o rendimento.</div>`;
+  if (!aComprar.length) {
+    const jaPed = R.linhas.filter(l => l.ja > 0);
+    h += empty(R.encs.length ? "O estoque dá conta das encomendas." : "Nenhuma encomenda no período.", R.encs.length ? "Nada para comprar até essa data." : comMin ? "E os ingredientes estão acima do mínimo." : "");
+    if (jaPed.length) h += `<p class="sec">Já em pedidos de compra</p><div class="list">${jaPed.map(lcRow).join("")}</div>`;
+    return h;
+  }
+  grupos.forEach(([k, L]) => {
+    const fo = k === "sem" ? null : Fo(k), st = r2(sum(L, l => l.custo));
+    h += `<p class="sec">${esc(fo ? fo.nome : "Sem fornecedor definido")} <span class="count">${L.length}</span>${can("custo") && st ? ` · ${fmt(st)}` : ""}</p><div class="list">${L.map(lcRow).join("")}</div>
+      <div class="btns">${can("compras") ? `<button class="btn" data-a="lcPedido" data-id="${k}">Criar pedido de compra</button>` : ""}<a class="btn ghost" href="${waLink(fo && fo.fone, lcTexto(L, fo))}" target="_blank" rel="noopener">${ico("whats", 18)}WhatsApp</a></div>`;
+  });
+  const jaPed = R.linhas.filter(l => l.q <= 0 && l.ja > 0);
+  if (jaPed.length) h += `<p class="sec">Já em pedidos de compra</p><div class="list">${jaPed.map(lcRow).join("")}</div>`;
+  h += `<p class="hint" style="margin-top:14px">A conta usa as receitas, o estoque atual (pronto e de ingredientes) e desconta o que já está em pedidos de compra abertos.${S.prod.some(p => ehInsumo(p) && packDe(p)) ? "" : " Dica: no cadastro do ingrediente, preencha “Compra em embalagem de” para arredondar pela embalagem (ex.: lata de 395 g)."}</p>`;
+  return h;
+}
+/* Atalho em Encomendas e em Compras */
+function lcAtalho() {
+  if (!usaEnc() || !can("compras")) return "";
+  const n = listaCompras(lcAte(), ui.lcMin !== false).linhas.filter(l => l.q > 0).length;
+  return `<button class="row" data-a="go" data-r="listaCompras" style="margin-bottom:12px"><span class="avatar">${ico("cart", 18)}</span><span class="wmain"><b>Lista de compras</b><small class="${n ? "neg" : ""}">${n ? `${n} ${n === 1 ? "item para comprar" : "itens para comprar"} nos próximos ${ui.lcDias || 7} dias` : "Nada para comprar nos próximos dias"}</small></span>${ico("chev", 18)}</button>`;
+}
+
+const LC_A = {
+  lcDias: async (t, id) => { ui.lcDias = Number(id); render(); },
+  lcMin: async t => { ui.lcMin = t.checked; render(); },
+  lcCopiar: async () => { const R = listaCompras(lcAte(), ui.lcMin !== false); try { await navigator.clipboard.writeText(lcTexto(R.linhas.filter(l => l.q > 0), null)); toast("Lista copiada"); } catch (e) { toast("Não foi possível copiar neste aparelho"); } },
+  lcPedido: async (t, id) => {
+    const R = listaCompras(lcAte(), ui.lcMin !== false), g = lcGrupos(R.linhas).find(x => x[0] === id); if (!g) return;
+    ui.cdraft = { forn: id === "sem" ? null : id, itens: g[1].map(l => ({ p: l.p.id, q: dec(l.q), custo: money(l.p.custo || 0) })), prev: 2, cond: "0", obs: `Lista de compras das encomendas até ${fd(lcAte())}`, jaRecebido: false };
+    go("novaCompra");
+  }
+};
+Object.assign(ROUTES, { listaCompras: { v: vListaCompras, tab: "mais", p: "compras" } });
 
 boot();
