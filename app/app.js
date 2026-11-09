@@ -1352,7 +1352,8 @@ function draftList() {
   const list = S.prod.filter(p => p.ativo !== false && !ehInsumo(p) && (!q || norm([p.nome, p.uva, p.regiao, p.pais, p.ean].join(" ")).includes(q)));
   return list.map(p => {
     const est = d.tipo === "venda" ? dispVenda(p) : p.estoque, nv = d.tipo === "venda" && naVenda(p), n = d.qty[p.id] || 0, after = est - n, pr = precoDraft(p), orc = d.tipo === "orcamento", dcl = d.cli && d.cli !== "CF" ? Cl(d.cli) : null, esp = temEspecial(p, dcl) ? " · especial" : "";
-    let cls = "", t = `${est} ${nv ? "dá para fazer" : "disp."} · ${fmt(pr)}${esp}`;
+    const pronto = nv ? Math.max(0, Math.floor(p.estoque || 0)) : 0;
+    let cls = "", t = nv ? `${est} disp. (${pronto} pronto${pronto === 1 ? "" : "s"} + ${est - pronto} na hora) · ${fmt(pr)}${esp}` : `${est} disp. · ${fmt(pr)}${esp}`;
     if (est <= 0 && !orc) { cls = "bad"; t = nv ? "Faltam ingredientes" : "Sem estoque"; }
     else if (n > 0 && !orc && after <= (p.min || 0)) { cls = "warn"; t = `${n} × ${fmt(pr)} · restam ${after}, abaixo do mínimo`; }
     else if (n > 0) { cls = "good"; t = `${n} × ${fmt(pr)}${esp} = ${fmt(n * pr)}${orc ? "" : ` · restam ${after}`}`; }
@@ -2042,7 +2043,7 @@ const SH = {
     <div class="whead"><span class="bt lg">${bottle(p.tipo)}</span><div><p class="eyebrow">${esc(catLabel(p.tipo))}${p.produtor ? " · " + esc(p.produtor) : p.marca ? " · " + esc(p.marca) : ""}</p><h4>${esc(p.nome)}</h4><p class="eyebrow" style="margin:6px 0 0">${esc((ehVinho() ? [p.uva, p.safra && "Safra " + p.safra] : [p.ref && "ref. " + p.ref, p.material, p.medida]).filter(Boolean).join(" · "))}</p></div></div>
     <div class="stockbox ${st.cls}"><div><span>Em estoque</span><b>${p.estoque}</b><small>${ehVinho() ? `${Math.floor(Math.max(0, p.estoque) / 6)} cx + ${Math.max(0, p.estoque) % 6} un.` : "unidades"}</small></div><div><span>Mínimo</span><b>${p.min || 0}</b><small>un.</small></div><div><span>Consignado</span><b>${cc}</b><small>com clientes</small></div></div>
     ${ehFood() ? fichaFood(p) : ""}
-    ${can("ajuste") ? `<div class="actions3"><button data-a="sheet" data-k="entrada" data-id="${p.id}">+ Entrada</button><button data-a="sheet" data-k="baixa" data-id="${p.id}" ${p.estoque > 0 ? "" : "disabled"}>− Baixa</button><button data-a="sheet" data-k="contagem" data-id="${p.id}">Contagem</button></div>` : ""}
+    ${can("ajuste") ? `<div class="actions3">${ehFood() && recDoProd(p.id) ? `<button data-a="sheet" data-k="produzir" data-id="${recDoProd(p.id).id}">+ Produzir</button>` : `<button data-a="sheet" data-k="entrada" data-id="${p.id}">+ Entrada</button>`}<button data-a="sheet" data-k="baixa" data-id="${p.id}" ${p.estoque > 0 ? "" : "disabled"}>− Baixa</button><button data-a="sheet" data-k="contagem" data-id="${p.id}">Contagem</button></div>` : ""}
     <dl class="specs">${Object.entries(TABELAS).map(([k, l]) => `<div><dt>Preço ${l.toLowerCase()}</dt><dd>${fmt(preco(p, k))}</dd></div>`).join("")}${can("custo") ? `<div><dt>Custo médio</dt><dd>${fmt(p.custo)} · margem ${pct(m)}</dd></div>` : ""}
       ${ehVinho() ? `<div><dt>Origem</dt><dd>${esc([p.regiao, p.pais].filter(Boolean).join(", ") || "—")}</dd></div><div><dt>Volume</dt><dd>${p.vol ? p.vol + " ml" : "—"}${p.teor ? " · " + esc(p.teor) : ""}</dd></div>` : `<div><dt>Marca</dt><dd>${esc(p.marca || "—")}</dd></div><div><dt>${rubro() === "emporio" ? "Peso ou volume" : rubro() === "limpeza" ? "Tamanho ou conteúdo" : "Medida"}</dt><dd>${esc(p.medida || "—")}</dd></div>`}
       <div><dt>Vendidas em 90 dias</dt><dd>${vend90} un.</dd></div><div><dt>Localização</dt><dd>${esc(p.loc || "—")}</dd></div><div><dt>Código</dt><dd>${esc(p.ean || "—")}</dd></div><div><dt>Fornecedor</dt><dd>${esc(p.forn && Fo(p.forn) ? Fo(p.forn).nome : "—")}</dd></div>
@@ -2051,7 +2052,7 @@ const SH = {
     <p class="sec">Últimas movimentações<button class="btn sm line" style="margin-left:auto;text-transform:none;letter-spacing:0" data-a="go" data-r="movimentos" data-id="${p.id}">Ver todos</button></p><div class="list">${hist.map(e => `<div class="row"><span class="avatar sm">${initials(nomeDe(e.por))}</span><span class="wmain"><b style="font-weight:500">${esc(e.txt)}</b><small>${esc(nomeDe(e.por))} · ${fdy(e.ts)}</small></span></div>`).join("") || empty("Sem movimentações registradas.", "")}</div>`];
   },
   prodForm: s => [s.id ? "Editar produto" : "Novo produto", formHtml(SPEC.prod(s).filter(f => !(s.id && f.k === "estoque")), s.vals) + (s.id ? `<p class="hint">Para mudar a quantidade em estoque use Entrada, Baixa ou Contagem: assim fica registrado no histórico.</p>` : "") + `${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" data-a="saveProd">${s.id ? "Salvar alterações" : "Cadastrar produto"}</button>`],
-  entrada: s => { const p = P(s.id); return ["Entrada de estoque", `${prodMini(p)}
+  entrada: s => { const p = P(s.id); return ["Entrada de estoque", `${ehFood() && recDoProd(p.id) ? `<div class="note warn" style="margin-bottom:10px">Este produto tem receita: entrada manual <b>não baixa os ingredientes</b>. Se você confeccionou, use Produzir.<br><button class="btn sm" style="margin-top:8px" data-a="sheet" data-k="produzir" data-id="${recDoProd(p.id).id}">Produzir</button></div>` : ""}${prodMini(p)}
     <div class="seg" style="margin-top:14px"><button data-a="unit" data-id="un" aria-pressed="${s.unit === "un"}">Unidades</button><button data-a="unit" data-id="cx" aria-pressed="${s.unit === "cx"}">Caixas de 6</button></div>
     ${bigStepper(s.qty, 1, 9999)}<div id="shd">${SHD.entrada(s)}</div>
     ${can("custo") ? `<label class="field">Custo unitário desta entrada (opcional)<input data-f="custo" inputmode="decimal" value="${esc(s.vals.custo || "")}" placeholder="Atual ${money(p.custo)}"></label><p class="hint">Se informar, o custo médio do produto é recalculado.</p>` : ""}
@@ -3408,19 +3409,25 @@ function consumoPorUn(r) {
   return c.linhas.map(l => ({ id: l.p.id, q: l.consumo / c.util }));
 }
 /* Quanto dá para vender agora: estoque do produto, ou o que os ingredientes permitem fazer */
+function podeFazer(p) {
+  const cs = consumoPorUn(recDoProd(p.id)); if (!cs || !cs.length) return 0;
+  return Math.max(0, Math.floor(Math.min(...cs.map(c => { const i = P(c.id); return c.q > 0 ? ((i && i.estoque) || 0) / c.q + 1e-9 : Infinity; }))));
+}
+/* Na venda: primeiro sai o que já está pronto no estoque; o que faltar é feito na hora com os ingredientes */
 function dispVenda(p) {
   if (!p) return 0;
   if (!naVenda(p)) return p.estoque;
-  const cs = consumoPorUn(recDoProd(p.id)); if (!cs || !cs.length) return 0;
-  return Math.max(0, Math.floor(Math.min(...cs.map(c => { const i = P(c.id); return c.q > 0 ? ((i && i.estoque) || 0) / c.q + 1e-9 : Infinity; }))));
+  return Math.max(0, Math.floor(p.estoque || 0)) + podeFazer(p);
 }
 /* Troca itens vendidos {id, q} pelas baixas reais de estoque: produto de baixa na venda vira seus ingredientes */
 function baixaItens(itens) {
   const agg = {};
   itens.forEach(it => {
     const p = P(it.id), cs = naVenda(p) ? consumoPorUn(recDoProd(p.id)) : null;
-    if (cs) cs.forEach(c => { agg[c.id] = (agg[c.id] || 0) + c.q * it.q; });
-    else agg[it.id] = (agg[it.id] || 0) + it.q;
+    if (!cs) { agg[it.id] = (agg[it.id] || 0) + it.q; return; }
+    const pronto = Math.min(Math.max(0, Math.floor(p.estoque || 0)), it.q), fazer = it.q - pronto;
+    if (pronto > 0) agg[it.id] = (agg[it.id] || 0) + pronto;
+    if (fazer > 0) cs.forEach(c => { agg[c.id] = (agg[c.id] || 0) + c.q * fazer; });
   });
   return Object.entries(agg).filter(([id, q]) => q > 0 && P(id)).map(([id, q]) => ({ id, delta: -r4(q) }));
 }
@@ -3428,7 +3435,7 @@ function baixaItens(itens) {
 function fichaFood(p) {
   const r = recDoProd(p.id), usos = S.rec.filter(x => x.ativo !== false && (x.itens || []).some(i => i.p === p.id)).map(x => P(x.prod)).filter(Boolean);
   let h = `<div class="note" style="margin:10px 0">`;
-  if (r) { const c = custoReceita(r); h += `<b>Receita:</b> rende ${qtdTxt(c.util, unDe(p))}${can("custo") ? ` · custo ${fmt(c.unit)}/${unDe(p)}` : ""} · ${r.baixa === "venda" ? "ingredientes baixam na venda (feito na hora)" : "ingredientes baixam na produção"}${r.baixa === "venda" ? ` · dá para fazer ${dispVenda(p)} agora` : ""}<br><button class="btn sm line" style="margin-top:8px" data-a="go" data-r="receita" data-id="${r.id}">Ver receita</button>`; }
+  if (r) { const c = custoReceita(r); h += `<b>Receita:</b> rende ${qtdTxt(c.util, unDe(p))}${can("custo") ? ` · custo ${fmt(c.unit)}/${unDe(p)}` : ""} · ${r.baixa === "venda" ? `feito na hora: ${dec(r4(p.estoque || 0))} pronto(s) + ${podeFazer(p)} com os ingredientes` : `dá para produzir ${podeFazer(p)} com os ingredientes`}<br><button class="btn sm line" style="margin-top:8px" data-a="go" data-r="receita" data-id="${r.id}">Ver receita</button>`; }
   else if (!ehInsumo(p) && can("ajuste")) h += `Sem receita: vender este produto baixa só o estoque dele.<br><button class="btn sm line" style="margin-top:8px" data-a="recNova" data-id="${p.id}">Criar receita</button>`;
   else h += `Ingrediente${usos.length ? ` usado em: ${usos.map(x => esc(x.nome)).join(", ")}` : " ainda não usado em receitas"}.`;
   return h + `</div>`;
@@ -3481,8 +3488,8 @@ function vReceita() {
   if (!ui.calc || ui.calc.id !== r.id) ui.calc = { id: r.id, ind: "", taxa: "", marg: "30" };
   let h = head(p.nome, `Receita · rende ${qtdTxt(c.util, unDe(p))}`, { back: true, action: can("ajuste") ? `<button class="btn sm line" data-a="recEditar" data-id="${r.id}">Editar</button>` : "" }) + banners();
   h += `<div class="stats"><div class="stat"><span>Custo da receita</span><b>${cst ? fmt(c.total) : "—"}</b><small>${c.linhas.length} ingredientes</small></div><div class="stat good"><span>Custo por ${unDe(p)}</span><b>${cst ? fmt(c.unit) : "—"}</b><small>com perdas</small></div><div class="stat"><span>Em estoque</span><b>${dec(r4(p.estoque || 0))}</b><small>${unDe(p)}</small></div></div>`;
-  if (r.baixa === "venda") h += `<div class="note good" style="margin:12px 0">Ingredientes baixam na venda: cada ${unDe(p)} vendido desconta a receita proporcional. Com o estoque atual dá para fazer <b>${dispVenda(p)}</b>.</div>`;
-  else if (can("ajuste")) h += `<button class="btn block" style="margin:12px 0" data-a="sheet" data-k="produzir" data-id="${r.id}">${ico("plus", 18)}Registrar produção</button>`;
+  if (r.baixa === "venda") h += `<div class="note good" style="margin:12px 0 0">Feito na hora: a venda tira primeiro do estoque pronto (${dec(r4(p.estoque || 0))}) e o resto baixa os ingredientes. Dá para fazer mais <b>${podeFazer(p)}</b>.</div>`;
+  if (can("ajuste")) h += `<button class="btn block" style="margin:12px 0" data-a="sheet" data-k="produzir" data-id="${r.id}">${ico("plus", 18)}Registrar produção · dá para fazer ${podeFazer(p)}</button>`;
   h += `<p class="sec">Ingredientes</p><div class="list">${c.linhas.map(l => `<div class="row"><span class="wmain"><b>${esc(l.p ? l.p.nome : "Ingrediente removido")}</b><small>${qtdTxt(l.it.q, l.it.u)}${l.aprov < 100 ? ` · aproveitamento ${dec(l.aprov)}% → compra ${l.consumo == null ? "—" : qtdTxt(l.consumo, unDe(l.p))}` : ""}${recDoProd(l.it.p) ? " · sub-receita" : ""}${l.erro ? ` · <span class="neg">${esc(l.erro)}</span>` : ""}</small></span>${cst ? `<b>${fmt(l.custo)}</b>` : ""}</div>`).join("")}${c.extra ? `<div class="row"><span class="wmain"><b>Outros custos da receita</b><small>gás, energia, mão de obra</small></span>${cst ? `<b>${fmt(c.extra)}</b>` : ""}</div>` : ""}</div>`;
   h += `<p class="hint">Rende ${qtdTxt(c.rend, unDe(p))}${c.perda ? `, com ${dec(c.perda)}% de perda prevista: ${qtdTxt(c.util, unDe(p))} aproveitáveis` : ""}.${p.validade ? ` Validade: ${p.validade} dias.` : ""}${p.alerg ? ` Alérgenos: ${esc(p.alerg)}.` : ""}</p>`;
   if (r.obs) h += `<p class="sec">Modo de preparo</p><div class="card" style="white-space:pre-wrap">${esc(r.obs)}</div>`;
@@ -3517,8 +3524,8 @@ function vReceitaEdit() {
     <label class="field">Perda prevista (%)<input data-rd="perda" inputmode="decimal" value="${esc(d.perda)}" placeholder="0"></label></div>
     <label class="field">Outros custos por receita (${SIM()})<input data-rd="extra" inputmode="decimal" value="${esc(d.extra)}" placeholder="Gás, energia, mão de obra"></label>
     <p class="field" style="margin:10px 0 6px">Quando os ingredientes saem do estoque</p>
-    <div class="seg">${[["producao", "Na produção"], ["venda", "Na venda"]].map(([k, l]) => `<button data-a="recBaixa" data-id="${k}" aria-pressed="${d.baixa === k}">${l}</button>`).join("")}</div>
-    <p class="hint" style="margin:6px 2px 0">${d.baixa === "venda" ? "Feito na hora ou por encomenda: ao vender 5, o app baixa os ingredientes de 5. O produto não precisa ter estoque." : "Produz antes e vende do estoque: “Registrar produção” baixa os ingredientes e soma o produto; a venda baixa o produto pronto."}</p></section>`;
+    <div class="seg">${[["producao", "Ao produzir (estoque pronto)"], ["venda", "Ao vender (feito na hora)"]].map(([k, l]) => `<button data-a="recBaixa" data-id="${k}" aria-pressed="${d.baixa === k}">${l}</button>`).join("")}</div>
+    <p class="hint" style="margin:6px 2px 0">${d.baixa === "venda" ? "Feito na hora ou por encomenda: a venda tira primeiro o que já estiver pronto; o que faltar baixa os ingredientes na hora. Ex.: vender 5 tortas sem nenhuma pronta baixa os ingredientes de 5." : "Estoque em dois níveis: ao confeccionar, “Produzir” baixa os ingredientes e soma o produto pronto; a venda baixa só o produto pronto. Ex.: produzir 5 tortas baixa os ingredientes de 5."}</p></section>`;
   h += `<p class="sec">Ingredientes</p><div class="list">${d.itens.map((it, i) => { const p = P(it.p), us = p ? unCompat(unDe(p)) : UNIDADES;
     return `<div class="card ring" style="padding:10px 12px"><label class="field" style="margin:0 0 8px">Ingrediente<select data-ri="${i}" data-rk="p"><option value="">Escolha…</option>${ings.map(x => `<option value="${x.id}" ${it.p === x.id ? "selected" : ""}>${esc(x.nome)}${ehInsumo(x) ? "" : " · preparo"}</option>`).join("")}</select></label>
       <div class="grid3"><label class="field" style="margin:0">Quantidade<input data-ri="${i}" data-rk="q" inputmode="decimal" value="${esc(it.q)}"></label>
@@ -3556,9 +3563,9 @@ function temCiclo(prod, itens, vistos) {
 
 /* ---------- Produção ---------- */
 function prodPlano(s) {
-  const r = RC(s.id), p = r && P(r.prod), n = pnum(s.vals.n) || 0;
+  const r = RC(s.id), p = r && P(r.prod);
   if (!r || !p) return null;
-  const c = custoReceita(r), linhas = c.linhas.map(l => ({ ...l, precisa: l.consumo == null ? null : l.consumo * n }));
+  const c = custoReceita(r), n = c.util > 0 ? (pnum(s.vals.qtd) || 0) / c.util : 0, linhas = c.linhas.map(l => ({ ...l, precisa: l.consumo == null ? null : l.consumo * n }));
   const falta = linhas.filter(l => l.p && l.precisa != null && l.precisa > (l.p.estoque || 0) + 1e-9);
   const previsto = c.util * n, obtido = s.vals.obtido === "" || s.vals.obtido == null ? previsto : pnum(s.vals.obtido);
   return { r, p, c, n, linhas, falta, previsto, obtido, total: c.total * n };
@@ -3574,10 +3581,11 @@ function prodDet(s) {
 Object.assign(SH, {
   produzir: s => {
     const r = RC(s.id), p = r && P(r.prod); if (!p) return ["Produção", empty("Receita não encontrada.", "")];
-    if (s.vals.n == null) s.vals.n = "1";
-    return [`Produzir ${p.nome}`, `<div class="grid2"><label class="field">Quantas receitas<input data-f="n" inputmode="decimal" value="${esc(s.vals.n)}"></label>
-      <label class="field">Quantidade obtida (${unDe(p)})<input data-f="obtido" inputmode="decimal" value="${esc(s.vals.obtido || "")}" placeholder="igual ao previsto"></label></div>
-      <p class="hint" style="margin:0 0 8px">Se saiu menos que o previsto, informe o real: a diferença fica registrada como perda.</p>
+    const c = custoReceita(r);
+    if (s.vals.qtd == null) s.vals.qtd = dec(r4(c.util));
+    return [`Produzir ${p.nome}`, `<div class="grid2"><label class="field">Quantidade a produzir (${unDe(p)})<input data-f="qtd" inputmode="decimal" value="${esc(s.vals.qtd)}"></label>
+      <label class="field">Quantidade obtida (${unDe(p)})<input data-f="obtido" inputmode="decimal" value="${esc(s.vals.obtido || "")}" placeholder="igual à produzida"></label></div>
+      <p class="hint" style="margin:0 0 8px">A receita rende ${qtdTxt(c.util, unDe(p))}; os ingredientes são calculados na proporção. Com o estoque de hoje dá para fazer ${podeFazer(p)}. Se saiu menos, informe o obtido: a diferença fica como perda.</p>
       <div id="prodDet">${prodDet(s)}</div>${s.err ? `<div class="note warn">${esc(s.err)}</div>` : ""}
       <button class="btn block" style="margin-top:12px" data-a="doProduzir">Confirmar produção</button>`];
   }
@@ -3603,12 +3611,12 @@ const FOOD_A = {
   recUsarPreco: async (t, id) => { const r = RC(id), p = r && P(r.prod), v = Number(t.dataset.v); if (!p || !(v > 0)) return; if (await commit([Store.patch("prod", p.id, { precos: Object.assign({}, p.precos || {}, { varejo: v }) }), logMov("cadastro", `Preço de ${p.nome} → ${fmt(v)} (calculadora da receita)`, { ps: [p.id] })])) { render(); toast("Preço de varejo atualizado"); } },
   doProduzir: async (t, id, s) => {
     const pl = prodPlano(s); if (!pl) return;
-    s.err = !(pl.n > 0) ? "Informe quantas receitas, por exemplo 1 ou 0,5." : pl.linhas.some(l => l.erro) ? pl.linhas.find(l => l.erro).erro : pl.falta.length ? `Falta ${pl.falta.map(l => l.p.nome).join(", ")} no estoque.` : !(pl.obtido > 0) ? "Informe a quantidade obtida." : "";
+    s.err = !(pl.n > 0) ? "Informe a quantidade a produzir, por exemplo 5." : pl.linhas.some(l => l.erro) ? pl.linhas.find(l => l.erro).erro : pl.falta.length ? `Falta ${pl.falta.map(l => l.p.nome).join(", ")} no estoque.` : !(pl.obtido > 0) ? "Informe a quantidade obtida." : "";
     if (s.err) { renderSheet(); return; }
     const ch = pl.linhas.filter(l => l.p && l.precisa > 0).map(l => ({ id: l.p.id, delta: -r4(l.precisa) }));
     ch.push({ id: pl.p.id, delta: r4(pl.obtido), custoEntrada: r4(pl.total / pl.obtido) });
     const mv = mvDe(ch), perdaReal = pl.previsto > 0 ? Math.max(0, (1 - pl.obtido / pl.previsto) * 100) : 0;
-    const log = logMov("estoque", `Produção · ${pl.p.nome} · ${qtdTxt(pl.obtido, unDe(pl.p))} (${dec(pl.n)} receita${pl.n === 1 ? "" : "s"})${perdaReal >= 0.5 ? ` · perda extra ${dec(Math.round(perdaReal))}%` : ""}`, { ps: ch.map(c => c.id), tm: "producao", mv, ref: pl.r.id, previsto: r4(pl.previsto), obtido: r4(pl.obtido), custo: r2(pl.total) });
+    const log = logMov("estoque", `Produção · ${pl.p.nome} · ${qtdTxt(pl.obtido, unDe(pl.p))}${perdaReal >= 0.5 ? ` · perda extra ${dec(Math.round(perdaReal))}%` : ""}`, { ps: ch.map(c => c.id), tm: "producao", mv, ref: pl.r.id, previsto: r4(pl.previsto), obtido: r4(pl.obtido), custo: r2(pl.total) });
     if (await commit([Store.stock(ch), log])) { closeSheet(); render(); toast(`Produção registrada: ${qtdTxt(pl.obtido, unDe(pl.p))}`); }
   }
 };
@@ -3625,7 +3633,7 @@ document.addEventListener("input", e => {
   if (d.rd && ui.rdraft) { ui.rdraft[d.rd] = t.value; const el = $("rdres"); if (el) el.innerHTML = rdResumo(); return; }
   if (d.ri != null && ui.rdraft) { const it = ui.rdraft.itens[Number(d.ri)]; it[d.rk] = t.value; const el = $("rdres"); if (el) el.innerHTML = rdResumo(); return; }
   if (d.calc && ui.calc) { ui.calc[d.calc] = t.value; const r = RC(ui.calc.id), el = $("calcRes"); if (r && el) el.innerHTML = calcRes(r); return; }
-  if (ui.sheet && ui.sheet.k === "produzir" && (d.f === "n" || d.f === "obtido")) { const el = $("prodDet"); if (el) el.innerHTML = prodDet(ui.sheet); }
+  if (ui.sheet && ui.sheet.k === "produzir" && (d.f === "qtd" || d.f === "obtido")) { const el = $("prodDet"); if (el) el.innerHTML = prodDet(ui.sheet); }
 });
 document.addEventListener("change", e => {
   const t = e.target, d = t.dataset;
