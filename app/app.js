@@ -1150,7 +1150,7 @@ function vInicio() {
   const hr = new Date().getHours(), hello = hr < 12 ? "Bom dia" : hr < 18 ? "Boa tarde" : "Boa noite";
   let h = head(`${hello}, ${esc(firstName(m.nome))}`, `${esc(S.emp ? S.emp.nome : "")}${MODE === "demo" ? '<span class="demo-tag">DEMO</span>' : ""}`,
     { action: `<div class="hdr-actions"><button class="iconbtn sm" data-a="toggleTheme" aria-label="Alternar tema claro e escuro">${ico(isDark() ? "sun" : "moon", 18)}</button><button class="me" data-a="tab" data-r="mais"><span class="avatar sm">${initials(m.nome)}</span>${PAPEIS[m.papel]}</button></div>` });
-  h += banners();
+  h += banners() + lojaAviso();
   const D = DESK(); let hero = "", kpi = "", chart = "";
   const rMes = periodo("mes"), rAnt = periodo("mesAnt");
   if (can("vendas")) {
@@ -1239,7 +1239,7 @@ function vSemAcesso() {
 function pedRow(o) {
   const c = pedCalc(o), sym = { venda: "V", consig: "C", orcamento: "O" }[o.tipo], cls = { venda: "acc", consig: "warn", orcamento: "info" }[o.tipo];
   return `<button class="row ${o.status === "cancelado" ? "off" : ""}" data-a="go" data-r="pedido" data-id="${o.id}"><span class="dot ${cls}">${sym}</span>
-    <span class="wmain"><b>#${o.num} · ${esc(cliNome(o))}</b><small>${encPend(o) ? `<span class="${o.enc.data < today ? "neg" : ""}">Encomenda · ${encQuando(o.enc)}</span>` : `${fd(o.data)} · ${tipoPed(o.tipo)}`} · ${c.qtd} un. · ${esc(firstName(nomeDe(o.vendedor)))}</small></span>
+    <span class="wmain"><b>#${o.num} · ${esc(cliNome(o))}</b><small>${o.online && o.tipo === "orcamento" ? `<span class="${o.online.status === "novo" ? "neg" : ""}">Loja online · ${o.online.status === "novo" ? "a confirmar" : o.online.status === "aceito" ? "pedido aceito" : "pedido recusado"} · ${o.enc ? fd(o.enc.data) : ""}</span>` : encPend(o) ? `<span class="${o.enc.data < today ? "neg" : ""}">Encomenda · ${encQuando(o.enc)}</span>` : `${fd(o.data)} · ${tipoPed(o.tipo)}`} · ${c.qtd} un. · ${esc(firstName(nomeDe(o.vendedor)))}</small></span>
     <span class="right"><b>${fmt(c.aberto > 0.004 ? c.aberto : c.total)}</b>${statusPed(c)}</span></button>`;
 }
 
@@ -1299,7 +1299,7 @@ function itensTable(o, ativo) {
 function vPedido() {
   const o = Pe(ui.id); if (!o) return head("Pedido", "", { back: true }) + empty("Carregando…", "");
   const c = pedCalc(o), cl = Cl(o.cli), ativo = o.status !== "cancelado";
-  let h = head(`${o.enc ? "Encomenda" : tipoPed(o.tipo)} #${o.num}`, `${fdy(o.data)} · ${esc(nomeDe(o.vendedor))}`, { back: true, sm: true, action: statusPed(c) }) + banners();
+  let h = head(`${o.online && o.tipo === "orcamento" ? "Pedido da loja" : o.enc ? "Encomenda" : tipoPed(o.tipo)} #${o.num}`, `${fdy(o.data)} · ${esc(nomeDe(o.vendedor))}`, { back: true, sm: true, action: statusPed(c) }) + banners();
   const i0 = h.length; // no computador: itens e notas à esquerda; totais, parcelas e ações à direita
   h += o.cli ? `<button class="row" data-a="go" data-r="cliente" data-id="${o.cli}"><span class="avatar">${initials(cliNome(o))}</span><span class="wmain"><b>${esc(cliNome(o))}</b><small>${esc(cl ? cl.tipo : "")} · tabela ${TABELAS[o.tabela] || "Varejo"}</small></span>${ico("chev", 18)}</button>`
     : `<div class="row"><span class="avatar">CF</span><span class="wmain"><b>Consumidor final</b><small>Venda de balcão${o.consumidor && o.consumidor.cpf ? " · CPF " + esc(o.consumidor.cpf) : ""}</small></span></div>`;
@@ -1310,7 +1310,8 @@ function vPedido() {
       ${l > 0 && ativo && can("vendas") ? `<span class="mini"><button class="btn sm" data-a="consig" data-m="vend" data-id="${o.id}" data-x="${ix}">Vendeu</button><button class="btn sm ghost" data-a="consig" data-m="dev" data-id="${o.id}" data-x="${ix}">Devolveu</button></span>` : ""}</span>
       <span class="right"><b>${l}</b><small>com o cliente</small></span></div>`;
   }).join("")}</div>`}`;
-  if (o.enc) h += encCard(o);
+  if (o.online && o.tipo === "orcamento") h += lojaPedCard(o);
+  else if (o.enc) h += encCard(o);
   const i1 = h.length;
   h += `<div class="card" style="margin-top:12px">${o.tipo === "consig" ? `<div class="tot muted"><span>Valor entregue</span><span>${fmt(sum(o.itens, i => i.q * i.preco))}</span></div>${c.iva ? `<div class="tot muted"><span>${ivaLabel(o.iva)} sobre o vendido</span><span>${fmt(c.iva)}</span></div>` : ""}<div class="tot"><span>Faturado (vendido)</span><span>${fmt(c.total)}</span></div>` :
     `<div class="tot muted"><span>Subtotal</span><span>${fmt(c.bruto)}</span></div>${c.desc ? `<div class="tot muted"><span>Desconto</span><span>−${fmt(c.desc)}</span></div>` : ""}${c.iva ? `<div class="tot muted"><span>${ivaLabel(o.iva)}</span><span>${fmt(c.iva)}</span></div>` : ""}<div class="tot"><span>Total</span><span>${fmt(c.total)}</span></div>`}
@@ -1323,7 +1324,7 @@ function vPedido() {
   if (o.obs) h += `<p class="sec">Observações</p><div class="card">${esc(o.obs)}</div>`;
   const i3 = h.length;
   const txt = pedText(o), b = [];
-  if (o.tipo === "orcamento" && o.status === "orcamento" && can("vendas")) b.push(`<button class="btn block" data-a="converter" data-id="${o.id}">Converter em pedido</button>`);
+  if (o.tipo === "orcamento" && o.status === "orcamento" && !o.online && can("vendas")) b.push(`<button class="btn block" data-a="converter" data-id="${o.id}">Converter em pedido</button>`);
   if (c.aberto > 0.004 && can("receber")) b.push(`<button class="btn block" data-a="pay" data-src="ped" data-id="${o.id}">Registrar recebimento</button>`);
   h += b.join("");
   h += `<div class="btns"><a class="btn ghost" href="${waLink(cl && cl.fone, txt)}" target="_blank" rel="noopener">${ico("whats", 18)}WhatsApp</a><button class="btn ghost" data-a="copyTxt" data-id="${o.id}">${ico("copy", 18)}Copiar texto</button></div>`;
@@ -1497,7 +1498,7 @@ function vMais() {
   if (fis) h += `<p class="sec">Fiscal</p><div class="menu">${fis}</div>`;
   h += `<p class="sec">Aparência</p><div class="seg theme-seg">${[["light", "Claro"], ["dark", "Escuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-a="tema" data-id="${k}" aria-pressed="${temaAtual() === k}">${l}</button>`).join("")}</div>`;
   h += `<p class="sec">Idioma</p>${idiomaSeg()}`;
-  h += `<p class="sec">Empresa</p><div class="menu">${it("equipe", "users", "Equipe e permissões", "Usuários, papéis e código de acesso", true)}${it("empresa", "building", "Dados da empresa", "Cadastro, backup e integrações", can("empresa"))}${it("assinatura", "wallet", "Assinatura", "Plano, mensalidade e pagamento por Pix", can("empresa") && MODE === "supa")}${it("atividade", "list", "Atividade", "Quem fez o quê e quando", can("atividade"))}${it("importar", "upload", "Importar planilha", "Produtos e clientes a partir de CSV", can("ajuste") || can("clientes"))}</div>`;
+  h += `<p class="sec">Empresa</p><div class="menu">${it("equipe", "users", "Equipe e permissões", "Usuários, papéis e código de acesso", true)}${it("empresa", "building", "Dados da empresa", "Cadastro, backup e integrações", can("empresa"))}${it("assinatura", "wallet", "Assinatura", "Plano, mensalidade e pagamento por Pix", can("empresa") && MODE === "supa")}${it("loja", "share", "Loja online", "Seus produtos na internet e pedidos dos clientes", (can("empresa") || can("vendas")) && MODE === "supa")}${it("atividade", "list", "Atividade", "Quem fez o quê e quando", can("atividade"))}${it("importar", "upload", "Importar planilha", "Produtos e clientes a partir de CSV", can("ajuste") || can("clientes"))}</div>`;
   h += `<p class="sec">Conta</p><div class="menu">${MODE === "supa" ? it("conta", "user", "Minha conta", "E-mail, sair e exclusão da conta", true) : ""}${it("termos", "file", "Termos e privacidade", "Como tratamos seus dados (LGPD)", true)}</div>`;
   h += `<div class="menu" style="margin-top:16px"><button data-a="sair">${ico("logout")}<span class="wmain"><b>${MODE === "demo" ? "Sair da demonstração" : "Trocar de empresa"}</b><small>${MODE === "demo" ? "Volta para a tela inicial" : "Ver suas empresas ou entrar em outra"}</small></span></button>${MODE === "demo" ? `<button data-a="resetDemo">${ico("upload")}<span class="wmain"><b>Restaurar dados de exemplo</b><small>Desfaz tudo o que foi alterado na demonstração</small></span></button>` : ""}</div>`;
   return h;
@@ -1951,7 +1952,7 @@ function sideNav() {
     ${grp("Comercial", [it("vendas", "order", "Vendas", can("vendas")), it("caixa", "cash", "Caixa", can("receber")), it("encomendas", "cal", "Encomendas", usaEnc() && can("vendas")), it("clientes", "users", "Clientes", can("clientes")), can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span>Catálogo</span></button>` : ""])}
     ${grp("Estoque", [it("estoque", "bottle", "Produtos", can("estoque")), it("compras", "cart", "Compras", can("compras")), it("listaCompras", "cart", "Lista de compras", usaEnc() && can("compras")), it("fornecedores", "truck", "Fornecedores", can("fornecedores"))])}
     ${grp("Gestão", [it("financeiro", "wallet", "Financeiro", can("receber") || can("pagar")), it("relatorios", "chart", "Relatórios", can("relatorios")), temFiscal() ? it("notas", "receipt", "Notas fiscais", can("fiscal")) : ""])}
-    ${grp("Empresa", [it("equipe", "users", "Equipe"), it("empresa", "building", "Dados da empresa", can("empresa")), it("assinatura", "wallet", "Assinatura", can("empresa") && MODE === "supa"), it("atividade", "activity", "Atividade", can("atividade"))])}</div>
+    ${grp("Empresa", [it("equipe", "users", "Equipe"), it("empresa", "building", "Dados da empresa", can("empresa")), it("assinatura", "wallet", "Assinatura", can("empresa") && MODE === "supa"), it("loja", "share", "Loja online", (can("empresa") || can("vendas")) && MODE === "supa"), it("atividade", "activity", "Atividade", can("atividade"))])}</div>
     <button class="sn-me" data-a="tab" data-r="mais" aria-current="${cur === "mais" ? "page" : "false"}"><span class="avatar sm">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${esc(S.emp ? S.emp.nome : "")}</small></span>${ico("grid", 18)}</button>`;
 }
 function render() {
@@ -2288,7 +2289,7 @@ async function confirmPedido0() {
   if (chV.length) ws.push(Store.stock(chV));
   ws.push(logMov(d.tipo === "consig" ? "consig" : "venda", `${enc ? "Encomenda" : tipoPed(d.tipo)} #${numero} · ${cl.nome} · ${fmt(d.tipo === "consig" ? t.bruto : t.total)}${enc ? ` · ${encModo(o.enc).toLowerCase()} ${fdy(o.enc.data)}${o.enc.hora ? " " + o.enc.hora : ""}` : ""}`, { ref: id, ps: [...new Set([...itens.map(i => i.p), ...chV.map(c => c.id)])], ...(chV.length ? { tm: d.tipo === "consig" ? "consig" : "venda", mv: mvV } : { tm: "outro" }) }));
   if (o.pag.length) ws.push(logMov("fin", `${enc ? "Sinal" : "Recebimento"} ${fmt(o.pag[0].valor)} · ${cl.nome} · pedido #${numero} · ${d.forma}`, { ref: id }));
-  if (d.fromOrc) { const orc = Pe(d.fromOrc); if (orc) ws.push(Store.put("ped", orc.id, Object.assign({}, orc, { status: "convertido", convertidoEm: id }))); }
+  if (d.fromOrc) { const orc = Pe(d.fromOrc); if (orc) ws.push(Store.put("ped", orc.id, Object.assign({}, orc, { status: "convertido", convertidoEm: id }, orc.online ? { online: Object.assign({}, orc.online, { status: "aceito" }) } : {}))); }
   if (!(await commit(ws))) return;
   ui.draft = null; ui.stack = [{ route: "vendas", id: null }]; ui.route = "pedido"; ui.id = id; render(); window.scrollTo(0, 0);
   toast(d.tipo === "orcamento" ? `Orçamento #${numero} salvo` : enc ? `Encomenda #${numero} agendada · ${encQuando(o.enc)}` : `Pedido #${numero} confirmado · estoque atualizado`);
@@ -2761,7 +2762,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "backup": saveFile(`backup-${norm(S.emp ? S.emp.nome : "decanta").replace(/\s+/g, "-")}-${today}.json`, JSON.stringify({ app: APP, exportadoEm: isoT(new Date()), empresa: S.emp, produtos: S.prod, clientes: S.cli, fornecedores: S.forn, pedidos: S.ped, compras: S.comp, financeiro: S.fin, equipe: S.mem, atividade: S.mov }, null, 2)); break;
     case "modeloCSV": { const m = impModelo(ui.impTipo); saveFile(`modelo-${ui.impTipo === "prod" ? "produtos" : "clientes"}.csv`, "﻿" + m.cols.join(";") + "\n" + m.ex + "\n"); break; }
     case "importar": importar(); break;
-    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]) || (typeof ENC_A !== "undefined" && ENC_A[a]) || (typeof LC_A !== "undefined" && LC_A[a]) || (typeof ASS_A !== "undefined" && ASS_A[a]); if (f) await f(t, id, s); }
+    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]) || (typeof ENC_A !== "undefined" && ENC_A[a]) || (typeof LC_A !== "undefined" && LC_A[a]) || (typeof ASS_A !== "undefined" && ASS_A[a]) || (typeof LOJA_A !== "undefined" && LOJA_A[a]); if (f) await f(t, id, s); }
   }
 }));
 document.addEventListener("input", e => {
@@ -3928,7 +3929,7 @@ document.addEventListener("input", e => {
    (o.baixaPend): o produto ainda vai ser feito. Na entrega, baixa o que está pronto e, em receita "ao vender",
    os ingredientes do que faltar. A parcela vence no dia da entrega: o sinal entra como recebimento. */
 const usaEnc = () => ehFood();
-const encPend = o => !!(o && o.enc && !o.enc.entregue && o.status !== "cancelado");
+const encPend = o => !!(o && o.enc && !o.enc.entregue && o.status !== "cancelado" && o.tipo !== "orcamento"); // pedido da loja ainda não confirmado não entra na agenda
 const ehEncDraft = () => !!(ui.draft && ui.draft.tipo === "venda" && ui.draft.enc);
 function draftMax(p) { const d = ui.draft; return d.tipo === "orcamento" || ehEncDraft() ? 9999 : d.tipo === "venda" ? dispVenda(p) : p.estoque; }
 const DIAS_SEM = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
@@ -4328,5 +4329,242 @@ const ASS_A = {
 
 Object.assign(ROUTES, { assinatura: { v: vAssinatura, tab: "mais", p: "empresa" } });
 document.addEventListener("visibilitychange", () => { if (!document.hidden && ui.route === "assinatura" && ASS.espera) assCarregar(true); });
+
+/* ---- loja.js ---- */
+/* ---- Loja online: saus360.com.br/loja/<endereço> ----
+   A empresa escolhe os produtos, põe foto e descrição e publica. O cliente final faz o pedido na loja;
+   o pedido chega aqui como "Pedido da loja" (um orçamento com os dados do cliente) para confirmar ou recusar.
+   Sem pagamento online: o pagamento é combinado com o cliente (WhatsApp, Pix, na retirada). */
+const LOJA_HOST = "saus360.com.br/loja/";
+const LJ = { eid: null, d: undefined, load: false, erro: "" };
+const slugify = s => norm(s).replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+const lojaLink = l => "https://" + LOJA_HOST + l.slug;
+const lojaNovos = () => S.ped.filter(o => o.online && o.online.status === "novo" && o.status === "orcamento");
+const lojaCandidatos = () => S.prod.filter(p => p.ativo !== false && !ehInsumo(p));
+const lojaPub = p => !!p.loja && preco(p, "varejo") > 0;
+
+async function lojaCarregar() {
+  if (MODE !== "supa") return;
+  const eid = EID; LJ.eid = eid; LJ.load = true; LJ.erro = "";
+  try {
+    const { data, error } = await SB.from("lojas").select("*").eq("empresa_id", eid).maybeSingle();
+    if (error) throw error;
+    if (eid !== EID) return;
+    LJ.d = data || null;
+  } catch (e) { LJ.erro = e.message || "Não foi possível carregar a loja."; }
+  LJ.load = false; if (ui.route === "loja") render();
+}
+function lojaFotoHtml(p, cls) {
+  return p.foto ? `<img class="${cls}" src="${esc(p.foto)}" alt="" loading="lazy">` : `<span class="${cls} semfoto">${bottle(p.tipo)}</span>`;
+}
+
+function vLoja() {
+  let h = head("Loja online", "Seus produtos na internet", { back: true });
+  if (MODE !== "supa") return h + empty("Disponível na versão online.", "Entre com sua conta para criar a loja.");
+  if (LJ.eid !== EID) { LJ.d = undefined; setTimeout(lojaCarregar, 0); }
+  const novos = lojaNovos();
+  if (novos.length && can("vendas")) h += `<p class="sec">Pedidos para confirmar <span class="count">${novos.length}</span></p><div class="list">${novos.map(pedRow).join("")}</div>`;
+  if (LJ.erro && LJ.d === undefined) return h + `<div class="note bad">${esc(LJ.erro)}</div>`;
+  if (LJ.d === undefined) return h + `<div class="card"><small class="muted">Carregando…</small></div>`;
+  const l = LJ.d, adm = can("empresa");
+  if (!l) {
+    h += `<section class="card lojaintro"><h3>Venda pela internet sem complicação</h3>
+      <p class="hint">Seus clientes abrem um link, escolhem os doces, marcam o dia de retirada ou entrega e mandam o pedido. Ele chega aqui no ${APP} para você confirmar, e o cliente fala com você pelo WhatsApp.</p>
+      <ul class="lojapassos"><li>Escolha os produtos e coloque fotos</li><li>Divulgue o link no Instagram e no WhatsApp</li><li>Confirme os pedidos com um toque: viram encomendas</li></ul>
+      ${adm ? `<button class="btn block" data-a="sheet" data-k="lojaCfg">Criar minha loja</button>` : `<p class="hint">Peça ao administrador da empresa para criar a loja.</p>`}</section>`;
+    return h;
+  }
+  const pubs = lojaCandidatos().filter(lojaPub), semFoto = pubs.filter(p => !p.foto).length;
+  h += `<section class="card lojastatus"><div class="kv" style="padding-top:0"><span>Sua loja</span><span class="pill ${l.ativa ? "ok" : "mute"}">${l.ativa ? "No ar" : "Pausada"}</span></div>
+    <a class="lojalink" href="${esc(lojaLink(l))}" target="_blank" rel="noopener">${esc(LOJA_HOST + l.slug)}</a>
+    <div class="btns" style="margin-top:10px"><button class="btn sm" data-a="lojaCopiar">${ico("copy", 16)}Copiar link</button><a class="btn sm line" href="${esc(waLink("", lojaConvite(l)))}" target="_blank" rel="noopener">${ico("whats", 16)}Divulgar</a><a class="btn sm ghost" href="${esc(lojaLink(l))}" target="_blank" rel="noopener">Abrir</a></div>
+    ${!pubs.length ? `<div class="note warn" style="margin-top:10px">Nenhum produto na loja ainda. Escolha abaixo o que aparece para os clientes.</div>` : semFoto ? `<p class="hint" style="margin:10px 0 0">${semFoto} ${semFoto === 1 ? "produto está" : "produtos estão"} sem foto. Produto com foto vende mais.</p>` : ""}
+    ${adm ? `<button class="btn ghost block" style="margin-top:8px" data-a="lojaAtivar">${l.ativa ? "Pausar a loja" : "Colocar a loja no ar"}</button>` : ""}</section>`;
+  const cands = lojaCandidatos().sort((a, b) => (lojaPub(b) - lojaPub(a)) || a.nome.localeCompare(b.nome));
+  h += `<p class="sec">Produtos na loja <span class="count">${pubs.length} de ${cands.length}</span></p>`;
+  h += cands.length ? `<div class="list">${cands.map(p => `<button class="row" data-a="sheet" data-k="lojaProd" data-id="${p.id}">${lojaFotoHtml(p, "lojathumb")}
+      <span class="wmain"><b>${esc(p.nome)}</b><small>${preco(p, "varejo") > 0 ? fmt(preco(p, "varejo")) : "Sem preço de varejo"}${p.lojaDesc ? " · " + esc(String(p.lojaDesc).slice(0, 50)) : ""}</small></span>
+      <span class="right">${lojaPub(p) ? `<span class="pill ok">Na loja</span>` : p.loja ? `<span class="pill warn">Sem preço</span>` : `<span class="pill mute">Fora</span>`}</span></button>`).join("")}</div>`
+    : empty("Nenhum produto de venda.", "Cadastre os produtos que você vende para colocá-los na loja.");
+  const dd = l.dados || {};
+  h += `<p class="sec">Como funciona a sua loja</p><section class="card">
+    <div class="kv" style="padding-top:0"><span>Retirada</span><b>${dd.retirada !== false ? "Sim" + (dd.endereco ? " · " + esc(dd.endereco) : "") : "Não"}</b></div>
+    <div class="kv"><span>Entrega</span><b>${dd.entrega ? "Sim" + (Number(dd.taxa) > 0 ? " · taxa " + fmt(Number(dd.taxa)) : " · sem taxa") : "Não"}</b></div>
+    <div class="kv"><span>Antecedência</span><b>${Number(dd.antecedencia ?? 1) === 0 ? "Pedidos para o mesmo dia" : `${Number(dd.antecedencia ?? 1)} ${Number(dd.antecedencia ?? 1) === 1 ? "dia" : "dias"}`}</b></div>
+    ${Number(dd.minimo) > 0 ? `<div class="kv"><span>Pedido mínimo</span><b>${fmt(Number(dd.minimo))}</b></div>` : ""}
+    <div class="kv"><span>WhatsApp</span><b>${esc(dd.whatsapp || "—")}</b></div>
+    ${adm ? `<button class="btn line block" style="margin-top:10px" data-a="sheet" data-k="lojaCfg">Editar configurações</button>` : ""}</section>
+    <p class="hint" style="margin-top:12px">O pedido da loja não baixa o estoque nem entra no financeiro até você confirmar. O pagamento você combina com o cliente.</p>`;
+  return h;
+}
+const lojaConvite = l => `Agora você pode fazer seu pedido pela nossa loja online: ${lojaLink(l)}\nEscolha os produtos, a data de retirada${(l.dados || {}).entrega ? " ou entrega" : ""} e mande o pedido. 😊`;
+
+/* Card do pedido da loja dentro do pedido */
+function lojaPedCard(o) {
+  const on = o.online || {}, e = o.enc || {}, st = on.status, conv = o.convertidoEm && Pe(o.convertidoEm);
+  const msgCli = st === "recusado" ? `Olá, ${firstName(on.nome)}! Aqui é da ${S.emp.nome}. Infelizmente não conseguimos atender o seu pedido #${o.num}${on.motivo ? ": " + on.motivo : ""}. Se quiser, podemos combinar outra data.`
+    : `Olá, ${firstName(on.nome)}! Aqui é da ${S.emp.nome}. Recebemos seu pedido #${o.num} pela loja online.`;
+  return `<section class="card ${st === "novo" ? "ring" : ""}" style="margin-top:12px"><span class="lbl">Pedido da loja online</span>
+    <div class="kv"><span>Situação</span><span class="pill ${st === "novo" ? "warn" : st === "aceito" ? "ok" : "bad"}">${st === "novo" ? "Aguardando você" : st === "aceito" ? "Aceito" : "Recusado"}</span></div>
+    <div class="kv"><span>Cliente</span><b>${esc(on.nome || "")}</b></div>
+    <div class="kv"><span>WhatsApp</span><b>${esc(on.fone || "")}</b></div>
+    <div class="kv"><span>${e.modo === "entrega" ? "Entrega" : "Retirada"}</span><b>${fdy(e.data)}${e.hora ? " · " + esc(e.hora) : ""}</b></div>
+    ${e.end ? `<div class="kv"><span>Endereço</span><b>${esc(e.end)}</b></div>` : ""}
+    ${Number(on.taxa) > 0 ? `<div class="kv"><span>Taxa de entrega</span><b>${fmt(on.taxa)}</b></div>` : ""}
+    <div class="kv"><span>Total para o cliente</span><b>${fmt(on.total || pedCalc(o).total)}</b></div>
+    ${on.motivo ? `<div class="kv"><span>Motivo</span><b>${esc(on.motivo)}</b></div>` : ""}
+    ${conv ? `<button class="btn line block" style="margin-top:10px" data-a="go" data-r="pedido" data-id="${conv.id}">Ver ${conv.enc ? "encomenda" : "pedido"} #${conv.num}</button>` : ""}
+    ${st === "novo" && can("vendas") ? `<button class="btn block" style="margin-top:10px" data-a="lojaAceitar" data-id="${o.id}">${usaEnc() ? "Aceitar e agendar a encomenda" : "Aceitar e criar o pedido"}</button>
+      <button class="btn ghost block" style="margin-top:6px" data-a="sheet" data-k="lojaRecusar" data-id="${o.id}">Recusar</button>` : ""}
+    <a class="btn line block" style="margin-top:6px" href="${esc(waLink(on.fone, msgCli))}" target="_blank" rel="noopener">${ico("whats", 18)}${st === "recusado" ? "Avisar o cliente" : "Falar com o cliente"}</a>
+    ${st === "novo" ? `<p class="hint" style="margin:8px 0 0">Ao aceitar, o pedido vira ${usaEnc() ? "encomenda na agenda" : "pedido"}: aí você pode registrar o sinal e o estoque baixa na entrega.${Number(on.taxa) > 0 ? " A taxa de entrega fica na observação." : ""}</p>` : ""}
+  </section>`;
+}
+function lojaAviso() {
+  const n = lojaNovos().length;
+  return n && can("vendas") ? `<div class="banner info lojaaviso"><span><b>${n} ${n === 1 ? "pedido novo" : "pedidos novos"}</b> da loja online para confirmar.</span><button class="btn sm" data-a="go" data-r="loja">Ver</button></div>` : "";
+}
+
+/* Fotos: reduz no aparelho (até 1000 px) e envia para o armazenamento público da loja */
+function reduzirImg(file, max, q) {
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement("canvas");
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); c.toBlob(b => b ? res(b) : rej(new Error("Imagem inválida")), "image/jpeg", q);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Imagem inválida")); };
+    img.src = url;
+  });
+}
+async function lojaFoto(pid, file) {
+  if (!file) return;
+  if (!/^image\//.test(file.type || "image/")) { toast("Escolha uma imagem (JPG ou PNG)."); return; }
+  if (!SB) { toast("Disponível na versão online."); return; }
+  const s = ui.sheet; if (s) { s.enviando = true; renderSheet(); }
+  try {
+    const blob = await reduzirImg(file, 1000, 0.82);
+    const path = `${EID}/${pid}-${Date.now().toString(36)}.jpg`;
+    const { error } = await SB.storage.from("produtos").upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000", upsert: false });
+    if (error) throw error;
+    const url = SB.storage.from("produtos").getPublicUrl(path).data.publicUrl, velho = (P(pid) || {}).foto;
+    if (await commit([Store.patch("prod", pid, { foto: url })])) {
+      toast("Foto salva");
+      const m = velho && String(velho).split("/produtos/")[1];
+      if (m) Promise.resolve(SB.storage.from("produtos").remove([decodeURIComponent(m)])).catch(() => {});
+    }
+  } catch (e) { toast("Não foi possível enviar a foto: " + (e.message || e)); }
+  if (s) { s.enviando = false; if (ui.sheet === s) renderSheet(); }
+  render();
+}
+
+Object.assign(SH, {
+  lojaCfg: s => {
+    const l = LJ.d, dd = (l && l.dados) || {};
+    if (!s.init) {
+      s.init = true;
+      Object.assign(s.vals, { slug: l ? l.slug : slugify(S.emp.nome), whatsapp: dd.whatsapp || S.emp.fone || "", bio: dd.bio || "", endereco: dd.endereco || "", horario: dd.horario || "",
+        taxa: dd.taxa ? money(dd.taxa) : "", antecedencia: String(dd.antecedencia ?? 1), minimo: dd.minimo ? money(dd.minimo) : "" });
+      s.ret = dd.retirada !== false; s.ent = !!dd.entrega;
+    }
+    const v = s.vals;
+    return [l ? "Configurar a loja" : "Criar a loja", `<label class="field">Endereço da loja<span class="slugbox"><span>${LOJA_HOST}</span><input data-f="slug" value="${esc(v.slug)}" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="sua-confeitaria"></span></label>
+      <p class="hint" style="margin:-4px 2px 10px">Letras minúsculas, números e hífen. É o link que você vai divulgar.</p>
+      <label class="field">WhatsApp da loja<input data-f="whatsapp" inputmode="tel" value="${esc(v.whatsapp)}" placeholder="(47) 99999-0000"></label>
+      <label class="field">Apresentação<textarea data-f="bio" rows="3" maxlength="300" placeholder="Ex.: Bolos e doces artesanais feitos por encomenda em Joinville.">${esc(v.bio)}</textarea></label>
+      <span class="lbl">Como o cliente recebe</span>
+      <div class="chips tight"><button type="button" class="chip" data-a="lojaCfgTog" data-id="ret" aria-pressed="${s.ret}">Retirada</button><button type="button" class="chip" data-a="lojaCfgTog" data-id="ent" aria-pressed="${s.ent}">Entrega</button></div>
+      ${s.ret ? `<label class="field" style="margin-top:10px">Endereço para retirada<input data-f="endereco" value="${esc(v.endereco)}" placeholder="Rua, número, bairro"></label>` : ""}
+      ${s.ent ? `<label class="field" style="margin-top:10px">Taxa de entrega (${SIM()})<input data-f="taxa" inputmode="decimal" value="${esc(v.taxa)}" placeholder="0,00"></label>` : ""}
+      <label class="field">Horário de atendimento<input data-f="horario" value="${esc(v.horario)}" placeholder="Ex.: Ter a sáb, 9h às 18h"></label>
+      <div class="grid2"><label class="field">Antecedência mínima<select data-f="antecedencia">${[0, 1, 2, 3, 5, 7].map(n => `<option value="${n}" ${String(n) === v.antecedencia ? "selected" : ""}>${n === 0 ? "Mesmo dia" : n + (n === 1 ? " dia" : " dias")}</option>`).join("")}</select></label>
+      <label class="field">Pedido mínimo (${SIM()})<input data-f="minimo" inputmode="decimal" value="${esc(v.minimo)}" placeholder="Sem mínimo"></label></div>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}
+      <button class="btn block" style="margin-top:12px" data-a="lojaSalvar">${l ? "Salvar" : "Criar e colocar no ar"}</button>`];
+  },
+  lojaProd: s => {
+    const p = P(s.id); if (!p) return ["Produto", empty("Produto não encontrado.", "")];
+    if (!s.init) { s.init = true; s.vals.desc = p.lojaDesc || ""; s.pub = !!p.loja; }
+    const semPreco = !(preco(p, "varejo") > 0), podeEditar = can("ajuste");
+    return [p.nome, `<div class="lojafoto">${lojaFotoHtml(p, "lojafotoimg")}
+      ${podeEditar ? `<div class="btns" style="justify-content:center;margin-top:10px"><label class="btn sm ${s.enviando ? "disabled" : ""}">${s.enviando ? "Enviando…" : p.foto ? "Trocar foto" : "Colocar foto"}<input type="file" accept="image/*" data-loja-foto="${p.id}" hidden ${s.enviando ? "disabled" : ""}></label>${p.foto ? `<button class="btn sm ghost" data-a="lojaTirarFoto" data-id="${p.id}">Tirar foto</button>` : ""}</div>` : ""}</div>
+      <div class="kv"><span>Preço na loja</span><b>${semPreco ? "Sem preço de varejo" : fmt(preco(p, "varejo"))}</b></div>
+      ${semPreco ? `<div class="note warn">Cadastre o preço de varejo do produto para ele aparecer na loja.</div>` : ""}
+      ${podeEditar ? `<div class="seg" style="margin-top:12px"><button data-a="lojaPubTog" data-id="1" aria-pressed="${s.pub}">Mostrar na loja</button><button data-a="lojaPubTog" data-id="0" aria-pressed="${!s.pub}">Não mostrar</button></div>
+      <label class="field" style="margin-top:12px">Descrição para o cliente<textarea data-f="desc" rows="3" maxlength="400" placeholder="Ex.: Massa de chocolate, recheio de brigadeiro. Serve 10 pessoas.">${esc(s.vals.desc)}</textarea></label>
+      ${p.alerg ? `<p class="hint" style="margin:0 2px">Alérgenos aparecem na loja: ${esc(p.alerg)}</p>` : ""}
+      <button class="btn block" style="margin-top:12px" data-a="lojaProdSalvar" data-id="${p.id}">Salvar</button>` : `<p class="hint">Seu papel não edita produtos.</p>`}`];
+  },
+  lojaRecusar: s => {
+    const o = Pe(s.id); if (!o) return ["Recusar", ""];
+    return [`Recusar o pedido #${o.num}`, `<p class="hint" style="margin-top:0">O pedido sai da lista e não entra no estoque nem no financeiro. O cliente não é avisado sozinho: depois de recusar, mande uma mensagem pelo WhatsApp.</p>
+      <label class="field">Motivo (opcional, vai na mensagem)<input data-f="motivo" maxlength="120" value="${esc(s.vals.motivo || "")}" placeholder="Ex.: agenda cheia nesse dia"></label>
+      <button class="btn danger block" data-a="lojaRecusarOk" data-id="${o.id}">Recusar pedido</button>`];
+  }
+});
+
+const LOJA_A = {
+  lojaCopiar: async () => { const l = LJ.d; if (!l) return; try { await navigator.clipboard.writeText(lojaLink(l)); toast("Link copiado"); } catch (e) { toast(lojaLink(l)); } },
+  lojaCfgTog: (t, id, s) => { s[id] = !s[id]; if (!s.ret && !s.ent) s[id === "ret" ? "ent" : "ret"] = true; renderSheet(); },
+  lojaSalvar: async (t, id, s) => {
+    const v = s.vals, slug = slugify(v.slug), fone = digits(v.whatsapp);
+    s.err = slug.length < 3 ? "O endereço precisa ter pelo menos 3 letras ou números." : fone.length < 10 ? "Informe o WhatsApp da loja com DDD." : "";
+    if (s.err) { renderSheet(); return; }
+    const dados = { whatsapp: v.whatsapp.trim(), bio: String(v.bio || "").trim().slice(0, 300), retirada: !!s.ret, entrega: !!s.ent, endereco: s.ret ? String(v.endereco || "").trim() : "",
+      horario: String(v.horario || "").trim(), taxa: s.ent ? r2(parseMoney(v.taxa) || 0) : 0, antecedencia: Number(v.antecedencia) || 0, minimo: r2(parseMoney(v.minimo) || 0),
+      cats: cats().map(c => ({ id: c.id, l: c.l })) };
+    const novo = !LJ.d;
+    const { data, error } = await SB.rpc("salvar_loja", { p_empresa: EID, p_slug: slug, p_ativa: novo ? true : LJ.d.ativa, p_dados: dados });
+    if (error) {
+      const m = String(error.message || "");
+      s.err = /slug_em_uso/.test(m) ? "Esse endereço já está em uso. Escolha outro." : /slug_reservado/.test(m) ? "Esse endereço é reservado. Escolha outro." : /slug_invalido/.test(m) ? "Use só letras minúsculas, números e hífen (3 a 40)." : /sem_permissao/.test(m) ? "Só o administrador configura a loja." : "Não foi possível salvar: " + m;
+      renderSheet(); return;
+    }
+    LJ.d = Object.assign({}, LJ.d || { empresa_id: EID }, { slug: data.slug, ativa: data.ativa, dados });
+    commit([logMov("cadastro", novo ? `Loja online criada · ${LOJA_HOST}${data.slug}` : "Configurações da loja online atualizadas")]);
+    closeSheet(); render(); toast(novo ? "Loja no ar! Agora escolha os produtos." : "Loja atualizada");
+  },
+  lojaAtivar: async () => {
+    const l = LJ.d; if (!l) return;
+    const dados = Object.assign({}, l.dados || {}, { cats: cats().map(c => ({ id: c.id, l: c.l })) });
+    const { error } = await SB.rpc("salvar_loja", { p_empresa: EID, p_slug: l.slug, p_ativa: !l.ativa, p_dados: dados });
+    if (error) { toast("Não foi possível alterar: " + error.message); return; }
+    l.ativa = !l.ativa; l.dados = dados; render(); toast(l.ativa ? "Loja no ar" : "Loja pausada: os clientes veem que ela está fechada");
+  },
+  lojaPubTog: (t, id, s) => { s.pub = id === "1"; renderSheet(); },
+  lojaProdSalvar: async (t, id, s) => {
+    const p = P(id); if (!p) return;
+    const patch = { loja: !!s.pub, lojaDesc: String(s.vals.desc || "").trim().slice(0, 400) };
+    if (!(await commit([Store.patch("prod", id, patch)]))) return;
+    // mantém os nomes das categorias da loja em dia
+    if (LJ.d && can("empresa")) SB.rpc("salvar_loja", { p_empresa: EID, p_slug: LJ.d.slug, p_ativa: LJ.d.ativa, p_dados: Object.assign({}, LJ.d.dados || {}, { cats: cats().map(c => ({ id: c.id, l: c.l })) }) }).then(() => {}, () => {});
+    closeSheet(); render(); toast(patch.loja ? (preco(p, "varejo") > 0 ? "Produto na loja" : "Salvo. Falta o preço de varejo para aparecer.") : "Produto fora da loja");
+  },
+  lojaTirarFoto: async (t, id) => {
+    const p = P(id); if (!p || !p.foto) return;
+    const m = String(p.foto).split("/produtos/")[1];
+    if (await commit([Store.patch("prod", id, { foto: "" })])) { if (m && SB) Promise.resolve(SB.storage.from("produtos").remove([decodeURIComponent(m)])).catch(() => {}); renderSheet(); render(); toast("Foto removida"); }
+  },
+  lojaAceitar: (t, id) => {
+    const o = Pe(id); if (!o || !o.online) return;
+    const q = {}; o.itens.forEach(i => { if (P(i.p)) q[i.p] = (q[i.p] || 0) + Number(i.q); });
+    const e = o.enc || {}, enc = usaEnc(), quando = `${encModo(e)} ${fdy(e.data)}${e.hora ? " " + e.hora : ""}${e.end ? " · " + e.end : ""}`;
+    newDraft("venda", { cli: o.cli, tabela: "varejo", qty: q, cond: "0", obs: [o.obs, enc ? "" : quando].filter(Boolean).join("\n"), fromOrc: o.id,
+      enc, encData: e.data && e.data >= today ? e.data : addDays(today, 1), encHora: e.hora || "", encModo: e.modo === "entrega" ? "entrega" : "retirada", encEnd: e.end || "" });
+    go("novoPedido"); toast(enc ? "Confira e agende a encomenda" : "Confira e confirme o pedido");
+  },
+  lojaRecusarOk: async (t, id, s) => {
+    const o = Pe(id); if (!o) return;
+    const motivo = String(s.vals.motivo || "").trim().slice(0, 120);
+    const no = Object.assign({}, o, { status: "cancelado", online: Object.assign({}, o.online, { status: "recusado", motivo }) });
+    if (!(await commit([Store.put("ped", o.id, no), logMov("venda", `Pedido da loja #${o.num} recusado · ${o.online.nome}${motivo ? " · " + motivo : ""}`, { ref: o.id })]))) return;
+    closeSheet(); render(); toast("Pedido recusado. Avise o cliente pelo WhatsApp.");
+  }
+};
+
+Object.assign(ROUTES, { loja: { v: vLoja, tab: "mais" } });
+document.addEventListener("change", e => { const t = e.target; if (t && t.dataset && t.dataset.lojaFoto) { lojaFoto(t.dataset.lojaFoto, t.files && t.files[0]); t.value = ""; } });
 
 boot();
