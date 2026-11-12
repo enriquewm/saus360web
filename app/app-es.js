@@ -4200,13 +4200,21 @@ Object.assign(ROUTES, { listaCompras: { v: vListaCompras, tab: "mais", p: "compr
    é confirmado pelo aviso do Mercado Pago (ou pela consulta direta enquanto esta tela está aberta). */
 /* data e hora no fuso do aparelho: "15/11/26 23:59" */
 const fdhAss = ts => { if (!ts) return "—"; const d = new Date(ts); if (isNaN(d)) return "—"; return fdy(isoD(d)) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
-const ASS = { d: null, erro: "", load: false, plano: "", ciclo: "mensal", gerando: false, trocar: false, t: null, espera: null, pago: null };
+const ASS = { eid: null, d: null, erro: "", load: false, plano: "", ciclo: "mensal", gerando: false, trocar: false, t: null, espera: null, pago: null };
 
+/* cada empresa tem sua assinatura: ao trocar de empresa, a tela começa do zero */
+function assDaEmpresa() {
+  if (ASS.eid === EID) return;
+  clearTimeout(ASS.t);
+  Object.assign(ASS, { eid: EID, d: null, erro: "", load: false, plano: "", ciclo: "mensal", gerando: false, trocar: false, espera: null, pago: null });
+}
 async function assCarregar(silencioso) {
   if (MODE !== "supa") return;
+  assDaEmpresa(); const eid = EID;
   if (!silencioso) { ASS.load = true; if (ui.route === "assinatura") render(); }
   try {
     const d = await SupaBE.fn({ acao: "pix_status" }, "pix");
+    if (eid !== EID) return; // trocou de empresa enquanto carregava
     // a cobrança que estava aberta virou pagamento: mostra a confirmação
     if (ASS.espera && !(d.pendente && d.pendente.id === ASS.espera) && (d.historico || []).some(h => h.id === ASS.espera)) {
       ASS.pago = (d.assinatura && d.assinatura.vence_em) || ""; ASS.trocar = false; toast("Pago confirmado");
@@ -4275,6 +4283,7 @@ function assEscolha() {
 }
 function vAssinatura() {
   if (MODE !== "supa") return head("Suscripción", "", { back: true }) + empty("Disponible en la versión en línea.", "Entra con tu cuenta para ver el plan.");
+  assDaEmpresa();
   if (!ASS.d && !ASS.load && !ASS.erro) setTimeout(() => assCarregar(), 0);
   let h = head("Suscripción", "Plan y mensualidad", { back: true });
   if (ASS.erro && !ASS.d) return h + `<div class="note bad">${esc(ASS.erro)}</div><button class="btn line block" style="margin-top:10px" data-a="assAtualizar">Intentar de nuevo</button>`;
@@ -4305,8 +4314,10 @@ const ASS_A = {
   assGerar: async () => {
     if (ASS.gerando || !assPlanoSel()) return;
     ASS.gerando = true; ASS.erro = ""; ASS.pago = null; render();
+    const eid = EID;
     try {
       const r = await SupaBE.fn({ acao: "pix_gerar", plano_id: ASS.plano, ciclo: ASS.ciclo }, "pix");
+      if (eid !== EID) return;
       ASS.trocar = false;
       if (r && r.cobranca) { ASS.d.pendente = r.cobranca; ASS.espera = r.cobranca.id; }
       try { Promise.resolve(logMov("cadastro", `Pix de la mensualidad generado · ${fmt(r && r.cobranca ? r.cobranca.valor : assTotal(assPlanoSel()))}`)).catch(() => {}); } catch (e) {}
