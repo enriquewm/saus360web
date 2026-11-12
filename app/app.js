@@ -1079,9 +1079,9 @@ function banners() {
   if (MODE === "supa" && S.emp) {
     const dias = S.emp.teste_ate ? diffDays(today, S.emp.teste_ate) : 99;
     if (S.emp.plano === "bloqueado") h += `<div class="banner bad">Empresa bloqueada. Fale com o suporte do ${APP} para reativar.</div>`;
-    if (S.emp.plano === "cancelado") h += `<div class="banner bad">Assinatura cancelada: os dados ficam só para consulta. Fale com o suporte do ${APP} para reativar.</div>`;
-    else if (S.emp.plano === "teste" && dias < 0) h += `<div class="banner bad">O período de teste terminou. Os dados continuam visíveis, mas para registrar novas operações é preciso ativar o plano.</div>`;
-    else if (S.emp.plano === "teste" && dias <= 7) h += `<div class="banner warn">Seu teste grátis termina ${dias === 0 ? "hoje" : `em ${dias} ${dias === 1 ? "dia" : "dias"}`}.</div>`;
+    if (S.emp.plano === "cancelado") h += `<div class="banner bad">Assinatura cancelada: os dados ficam só para consulta.${can("empresa") ? ` <button class="btn sm" style="margin-left:6px" data-a="go" data-r="assinatura">Ativar plano</button>` : ""}</div>`;
+    else if (S.emp.plano === "teste" && dias < 0) h += `<div class="banner bad">O período de teste terminou. Os dados continuam visíveis, mas para registrar novas operações é preciso ativar o plano.${can("empresa") ? ` <button class="btn sm" style="margin-left:6px" data-a="go" data-r="assinatura">Ativar plano</button>` : ""}</div>`;
+    else if (S.emp.plano === "teste" && dias <= 7) h += `<div class="banner warn">Seu teste grátis termina ${dias === 0 ? "hoje" : `em ${dias} ${dias === 1 ? "dia" : "dias"}`}.${can("empresa") ? ` <button class="btn sm" style="margin-left:6px" data-a="go" data-r="assinatura">Ativar plano</button>` : ""}</div>`;
   }
   if (MODE === "cloud" && loadState === "slow") h += `<div class="banner warn">Os dados ainda não carregaram por completo. Verifique a conexão; o que aparece pode estar desatualizado.</div>`;
   if (MODE === "cloud" && loadState === "erro") h += `<div class="banner bad">Não foi possível ler os dados agora. Feche e abra o app novamente.</div>`;
@@ -1497,7 +1497,7 @@ function vMais() {
   if (fis) h += `<p class="sec">Fiscal</p><div class="menu">${fis}</div>`;
   h += `<p class="sec">Aparência</p><div class="seg theme-seg">${[["light", "Claro"], ["dark", "Escuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-a="tema" data-id="${k}" aria-pressed="${temaAtual() === k}">${l}</button>`).join("")}</div>`;
   h += `<p class="sec">Idioma</p>${idiomaSeg()}`;
-  h += `<p class="sec">Empresa</p><div class="menu">${it("equipe", "users", "Equipe e permissões", "Usuários, papéis e código de acesso", true)}${it("empresa", "building", "Dados da empresa", "Cadastro, backup e integrações", can("empresa"))}${it("atividade", "list", "Atividade", "Quem fez o quê e quando", can("atividade"))}${it("importar", "upload", "Importar planilha", "Produtos e clientes a partir de CSV", can("ajuste") || can("clientes"))}</div>`;
+  h += `<p class="sec">Empresa</p><div class="menu">${it("equipe", "users", "Equipe e permissões", "Usuários, papéis e código de acesso", true)}${it("empresa", "building", "Dados da empresa", "Cadastro, backup e integrações", can("empresa"))}${it("assinatura", "wallet", "Assinatura", "Plano, mensalidade e pagamento por Pix", can("empresa") && MODE === "supa")}${it("atividade", "list", "Atividade", "Quem fez o quê e quando", can("atividade"))}${it("importar", "upload", "Importar planilha", "Produtos e clientes a partir de CSV", can("ajuste") || can("clientes"))}</div>`;
   h += `<p class="sec">Conta</p><div class="menu">${MODE === "supa" ? it("conta", "user", "Minha conta", "E-mail, sair e exclusão da conta", true) : ""}${it("termos", "file", "Termos e privacidade", "Como tratamos seus dados (LGPD)", true)}</div>`;
   h += `<div class="menu" style="margin-top:16px"><button data-a="sair">${ico("logout")}<span class="wmain"><b>${MODE === "demo" ? "Sair da demonstração" : "Trocar de empresa"}</b><small>${MODE === "demo" ? "Volta para a tela inicial" : "Ver suas empresas ou entrar em outra"}</small></span></button>${MODE === "demo" ? `<button data-a="resetDemo">${ico("upload")}<span class="wmain"><b>Restaurar dados de exemplo</b><small>Desfaz tudo o que foi alterado na demonstração</small></span></button>` : ""}</div>`;
   return h;
@@ -1787,7 +1787,7 @@ function vEmpresa() {
   let h = head("Empresa", "Cadastro e dados", { back: ui.stack.length > 0, action: `<button class="iconbtn" data-a="sheet" data-k="empForm" aria-label="Editar empresa">${ico("edit", 18)}</button>` }) + banners();
   h += `<dl class="specs"><div class="full"><dt>Nome</dt><dd>${esc(e.nome || "—")}</dd></div><div><dt>País</dt><dd>${PC().l}</dd></div><div><dt>${PC().docEmp}</dt><dd>${esc(e.cnpj || "—")}</dd></div><div><dt>Cidade</dt><dd>${esc(e.cidade || "—")}</dd></div>${ivaTaxa() ? `<div><dt>IVA</dt><dd>${ivaPadrao() ? "Somado nos pedidos" : "Incluído nos preços"}</dd></div>` : ""}<div><dt>Telefone</dt><dd>${esc(e.fone || "—")}</dd></div><div><dt>Desde</dt><dd>${fdy(e.criadoEm)}</dd></div></dl>`;
   h += `<p class="sec">Seus dados</p><div class="menu"><button data-a="backup">${ico("download")}<span class="wmain"><b>Exportar backup completo</b><small>Todos os cadastros, pedidos e lançamentos em um arquivo</small></span></button><button data-a="go" data-r="importar">${ico("upload")}<span class="wmain"><b>Importar planilha</b><small>Produtos e clientes a partir de CSV</small></span></button>${can("empresa") ? `<button data-a="go" data-r="categorias">${ico("tag")}<span class="wmain"><b>Categorias de produto</b><small>${esc(RUBROS[rubro()].l)} · ${cats().length} categorias</small></span></button>` : ""}</div>`;
-  if (MODE === "supa" && e.plano) h += `<p class="sec">Plano</p><div class="card plan"><span class="wmain"><b>${e.plano === "ativo" ? "Plano ativo" : e.plano === "teste" ? "Teste grátis" : e.plano === "cancelado" ? "Assinatura cancelada" : "Bloqueado"}</b><small>${e.plano === "teste" ? "até " + fdy(e.teste_ate) : e.plano === "ativo" ? "Obrigado por usar o " + APP : "Fale com o suporte"}</small></span><span class="pill ${e.plano === "ativo" ? "ok" : e.plano === "teste" ? "info" : "bad"}">${e.plano}</span></div>`;
+  if (MODE === "supa" && e.plano) h += `<p class="sec">Plano</p><button class="card plan" data-a="go" data-r="assinatura" style="width:100%;text-align:left"><span class="wmain"><b>${e.plano === "ativo" ? "Plano ativo" : e.plano === "teste" ? "Teste grátis" : e.plano === "cancelado" ? "Assinatura cancelada" : "Bloqueado"}</b><small>${e.plano === "teste" ? "até " + fdy(e.teste_ate) : e.plano === "ativo" ? "Obrigado por usar o " + APP : "Fale com o suporte"}</small></span><span class="pill ${e.plano === "ativo" ? "ok" : e.plano === "teste" ? "info" : "bad"}">${e.plano}</span>${ico("chev", 18)}</button>`;
   h += `<p class="sec">Integrações</p><div class="menu">${temFiscal() ? `<button data-a="go" data-r="fiscal">${ico("receipt")}<span class="wmain"><b>Nota fiscal (NF-e e NFC-e)</b><small>Via Focus NFe, com o certificado A1 da empresa</small></span><span class="pill ${MODE === "supa" ? "ok" : "mute"}">${MODE === "supa" ? "Disponível" : "No app Android"}</span></button>` : `<div class="row" style="border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none"><span class="wmain"><b>${paisEmp() === "MX" ? "Factura electrónica (CFDI 4.0)" : "Faturas e impostos (sales tax)"}</b><small>Emissão fiscal para ${PC().l}</small></span><span class="pill mute">Em breve</span></div>`}<div class="row" style="border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none"><span class="wmain"><b>Código de barras</b><small>Câmera do celular, leitor USB ou Bluetooth</small></span><span class="pill ok">Ativo</span></div>${[...(temFiscal() ? [["Boletos e Pix cobrança", "Geração e baixa automática"]] : []), ["Loja virtual e catálogo online", "Pedidos de clientes direto no app"]].map(([t, s]) => `<div class="row" style="border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none"><span class="wmain"><b>${t}</b><small>${s}</small></span><span class="pill mute">Em breve</span></div>`).join("")}</div>`;
   return h;
 }
@@ -1951,7 +1951,7 @@ function sideNav() {
     ${grp("Comercial", [it("vendas", "order", "Vendas", can("vendas")), it("caixa", "cash", "Caixa", can("receber")), it("encomendas", "cal", "Encomendas", usaEnc() && can("vendas")), it("clientes", "users", "Clientes", can("clientes")), can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span>Catálogo</span></button>` : ""])}
     ${grp("Estoque", [it("estoque", "bottle", "Produtos", can("estoque")), it("compras", "cart", "Compras", can("compras")), it("listaCompras", "cart", "Lista de compras", usaEnc() && can("compras")), it("fornecedores", "truck", "Fornecedores", can("fornecedores"))])}
     ${grp("Gestão", [it("financeiro", "wallet", "Financeiro", can("receber") || can("pagar")), it("relatorios", "chart", "Relatórios", can("relatorios")), temFiscal() ? it("notas", "receipt", "Notas fiscais", can("fiscal")) : ""])}
-    ${grp("Empresa", [it("equipe", "users", "Equipe"), it("empresa", "building", "Dados da empresa", can("empresa")), it("atividade", "activity", "Atividade", can("atividade"))])}</div>
+    ${grp("Empresa", [it("equipe", "users", "Equipe"), it("empresa", "building", "Dados da empresa", can("empresa")), it("assinatura", "wallet", "Assinatura", can("empresa") && MODE === "supa"), it("atividade", "activity", "Atividade", can("atividade"))])}</div>
     <button class="sn-me" data-a="tab" data-r="mais" aria-current="${cur === "mais" ? "page" : "false"}"><span class="avatar sm">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${esc(S.emp ? S.emp.nome : "")}</small></span>${ico("grid", 18)}</button>`;
 }
 function render() {
@@ -2761,7 +2761,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "backup": saveFile(`backup-${norm(S.emp ? S.emp.nome : "decanta").replace(/\s+/g, "-")}-${today}.json`, JSON.stringify({ app: APP, exportadoEm: isoT(new Date()), empresa: S.emp, produtos: S.prod, clientes: S.cli, fornecedores: S.forn, pedidos: S.ped, compras: S.comp, financeiro: S.fin, equipe: S.mem, atividade: S.mov }, null, 2)); break;
     case "modeloCSV": { const m = impModelo(ui.impTipo); saveFile(`modelo-${ui.impTipo === "prod" ? "produtos" : "clientes"}.csv`, "﻿" + m.cols.join(";") + "\n" + m.ex + "\n"); break; }
     case "importar": importar(); break;
-    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]) || (typeof ENC_A !== "undefined" && ENC_A[a]) || (typeof LC_A !== "undefined" && LC_A[a]); if (f) await f(t, id, s); }
+    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]) || (typeof ENC_A !== "undefined" && ENC_A[a]) || (typeof LC_A !== "undefined" && LC_A[a]) || (typeof ASS_A !== "undefined" && ASS_A[a]); if (f) await f(t, id, s); }
   }
 }));
 document.addEventListener("input", e => {
@@ -4193,5 +4193,129 @@ const LC_A = {
   }
 };
 Object.assign(ROUTES, { listaCompras: { v: vListaCompras, tab: "mais", p: "compras" } });
+
+/* ---- assinatura.js ---- */
+/* ---- Assinatura: mensalidade por Pix (Mercado Pago) ----
+   O app só pede e mostra: o valor sai da tabela de planos no servidor, e o pagamento
+   é confirmado pelo aviso do Mercado Pago (ou pela consulta direta enquanto esta tela está aberta). */
+/* data e hora no fuso do aparelho: "15/11/26 23:59" */
+const fdhAss = ts => { if (!ts) return "—"; const d = new Date(ts); if (isNaN(d)) return "—"; return fdy(isoD(d)) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+const ASS = { d: null, erro: "", load: false, plano: "", ciclo: "mensal", gerando: false, trocar: false, t: null, espera: null, pago: null };
+
+async function assCarregar(silencioso) {
+  if (MODE !== "supa") return;
+  if (!silencioso) { ASS.load = true; if (ui.route === "assinatura") render(); }
+  try {
+    const d = await SupaBE.fn({ acao: "pix_status" });
+    // a cobrança que estava aberta virou pagamento: mostra a confirmação
+    if (ASS.espera && !(d.pendente && d.pendente.id === ASS.espera) && (d.historico || []).some(h => h.id === ASS.espera)) {
+      ASS.pago = (d.assinatura && d.assinatura.vence_em) || ""; ASS.trocar = false; toast("Pagamento confirmado");
+    }
+    ASS.espera = d.pendente && d.pendente.status === "pendente" ? d.pendente.id : null;
+    ASS.d = d; ASS.erro = "";
+    const ids = (d.planos || []).map(p => p.id);
+    if (!ids.includes(ASS.plano)) {
+      const atual = d.assinatura && d.assinatura.plano_id;
+      ASS.plano = ids.includes(atual) ? atual : ((d.planos || []).find(p => /completo/.test(p.id)) || (d.planos || [])[0] || {}).id || "";
+      if (d.assinatura && d.assinatura.ciclo === "anual") ASS.ciclo = "anual";
+    }
+    if (S.emp && d.plano && S.emp.plano !== d.plano) { S.emp.plano = d.plano; S.emp.teste_ate = d.teste_ate; }
+  } catch (e) { ASS.erro = e.message || "Não foi possível carregar a assinatura."; }
+  ASS.load = false;
+  if (ui.route === "assinatura") render();
+  assAgendar();
+}
+function assAgendar() {
+  clearTimeout(ASS.t);
+  if (ui.route === "assinatura" && ASS.espera) ASS.t = setTimeout(() => { if (ui.route === "assinatura" && !document.hidden) assCarregar(true); else assAgendar(); }, 6000);
+}
+const assPlanoSel = () => ((ASS.d && ASS.d.planos) || []).find(p => p.id === ASS.plano);
+const assTotal = p => !p ? 0 : ASS.ciclo === "anual" && p.total_anual ? p.total_anual : p.total_mensal;
+function assSituacao(d) {
+  const a = d.assinatura || {}, hj = d.hoje || today;
+  if (d.plano === "bloqueado") return { t: "Empresa bloqueada", s: "Fale com o suporte para reativar.", cls: "bad" };
+  if (d.plano === "cancelado") return { t: "Assinatura cancelada", s: "Pague um plano para voltar a registrar operações.", cls: "bad" };
+  if (d.plano === "teste") {
+    const dias = d.teste_ate ? diffDays(hj, d.teste_ate) : 0;
+    return dias < 0 ? { t: "O teste grátis terminou", s: `Terminou em ${fdy(d.teste_ate)}. Seus dados continuam aqui: ative um plano para continuar usando.`, cls: "bad" }
+      : { t: "Teste grátis", s: `${dias === 0 ? "Termina hoje" : `Faltam ${dias} ${dias === 1 ? "dia" : "dias"}`} (até ${fdy(d.teste_ate)}). Se pagar agora, os dias grátis que faltam não se perdem.`, cls: "info" };
+  }
+  if (a.vence_em) {
+    const dias = diffDays(hj, a.vence_em);
+    return dias < 0 ? { t: "Mensalidade vencida", s: `Venceu em ${fdy(a.vence_em)}. Pague para manter a conta ativa.`, cls: "bad" }
+      : { t: "Plano ativo", s: `Pago até ${fdy(a.vence_em)}${dias <= 5 ? ` · vence em ${dias} ${dias === 1 ? "dia" : "dias"}` : ""}.`, cls: dias <= 5 ? "warn" : "ok" };
+  }
+  return { t: "Plano ativo", s: `Obrigado por usar o ${APP}.`, cls: "ok" };
+}
+function assPixBox(p) {
+  const pl = ((ASS.d && ASS.d.planos) || []).find(x => x.id === p.plano_id);
+  return `<section class="card pixbox">
+    <span class="lbl">Pix de</span><b class="pixval">${fmt(p.valor)}</b>
+    <small>${esc(pl ? pl.nome : "Plano")} · ${p.ciclo === "anual" ? "12 meses" : "1 mês"}</small>
+    ${p.pix_qr ? `<img class="pixqr" src="data:image/png;base64,${esc(p.pix_qr)}" width="220" height="220" alt="QR Code do Pix">` : ""}
+    <p class="hint" style="margin:10px 0 6px">Abra o app do seu banco, escolha Pix e leia o QR Code, ou copie o código abaixo e use “Pix copia e cola”.</p>
+    ${p.pix_copia ? `<textarea class="pixcode" readonly rows="3" aria-label="Código Pix copia e cola">${esc(p.pix_copia)}</textarea>
+    <button class="btn block" style="margin-top:8px" data-a="assCopiar">${ico("copy", 18)}Copiar código Pix</button>` : ""}
+    <p class="pixwait"><span class="pixdot" aria-hidden="true"></span>Aguardando o pagamento. A confirmação aparece aqui sozinha, em poucos segundos.</p>
+    <small class="muted">Válido até ${p.expira_em ? fdhAss(p.expira_em) : "—"}</small>
+    <div class="btns" style="margin-top:12px;justify-content:center"><button class="btn sm line" data-a="assAtualizar">Já paguei</button><button class="btn sm ghost" data-a="assTrocar">Trocar plano</button></div>
+  </section>`;
+}
+function assEscolha() {
+  const d = ASS.d, p = assPlanoSel(), total = assTotal(p), temAnual = (d.planos || []).some(x => x.total_anual);
+  let h = `<p class="sec">Escolha o plano</p><div class="list">${(d.planos || []).map(x => `<button class="row planopt" data-a="assPlano" data-id="${esc(x.id)}" aria-pressed="${x.id === ASS.plano}">
+    <span class="radio" aria-hidden="true"></span><span class="wmain"><b>${esc(x.nome)}</b><small>${esc(x.descricao || "")}${x.usuarios_max ? ` · até ${x.usuarios_max} usuários` : ""}</small></span>
+    <span class="right"><b>${fmt0(x.total_mensal)}</b><small>por mês</small></span></button>`).join("")}</div>`;
+  if (temAnual) h += `<div class="seg" style="margin-top:12px">${[["mensal", "Mensal"], ["anual", "Anual · 2 meses grátis"]].map(([k, l]) => `<button data-a="assCiclo" data-id="${k}" aria-pressed="${ASS.ciclo === k}">${l}</button>`).join("")}</div>`;
+  if (p) h += `<div class="card" style="margin-top:12px"><div class="kv" style="padding-top:0"><span>${esc(p.nome)} · ${ASS.ciclo === "anual" && p.total_anual ? "12 meses" : "1 mês"}</span><b>${fmt(total)}</b></div>
+    <small class="muted">${ASS.ciclo === "anual" && p.total_anual ? `Sai por ${fmt(p.total_anual / 12)} por mês, ${fmt(p.total_anual / 365)} por dia.` : `Dá ${fmt(p.total_mensal / 30)} por dia.`} Sem fidelidade: você paga quando quiser continuar.</small></div>`;
+  h += `<button class="btn block" style="margin-top:12px" data-a="assGerar" ${!p || ASS.gerando ? "disabled" : ""}>${ASS.gerando ? "Gerando o Pix…" : `Pagar ${fmt(total)} com Pix`}</button>`;
+  if (ASS.trocar && d.pendente) h += `<button class="btn ghost block" style="margin-top:6px" data-a="assTrocar">Voltar para o Pix gerado</button>`;
+  return h;
+}
+function vAssinatura() {
+  if (MODE !== "supa") return head("Assinatura", "", { back: true }) + empty("Disponível na versão online.", "Entre com sua conta para ver o plano.");
+  if (!ASS.d && !ASS.load && !ASS.erro) setTimeout(() => assCarregar(), 0);
+  let h = head("Assinatura", "Plano e mensalidade", { back: true });
+  if (ASS.erro && !ASS.d) return h + `<div class="note bad">${esc(ASS.erro)}</div><button class="btn line block" style="margin-top:10px" data-a="assAtualizar">Tentar de novo</button>`;
+  if (!ASS.d) return h + `<div class="card"><small class="muted">Carregando…</small></div>`;
+  const d = ASS.d, st = assSituacao(d);
+  if (ASS.pago != null) h += `<div class="note good" style="margin-bottom:12px"><b>Pagamento confirmado.</b> ${ASS.pago ? `Seu plano está ativo até ${fdy(ASS.pago)}.` : "Seu plano está ativo."} Obrigado!</div>`;
+  h += `<section class="card"><div class="kv" style="padding-top:0"><span>Situação</span><span class="pill ${st.cls}">${esc(st.t)}</span></div><p class="hint" style="margin:6px 0 0">${esc(st.s)}</p></section>`;
+  if (ASS.erro) h += `<div class="note bad" style="margin-top:12px">${esc(ASS.erro)}</div>`;
+  if (d.plano === "bloqueado") return h;
+  if (!d.configurado) h += `<div class="note warn" style="margin-top:12px">O pagamento por Pix ainda não está ativo. Fale com o suporte do ${APP} para combinar o pagamento.</div>`;
+  else if (d.pendente && d.pendente.status === "pendente" && !ASS.trocar) h += `<p class="sec">Pagamento</p>` + assPixBox(d.pendente);
+  else h += assEscolha();
+  if ((d.historico || []).length) h += `<p class="sec">Pagamentos</p><div class="list">${d.historico.map(c => `<div class="row"><span class="wmain"><b>${esc(c.referencia || "Mensalidade")}</b><small>${esc(c.forma || "Pix")} · pago em ${fdhAss(c.pago_em)}</small></span><span class="right"><b>${fmt(c.valor)}</b></span></div>`).join("")}</div>`;
+  h += `<p class="hint" style="margin-top:14px">O Pix é processado pelo Mercado Pago. Dúvidas sobre a cobrança: suporte@saus360.com.br</p>`;
+  return h;
+}
+
+const ASS_A = {
+  assPlano: (t, id) => { ASS.plano = id; render(); },
+  assCiclo: (t, id) => { ASS.ciclo = id === "anual" ? "anual" : "mensal"; render(); },
+  assTrocar: () => { ASS.trocar = !ASS.trocar; render(); },
+  assAtualizar: async () => { await assCarregar(!!ASS.d); if (ASS.espera) toast("Ainda não recebemos a confirmação. Pode levar alguns segundos."); },
+  assCopiar: async () => {
+    const c = ASS.d && ASS.d.pendente && ASS.d.pendente.pix_copia; if (!c) return;
+    try { await navigator.clipboard.writeText(c); toast("Código Pix copiado"); }
+    catch (e) { const el = document.querySelector(".pixcode"); if (el) { el.select(); toast("Selecione e copie o código"); } }
+  },
+  assGerar: async () => {
+    if (ASS.gerando || !assPlanoSel()) return;
+    ASS.gerando = true; ASS.erro = ""; ASS.pago = null; render();
+    try {
+      const r = await SupaBE.fn({ acao: "pix_gerar", plano_id: ASS.plano, ciclo: ASS.ciclo });
+      ASS.trocar = false;
+      if (r && r.cobranca) { ASS.d.pendente = r.cobranca; ASS.espera = r.cobranca.id; }
+      try { Promise.resolve(logMov("cadastro", `Pix da mensalidade gerado · ${fmt(r && r.cobranca ? r.cobranca.valor : assTotal(assPlanoSel()))}`)).catch(() => {}); } catch (e) {}
+    } catch (e) { ASS.erro = e.message || "Não foi possível gerar o Pix."; }
+    ASS.gerando = false; render(); assAgendar();
+  }
+};
+
+Object.assign(ROUTES, { assinatura: { v: vAssinatura, tab: "mais", p: "empresa" } });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && ui.route === "assinatura" && ASS.espera) assCarregar(true); });
 
 boot();

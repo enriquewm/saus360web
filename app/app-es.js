@@ -1079,9 +1079,9 @@ function banners() {
   if (MODE === "supa" && S.emp) {
     const dias = S.emp.teste_ate ? diffDays(today, S.emp.teste_ate) : 99;
     if (S.emp.plano === "bloqueado") h += `<div class="banner bad">Empresa bloqueada. Habla con el soporte de ${APP} para reactivarla.</div>`;
-    if (S.emp.plano === "cancelado") h += `<div class="banner bad">Suscripción cancelada: los datos quedan solo para consulta. Habla con el soporte de ${APP} para reactivarla.</div>`;
-    else if (S.emp.plano === "teste" && dias < 0) h += `<div class="banner bad">El periodo de prueba terminó. Los datos siguen visibles, pero para registrar nuevas operaciones hay que activar el plan.</div>`;
-    else if (S.emp.plano === "teste" && dias <= 7) h += `<div class="banner warn">Tu prueba gratis termina ${dias === 0 ? "hoje" : `em ${dias} ${dias === 1 ? "día" : "días"}`}.</div>`;
+    if (S.emp.plano === "cancelado") h += `<div class="banner bad">Suscripción cancelada: los datos quedan solo para consulta.${can("empresa") ? ` <button class="btn sm" style="margin-left:6px" data-a="go" data-r="assinatura">Activar plan</button>` : ""}</div>`;
+    else if (S.emp.plano === "teste" && dias < 0) h += `<div class="banner bad">El periodo de prueba terminó. Los datos siguen visibles, pero para registrar nuevas operaciones hay que activar el plan.${can("empresa") ? ` <button class="btn sm" style="margin-left:6px" data-a="go" data-r="assinatura">Activar plan</button>` : ""}</div>`;
+    else if (S.emp.plano === "teste" && dias <= 7) h += `<div class="banner warn">Tu prueba gratis termina ${dias === 0 ? "hoje" : `em ${dias} ${dias === 1 ? "día" : "días"}`}.${can("empresa") ? ` <button class="btn sm" style="margin-left:6px" data-a="go" data-r="assinatura">Activar plan</button>` : ""}</div>`;
   }
   if (MODE === "cloud" && loadState === "slow") h += `<div class="banner warn">Los datos aún no cargan por completo. Revisa la conexión; lo que aparece puede estar desactualizado.</div>`;
   if (MODE === "cloud" && loadState === "erro") h += `<div class="banner bad">No se pudieron leer los datos ahora. Cierra y abre la app de nuevo.</div>`;
@@ -1497,7 +1497,7 @@ function vMais() {
   if (fis) h += `<p class="sec">Fiscal</p><div class="menu">${fis}</div>`;
   h += `<p class="sec">Apariencia</p><div class="seg theme-seg">${[["light", "Claro"], ["dark", "Oscuro"], ["auto", "Automático"]].map(([k, l]) => `<button data-a="tema" data-id="${k}" aria-pressed="${temaAtual() === k}">${l}</button>`).join("")}</div>`;
   h += `<p class="sec">Idioma</p>${idiomaSeg()}`;
-  h += `<p class="sec">Empresa</p><div class="menu">${it("equipe", "users", "Equipo y permisos", "Usuarios, roles y código de acceso", true)}${it("empresa", "building", "Datos de la empresa", "Registro, respaldo e integraciones", can("empresa"))}${it("atividade", "list", "Actividad", "Quién hizo qué y cuándo", can("atividade"))}${it("importar", "upload", "Importar hoja de cálculo", "Productos y clientes desde CSV", can("ajuste") || can("clientes"))}</div>`;
+  h += `<p class="sec">Empresa</p><div class="menu">${it("equipe", "users", "Equipo y permisos", "Usuarios, roles y código de acceso", true)}${it("empresa", "building", "Datos de la empresa", "Registro, respaldo e integraciones", can("empresa"))}${it("assinatura", "wallet", "Suscripción", "Plan, mensualidad y pago por Pix", can("empresa") && MODE === "supa")}${it("atividade", "list", "Actividad", "Quién hizo qué y cuándo", can("atividade"))}${it("importar", "upload", "Importar hoja de cálculo", "Productos y clientes desde CSV", can("ajuste") || can("clientes"))}</div>`;
   h += `<p class="sec">Cuenta</p><div class="menu">${MODE === "supa" ? it("conta", "user", "Mi cuenta", "Correo, cerrar sesión y eliminar la cuenta", true) : ""}${it("termos", "file", "Términos y privacidad", "Cómo tratamos tus datos (LGPD)", true)}</div>`;
   h += `<div class="menu" style="margin-top:16px"><button data-a="sair">${ico("logout")}<span class="wmain"><b>${MODE === "demo" ? "Salir de la demostración" : "Cambiar de empresa"}</b><small>${MODE === "demo" ? "Vuelve a la pantalla inicial" : "Ver tus empresas o entrar a otra"}</small></span></button>${MODE === "demo" ? `<button data-a="resetDemo">${ico("upload")}<span class="wmain"><b>Restaurar datos de ejemplo</b><small>Deshace todo lo que se cambió en la demostración</small></span></button>` : ""}</div>`;
   return h;
@@ -1787,7 +1787,7 @@ function vEmpresa() {
   let h = head("Empresa", "Registro y datos", { back: ui.stack.length > 0, action: `<button class="iconbtn" data-a="sheet" data-k="empForm" aria-label="Editar empresa">${ico("edit", 18)}</button>` }) + banners();
   h += `<dl class="specs"><div class="full"><dt>Nombre</dt><dd>${esc(e.nome || "—")}</dd></div><div><dt>País</dt><dd>${PC().l}</dd></div><div><dt>${PC().docEmp}</dt><dd>${esc(e.cnpj || "—")}</dd></div><div><dt>Ciudad</dt><dd>${esc(e.cidade || "—")}</dd></div>${ivaTaxa() ? `<div><dt>IVA</dt><dd>${ivaPadrao() ? "Se suma en los pedidos" : "Incluido en los precios"}</dd></div>` : ""}<div><dt>Teléfono</dt><dd>${esc(e.fone || "—")}</dd></div><div><dt>Desde</dt><dd>${fdy(e.criadoEm)}</dd></div></dl>`;
   h += `<p class="sec">Tus datos</p><div class="menu"><button data-a="backup">${ico("download")}<span class="wmain"><b>Exportar respaldo completo</b><small>Todos los registros, pedidos y movimientos en un archivo</small></span></button><button data-a="go" data-r="importar">${ico("upload")}<span class="wmain"><b>Importar hoja de cálculo</b><small>Productos y clientes desde CSV</small></span></button>${can("empresa") ? `<button data-a="go" data-r="categorias">${ico("tag")}<span class="wmain"><b>Categorías de producto</b><small>${esc(RUBROS[rubro()].l)} · ${cats().length} categorias</small></span></button>` : ""}</div>`;
-  if (MODE === "supa" && e.plano) h += `<p class="sec">Plan</p><div class="card plan"><span class="wmain"><b>${e.plano === "ativo" ? "Plan activo" : e.plano === "teste" ? "Prueba gratis" : e.plano === "cancelado" ? "Suscripción cancelada" : "Bloqueado"}</b><small>${e.plano === "teste" ? "hasta " + fdy(e.teste_ate) : e.plano === "ativo" ? "Gracias por usar " + APP : "Habla con soporte"}</small></span><span class="pill ${e.plano === "ativo" ? "ok" : e.plano === "teste" ? "info" : "bad"}">${e.plano}</span></div>`;
+  if (MODE === "supa" && e.plano) h += `<p class="sec">Plan</p><button class="card plan" data-a="go" data-r="assinatura" style="width:100%;text-align:left"><span class="wmain"><b>${e.plano === "ativo" ? "Plan activo" : e.plano === "teste" ? "Prueba gratis" : e.plano === "cancelado" ? "Suscripción cancelada" : "Bloqueado"}</b><small>${e.plano === "teste" ? "hasta " + fdy(e.teste_ate) : e.plano === "ativo" ? "Gracias por usar " + APP : "Habla con soporte"}</small></span><span class="pill ${e.plano === "ativo" ? "ok" : e.plano === "teste" ? "info" : "bad"}">${e.plano}</span>${ico("chev", 18)}</button>`;
   h += `<p class="sec">Integraciones</p><div class="menu">${temFiscal() ? `<button data-a="go" data-r="fiscal">${ico("receipt")}<span class="wmain"><b>Nota fiscal (NF-e y NFC-e)</b><small>Vía Focus NFe, con el certificado A1 de la empresa</small></span><span class="pill ${MODE === "supa" ? "ok" : "mute"}">${MODE === "supa" ? "Disponible" : "En la app Android"}</span></button>` : `<div class="row" style="border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none"><span class="wmain"><b>${paisEmp() === "MX" ? "Factura electrónica (CFDI 4.0)" : "Facturas e impuestos (sales tax)"}</b><small>Emisión fiscal para ${PC().l}</small></span><span class="pill mute">Próximamente</span></div>`}<div class="row" style="border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none"><span class="wmain"><b>Código de barras</b><small>Cámara del celular, lector USB o Bluetooth</small></span><span class="pill ok">Activo</span></div>${[...(temFiscal() ? [["Cobro con boleto y Pix", "Generación y conciliación automática"]] : []), ["Tienda virtual y catálogo en línea", "Pedidos de clientes directo en la app"]].map(([t, s]) => `<div class="row" style="border:0;border-bottom:1px solid var(--line);border-radius:0;box-shadow:none"><span class="wmain"><b>${t}</b><small>${s}</small></span><span class="pill mute">Próximamente</span></div>`).join("")}</div>`;
   return h;
 }
@@ -1951,7 +1951,7 @@ function sideNav() {
     ${grp("Comercial", [it("vendas", "order", "Ventas", can("vendas")), it("caixa", "cash", "Caja", can("receber")), it("encomendas", "cal", "Encargos", usaEnc() && can("vendas")), it("clientes", "users", "Clientes", can("clientes")), can("vendas") ? `<button data-a="abrirCatalogo">${ico("file")}<span>Catálogo</span></button>` : ""])}
     ${grp("Inventario", [it("estoque", "bottle", "Productos", can("estoque")), it("compras", "cart", "Compras", can("compras")), it("listaCompras", "cart", "Lista de compras", usaEnc() && can("compras")), it("fornecedores", "truck", "Proveedores", can("fornecedores"))])}
     ${grp("Gestión", [it("financeiro", "wallet", "Finanzas", can("receber") || can("pagar")), it("relatorios", "chart", "Reportes", can("relatorios")), temFiscal() ? it("notas", "receipt", "Notas fiscales", can("fiscal")) : ""])}
-    ${grp("Empresa", [it("equipe", "users", "Equipo"), it("empresa", "building", "Datos de la empresa", can("empresa")), it("atividade", "activity", "Actividad", can("atividade"))])}</div>
+    ${grp("Empresa", [it("equipe", "users", "Equipo"), it("empresa", "building", "Datos de la empresa", can("empresa")), it("assinatura", "wallet", "Suscripción", can("empresa") && MODE === "supa"), it("atividade", "activity", "Actividad", can("atividade"))])}</div>
     <button class="sn-me" data-a="tab" data-r="mais" aria-current="${cur === "mais" ? "page" : "false"}"><span class="avatar sm">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${esc(S.emp ? S.emp.nome : "")}</small></span>${ico("grid", 18)}</button>`;
 }
 function render() {
@@ -2761,7 +2761,7 @@ document.addEventListener("click", travarAcao(async e => {
     case "backup": saveFile(`backup-${norm(S.emp ? S.emp.nome : "decanta").replace(/\s+/g, "-")}-${today}.json`, JSON.stringify({ app: APP, exportadoEm: isoT(new Date()), empresa: S.emp, produtos: S.prod, clientes: S.cli, fornecedores: S.forn, pedidos: S.ped, compras: S.comp, financeiro: S.fin, equipe: S.mem, atividade: S.mov }, null, 2)); break;
     case "modeloCSV": { const m = impModelo(ui.impTipo); saveFile(`modelo-${ui.impTipo === "prod" ? "productos" : "clientes"}.csv`, "﻿" + m.cols.join(";") + "\n" + m.ex + "\n"); break; }
     case "importar": importar(); break;
-    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]) || (typeof ENC_A !== "undefined" && ENC_A[a]) || (typeof LC_A !== "undefined" && LC_A[a]); if (f) await f(t, id, s); }
+    default: { const f = (typeof FOOD_A !== "undefined" && FOOD_A[a]) || (typeof CX_A !== "undefined" && CX_A[a]) || (typeof ENC_A !== "undefined" && ENC_A[a]) || (typeof LC_A !== "undefined" && LC_A[a]) || (typeof ASS_A !== "undefined" && ASS_A[a]); if (f) await f(t, id, s); }
   }
 }));
 document.addEventListener("input", e => {
@@ -4193,5 +4193,129 @@ const LC_A = {
   }
 };
 Object.assign(ROUTES, { listaCompras: { v: vListaCompras, tab: "mais", p: "compras" } });
+
+/* ---- assinatura.js ---- */
+/* ---- Assinatura: mensalidade por Pix (Mercado Pago) ----
+   O app só pede e mostra: o valor sai da tabela de planos no servidor, e o pagamento
+   é confirmado pelo aviso do Mercado Pago (ou pela consulta direta enquanto esta tela está aberta). */
+/* data e hora no fuso do aparelho: "15/11/26 23:59" */
+const fdhAss = ts => { if (!ts) return "—"; const d = new Date(ts); if (isNaN(d)) return "—"; return fdy(isoD(d)) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+const ASS = { d: null, erro: "", load: false, plano: "", ciclo: "mensal", gerando: false, trocar: false, t: null, espera: null, pago: null };
+
+async function assCarregar(silencioso) {
+  if (MODE !== "supa") return;
+  if (!silencioso) { ASS.load = true; if (ui.route === "assinatura") render(); }
+  try {
+    const d = await SupaBE.fn({ acao: "pix_status" });
+    // a cobrança que estava aberta virou pagamento: mostra a confirmação
+    if (ASS.espera && !(d.pendente && d.pendente.id === ASS.espera) && (d.historico || []).some(h => h.id === ASS.espera)) {
+      ASS.pago = (d.assinatura && d.assinatura.vence_em) || ""; ASS.trocar = false; toast("Pago confirmado");
+    }
+    ASS.espera = d.pendente && d.pendente.status === "pendente" ? d.pendente.id : null;
+    ASS.d = d; ASS.erro = "";
+    const ids = (d.planos || []).map(p => p.id);
+    if (!ids.includes(ASS.plano)) {
+      const atual = d.assinatura && d.assinatura.plano_id;
+      ASS.plano = ids.includes(atual) ? atual : ((d.planos || []).find(p => /completo/.test(p.id)) || (d.planos || [])[0] || {}).id || "";
+      if (d.assinatura && d.assinatura.ciclo === "anual") ASS.ciclo = "anual";
+    }
+    if (S.emp && d.plano && S.emp.plano !== d.plano) { S.emp.plano = d.plano; S.emp.teste_ate = d.teste_ate; }
+  } catch (e) { ASS.erro = e.message || "No se pudo cargar la suscripción."; }
+  ASS.load = false;
+  if (ui.route === "assinatura") render();
+  assAgendar();
+}
+function assAgendar() {
+  clearTimeout(ASS.t);
+  if (ui.route === "assinatura" && ASS.espera) ASS.t = setTimeout(() => { if (ui.route === "assinatura" && !document.hidden) assCarregar(true); else assAgendar(); }, 6000);
+}
+const assPlanoSel = () => ((ASS.d && ASS.d.planos) || []).find(p => p.id === ASS.plano);
+const assTotal = p => !p ? 0 : ASS.ciclo === "anual" && p.total_anual ? p.total_anual : p.total_mensal;
+function assSituacao(d) {
+  const a = d.assinatura || {}, hj = d.hoje || today;
+  if (d.plano === "bloqueado") return { t: "Empresa bloqueada", s: "Habla con soporte para reactivarla.", cls: "bad" };
+  if (d.plano === "cancelado") return { t: "Suscripción cancelada", s: "Paga un plan para volver a registrar operaciones.", cls: "bad" };
+  if (d.plano === "teste") {
+    const dias = d.teste_ate ? diffDays(hj, d.teste_ate) : 0;
+    return dias < 0 ? { t: "La prueba gratis terminó", s: `Terminó el ${fdy(d.teste_ate)}. Tus datos siguen aquí: activa un plan para seguir usándolo.`, cls: "bad" }
+      : { t: "Prueba gratis", s: `${dias === 0 ? "Termina hoy" : `Faltan ${dias} ${dias === 1 ? "día" : "días"}`} (hasta el ${fdy(d.teste_ate)}). Si pagas ahora, no pierdes los días gratis que faltan.`, cls: "info" };
+  }
+  if (a.vence_em) {
+    const dias = diffDays(hj, a.vence_em);
+    return dias < 0 ? { t: "Mensualidad vencida", s: `Venció el ${fdy(a.vence_em)}. Paga para mantener la cuenta activa.`, cls: "bad" }
+      : { t: "Plan activo", s: `Pagado hasta el ${fdy(a.vence_em)}${dias <= 5 ? ` · vence en ${dias} ${dias === 1 ? "día" : "días"}` : ""}.`, cls: dias <= 5 ? "warn" : "ok" };
+  }
+  return { t: "Plan activo", s: `Gracias por usar ${APP}.`, cls: "ok" };
+}
+function assPixBox(p) {
+  const pl = ((ASS.d && ASS.d.planos) || []).find(x => x.id === p.plano_id);
+  return `<section class="card pixbox">
+    <span class="lbl">Pix de</span><b class="pixval">${fmt(p.valor)}</b>
+    <small>${esc(pl ? pl.nome : "Plan")} · ${p.ciclo === "anual" ? "12 meses" : "1 mes"}</small>
+    ${p.pix_qr ? `<img class="pixqr" src="data:image/png;base64,${esc(p.pix_qr)}" width="220" height="220" alt="Código QR del Pix">` : ""}
+    <p class="hint" style="margin:10px 0 6px">Abre la app de tu banco, elige Pix y escanea el código QR, o copia el código de abajo y usa “Pix copia y pega”.</p>
+    ${p.pix_copia ? `<textarea class="pixcode" readonly rows="3" aria-label="Código Pix copia y pega">${esc(p.pix_copia)}</textarea>
+    <button class="btn block" style="margin-top:8px" data-a="assCopiar">${ico("copy", 18)}Copiar código Pix</button>` : ""}
+    <p class="pixwait"><span class="pixdot" aria-hidden="true"></span>Esperando el pago. La confirmación aparece aquí sola, en pocos segundos.</p>
+    <small class="muted">Válido hasta ${p.expira_em ? fdhAss(p.expira_em) : "—"}</small>
+    <div class="btns" style="margin-top:12px;justify-content:center"><button class="btn sm line" data-a="assAtualizar">Ya pagué</button><button class="btn sm ghost" data-a="assTrocar">Cambiar plan</button></div>
+  </section>`;
+}
+function assEscolha() {
+  const d = ASS.d, p = assPlanoSel(), total = assTotal(p), temAnual = (d.planos || []).some(x => x.total_anual);
+  let h = `<p class="sec">Elige el plan</p><div class="list">${(d.planos || []).map(x => `<button class="row planopt" data-a="assPlano" data-id="${esc(x.id)}" aria-pressed="${x.id === ASS.plano}">
+    <span class="radio" aria-hidden="true"></span><span class="wmain"><b>${esc(x.nome)}</b><small>${esc(x.descricao || "")}${x.usuarios_max ? ` · hasta ${x.usuarios_max} usuarios` : ""}</small></span>
+    <span class="right"><b>${fmt0(x.total_mensal)}</b><small>por mes</small></span></button>`).join("")}</div>`;
+  if (temAnual) h += `<div class="seg" style="margin-top:12px">${[["mensal", "Mensual"], ["anual", "Anual · 2 meses gratis"]].map(([k, l]) => `<button data-a="assCiclo" data-id="${k}" aria-pressed="${ASS.ciclo === k}">${l}</button>`).join("")}</div>`;
+  if (p) h += `<div class="card" style="margin-top:12px"><div class="kv" style="padding-top:0"><span>${esc(p.nome)} · ${ASS.ciclo === "anual" && p.total_anual ? "12 meses" : "1 mes"}</span><b>${fmt(total)}</b></div>
+    <small class="muted">${ASS.ciclo === "anual" && p.total_anual ? `Sale en ${fmt(p.total_anual / 12)} al mes, ${fmt(p.total_anual / 365)} al día.` : `Dá ${fmt(p.total_mensal / 30)} al día.`} Sin plazo forzoso: pagas cuando quieras continuar.</small></div>`;
+  h += `<button class="btn block" style="margin-top:12px" data-a="assGerar" ${!p || ASS.gerando ? "disabled" : ""}>${ASS.gerando ? "Generando el Pix…" : `Pagar ${fmt(total)} con Pix`}</button>`;
+  if (ASS.trocar && d.pendente) h += `<button class="btn ghost block" style="margin-top:6px" data-a="assTrocar">Volver al Pix generado</button>`;
+  return h;
+}
+function vAssinatura() {
+  if (MODE !== "supa") return head("Suscripción", "", { back: true }) + empty("Disponible en la versión en línea.", "Entra con tu cuenta para ver el plan.");
+  if (!ASS.d && !ASS.load && !ASS.erro) setTimeout(() => assCarregar(), 0);
+  let h = head("Suscripción", "Plan y mensualidad", { back: true });
+  if (ASS.erro && !ASS.d) return h + `<div class="note bad">${esc(ASS.erro)}</div><button class="btn line block" style="margin-top:10px" data-a="assAtualizar">Intentar de nuevo</button>`;
+  if (!ASS.d) return h + `<div class="card"><small class="muted">Cargando…</small></div>`;
+  const d = ASS.d, st = assSituacao(d);
+  if (ASS.pago != null) h += `<div class="note good" style="margin-bottom:12px"><b>Pago confirmado.</b> ${ASS.pago ? `Tu plan está activo hasta el ${fdy(ASS.pago)}.` : "Tu plan está activo."} ¡Gracias!</div>`;
+  h += `<section class="card"><div class="kv" style="padding-top:0"><span>Estado</span><span class="pill ${st.cls}">${esc(st.t)}</span></div><p class="hint" style="margin:6px 0 0">${esc(st.s)}</p></section>`;
+  if (ASS.erro) h += `<div class="note bad" style="margin-top:12px">${esc(ASS.erro)}</div>`;
+  if (d.plano === "bloqueado") return h;
+  if (!d.configurado) h += `<div class="note warn" style="margin-top:12px">El pago por Pix todavía no está activo. Habla con el soporte de ${APP} para acordar el pago.</div>`;
+  else if (d.pendente && d.pendente.status === "pendente" && !ASS.trocar) h += `<p class="sec">Pago</p>` + assPixBox(d.pendente);
+  else h += assEscolha();
+  if ((d.historico || []).length) h += `<p class="sec">Pagos</p><div class="list">${d.historico.map(c => `<div class="row"><span class="wmain"><b>${esc(c.referencia || "Mensualidad")}</b><small>${esc(c.forma || "Pix")} · pagado el ${fdhAss(c.pago_em)}</small></span><span class="right"><b>${fmt(c.valor)}</b></span></div>`).join("")}</div>`;
+  h += `<p class="hint" style="margin-top:14px">El Pix lo procesa Mercado Pago. Dudas sobre el cobro: suporte@saus360.com.br</p>`;
+  return h;
+}
+
+const ASS_A = {
+  assPlano: (t, id) => { ASS.plano = id; render(); },
+  assCiclo: (t, id) => { ASS.ciclo = id === "anual" ? "anual" : "mensal"; render(); },
+  assTrocar: () => { ASS.trocar = !ASS.trocar; render(); },
+  assAtualizar: async () => { await assCarregar(!!ASS.d); if (ASS.espera) toast("Todavía no recibimos la confirmación. Puede tardar unos segundos."); },
+  assCopiar: async () => {
+    const c = ASS.d && ASS.d.pendente && ASS.d.pendente.pix_copia; if (!c) return;
+    try { await navigator.clipboard.writeText(c); toast("Código Pix copiado"); }
+    catch (e) { const el = document.querySelector(".pixcode"); if (el) { el.select(); toast("Selecciona y copia el código"); } }
+  },
+  assGerar: async () => {
+    if (ASS.gerando || !assPlanoSel()) return;
+    ASS.gerando = true; ASS.erro = ""; ASS.pago = null; render();
+    try {
+      const r = await SupaBE.fn({ acao: "pix_gerar", plano_id: ASS.plano, ciclo: ASS.ciclo });
+      ASS.trocar = false;
+      if (r && r.cobranca) { ASS.d.pendente = r.cobranca; ASS.espera = r.cobranca.id; }
+      try { Promise.resolve(logMov("cadastro", `Pix de la mensualidad generado · ${fmt(r && r.cobranca ? r.cobranca.valor : assTotal(assPlanoSel()))}`)).catch(() => {}); } catch (e) {}
+    } catch (e) { ASS.erro = e.message || "No se pudo generar el Pix."; }
+    ASS.gerando = false; render(); assAgendar();
+  }
+};
+
+Object.assign(ROUTES, { assinatura: { v: vAssinatura, tab: "mais", p: "empresa" } });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && ui.route === "assinatura" && ASS.espera) assCarregar(true); });
 
 boot();
