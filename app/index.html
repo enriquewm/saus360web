@@ -535,6 +535,23 @@ b.muted{color:var(--muted);font-weight:600}
 .slugbox input{border:0!important;box-shadow:none!important;padding-left:2px!important;margin:0!important;min-width:0}
 .lojaaviso{display:flex;align-items:center;justify-content:space-between;gap:10px}
 label.btn.disabled{opacity:.6;pointer-events:none}
+.lojacapa{position:relative;aspect-ratio:5/2;border-radius:14px;background:var(--lt,var(--accent));margin-bottom:30px}
+.lojacapa>img{width:100%;height:100%;object-fit:cover;border-radius:14px;display:block}
+.lojacapa.ed{margin-bottom:0}
+.lojalogo{position:absolute;left:14px;bottom:-22px;width:64px;height:64px;border-radius:50%;border:3px solid var(--surface);background:var(--surface-2);display:grid;place-items:center;font-weight:800;font-size:20px;overflow:hidden;color:var(--ink)}
+.lojalogo.ed{position:static;width:84px;height:84px;border-color:var(--line)}
+.lojalogo img{width:100%;height:100%;object-fit:cover}
+.lojacores{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0 4px}
+.lojacor{width:42px;height:42px;border-radius:50%;border:3px solid var(--surface);background:var(--lt);box-shadow:0 0 0 1.5px var(--line);cursor:pointer;padding:0}
+.lojacor[aria-pressed=true]{box-shadow:0 0 0 3px var(--ink)}
+.lojadest{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.lojadest::-webkit-scrollbar{display:none}
+.lojadesti{flex:none;width:76px;text-align:center}
+.lojadesti .lojathumb{width:76px;height:76px;border-radius:14px}
+.lojadesti small{font-size:11.5px;line-height:1.25;margin-top:5px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.lojacombolista{max-height:300px;overflow-y:auto}
+.lojacombolista .row{cursor:default}
+#sheetBody .row[aria-pressed=true]{box-shadow:inset 0 0 0 2px var(--accent)}
 
 </style>
 <link rel="manifest" href="manifest.webmanifest">

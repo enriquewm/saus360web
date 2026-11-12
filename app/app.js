@@ -631,7 +631,10 @@ function formHtml(spec, vals, at = "f") {
 }
 
 /* ---- Exportação ---- */
-function csv(rows) { return "﻿" + rows.map(r => r.map(c => { const s = String(c == null ? "" : c); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(";")).join("\n"); }
+/* Texto que começa com = + @ (ou - sem ser número) ganha um apóstrofo: a planilha não o trata como fórmula.
+   Nomes e observações podem vir de fora (pedido da loja online, importação). */
+const csvSeguro = c => { if (typeof c === "number") return String(c); const s = String(c == null ? "" : c); return /^[=+@\t\r]/.test(s) || (/^-/.test(s) && !/^-[\d.,\s]+%?$/.test(s)) ? "'" + s : s; };
+function csv(rows) { return "﻿" + rows.map(r => r.map(c => { const s = csvSeguro(c); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(";")).join("\n"); }
 async function saveFile(filename, text) { return Platform.saveFile(filename, text); }
 function parseCSV(txt) {
   let lines = txt.replace(/^﻿/, "").split(/\r?\n/).filter(l => l.trim());
@@ -3824,7 +3827,11 @@ function descLim() {
   const v = Number(S.emp.descMax); return isFinite(v) && v >= 0 ? v : null;
 }
 const descPctDe = t => (t.bruto > 0 ? t.desc / t.bruto * 100 : 0);
-function descExcede(t) { const l = descLim(); return l != null && descPctDe(t) > l + 0.005; }
+function descExcede(t) {
+  const l = descLim(), d = ui.draft;
+  if (d && d.lojaDesc > 0 && t.desc <= d.lojaDesc + 0.005) return false; // pedido da loja: o desconto é a promoção ou o combo que a empresa publicou
+  return l != null && descPctDe(t) > l + 0.005;
+}
 function descMaxCard() {
   const v = S.emp && S.emp.descMax != null && S.emp.descMax !== "" ? Number(S.emp.descMax) : null;
   return `<p class="sec">Desconto nas vendas</p><div class="menu"><button data-a="sheet" data-k="descMaxForm">${ico("tag")}<span class="wmain"><b>${v == null ? "Vendedor sem limite de desconto" : `Vendedor dá até ${dec(v)}% de desconto`}</b><small>Administrador e gerente não têm limite</small></span>${ico("chev", 18)}</button></div>`;
@@ -4342,6 +4349,25 @@ const lojaLink = l => "https://" + LOJA_HOST + l.slug;
 const lojaNovos = () => S.ped.filter(o => o.online && o.online.status === "novo" && o.status === "orcamento");
 const lojaCandidatos = () => S.prod.filter(p => p.ativo !== false && !ehInsumo(p));
 const lojaPub = p => !!p.loja && preco(p, "varejo") > 0;
+const LOJA_TEMAS = { framboesa: ["Framboesa", "#B5285A"], chocolate: ["Chocolate", "#6B3E26"], pistache: ["Pistache", "#4F7A3A"], caramelo: ["Caramelo", "#A35C08"], lavanda: ["Lavanda", "#6B4FA8"], azul: ["Azul", "#1D5C96"], carvao: ["Carvão", "#2B2E3F"] };
+const LOJA_SELOS = { novo: "Novidade", top: "Mais pedido", limitado: "Edição limitada" };
+/* promoção que vale hoje (mesma regra do servidor): menor que o preço normal e dentro da validade */
+const lojaPromoDe = p => { const v = preco(p, "varejo"), pr = r2(Number(p.lojaPromo) || 0); return pr > 0 && pr < v && (!p.lojaPromoAte || p.lojaPromoAte >= today) ? pr : 0; };
+const lojaCombos = () => (LJ.d && LJ.d.dados && LJ.d.dados.combos) || [];
+function comboCalc(itens, pc) {
+  let soma = 0, ok = true, n = 0;
+  (itens || []).forEach(i => { const p = P(i.p); if (!p || p.ativo === false || !(preco(p, "varejo") > 0)) ok = false; else { soma += i.q * preco(p, "varejo"); n += i.q; } });
+  soma = r2(soma);
+  return { soma, n, ok: ok && n > 0 && pc > 0 && pc <= soma + 0.004, econ: r2(Math.max(0, soma - pc)) };
+}
+/* grava a configuração da loja (o servidor confere e devolve o que ficou valendo) */
+async function lojaGravar(patch) {
+  const l = LJ.d; if (!l || !SB) return "Loja não carregada.";
+  const { data, error } = await SB.rpc("salvar_loja", { p_empresa: EID, p_slug: l.slug, p_ativa: l.ativa, p_dados: Object.assign({}, l.dados || {}, { cats: cats().map(c => ({ id: c.id, l: c.l })) }, patch || {}) });
+  if (error) return /sem_permissao/.test(error.message || "") ? "Só o administrador configura a loja." : "Não foi possível salvar: " + (error.message || "");
+  l.dados = (data && data.dados) || Object.assign({}, l.dados || {}, patch || {});
+  return "";
+}
 
 async function lojaCarregar() {
   if (MODE !== "supa") return;
@@ -4380,13 +4406,28 @@ function vLoja() {
     <div class="btns" style="margin-top:10px"><button class="btn sm" data-a="lojaCopiar">${ico("copy", 16)}Copiar link</button><a class="btn sm line" href="${esc(waLink("", lojaConvite(l)))}" target="_blank" rel="noopener">${ico("whats", 16)}Divulgar</a><a class="btn sm ghost" href="${esc(lojaLink(l))}" target="_blank" rel="noopener">Abrir</a></div>
     ${!pubs.length ? `<div class="note warn" style="margin-top:10px">Nenhum produto na loja ainda. Escolha abaixo o que aparece para os clientes.</div>` : semFoto ? `<p class="hint" style="margin:10px 0 0">${semFoto} ${semFoto === 1 ? "produto está" : "produtos estão"} sem foto. Produto com foto vende mais.</p>` : ""}
     ${adm ? `<button class="btn ghost block" style="margin-top:8px" data-a="lojaAtivar">${l.ativa ? "Pausar a loja" : "Colocar a loja no ar"}</button>` : ""}</section>`;
+  const dd = l.dados || {}, tema = LOJA_TEMAS[dd.tema] || LOJA_TEMAS.framboesa, dest = pubs.filter(p => p.lojaDestaque), combos = lojaCombos();
+  h += `<p class="sec">Aparência da loja</p><section class="card">
+    <div class="lojacapa" style="--lt:${tema[1]}">${dd.capa ? `<img src="${esc(dd.capa)}" alt="">` : ""}<span class="lojalogo">${dd.logo ? `<img src="${esc(dd.logo)}" alt="">` : esc(initials(S.emp.nome))}</span></div>
+    <div class="kv"><span>Cor</span><b>${tema[0]}</b></div>
+    ${dd.aviso ? `<div class="kv"><span>Aviso</span><b>${esc(dd.aviso)}</b></div>` : ""}
+    ${!dd.capa || !dd.logo ? `<p class="hint" style="margin:8px 0 0">${!dd.capa && !dd.logo ? "Coloque sua logo e uma foto de capa: a loja fica com a cara do seu negócio." : !dd.capa ? "Falta a foto de capa." : "Falta a logo."}</p>` : ""}
+    ${adm ? `<button class="btn line block" style="margin-top:10px" data-a="sheet" data-k="lojaVisual">Personalizar a loja</button>` : ""}</section>`;
+  h += `<p class="sec">Destaques de hoje <span class="count">${dest.length}</span></p><section class="card">
+    ${dest.length ? `<div class="lojadest">${dest.map(p => `<span class="lojadesti">${lojaFotoHtml(p, "lojathumb")}<small>${esc(p.nome)}</small></span>`).join("")}</div>` : `<p class="hint" style="margin:0">Escolha os produtos que aparecem primeiro e em tamanho grande: a fornada do dia, uma novidade, o que precisa sair. Troque quando quiser.</p>`}
+    ${can("ajuste") && pubs.length ? `<button class="btn line block" style="margin-top:10px" data-a="sheet" data-k="lojaDest">Escolher destaques</button>` : ""}</section>`;
+  h += `<p class="sec">Combos <span class="count">${combos.length}</span></p>`;
+  h += combos.length ? `<div class="list">${combos.map(c => { const k = comboCalc(c.itens, c.preco); return `<button class="row" data-a="sheet" data-k="lojaCombo" data-id="${esc(c.id)}">${c.foto ? `<img class="lojathumb" src="${esc(c.foto)}" alt="" loading="lazy">` : `<span class="lojathumb semfoto">${ico("box", 20)}</span>`}
+      <span class="wmain"><b>${esc(c.nome)}</b><small>${fmt(c.preco)}${k.ok && k.econ > 0 ? " · cliente economiza " + fmt(k.econ) : ""}</small></span>
+      <span class="right">${!k.ok ? `<span class="pill bad">Revisar</span>` : c.ativo === false ? `<span class="pill mute">Pausado</span>` : `<span class="pill ok">Na loja</span>`}</span></button>`; }).join("")}</div>`
+    : `<section class="card"><p class="hint" style="margin:0">Junte produtos em um kit com preço especial, como bolo + 20 docinhos. A loja mostra quanto o cliente economiza.</p></section>`;
+  if (adm && combos.length < 12) h += `<button class="btn line block" style="margin-top:10px" data-a="sheet" data-k="lojaCombo">${ico("plus", 18)}Novo combo</button>`;
   const cands = lojaCandidatos().sort((a, b) => (lojaPub(b) - lojaPub(a)) || a.nome.localeCompare(b.nome));
   h += `<p class="sec">Produtos na loja <span class="count">${pubs.length} de ${cands.length}</span></p>`;
   h += cands.length ? `<div class="list">${cands.map(p => `<button class="row" data-a="sheet" data-k="lojaProd" data-id="${p.id}">${lojaFotoHtml(p, "lojathumb")}
-      <span class="wmain"><b>${esc(p.nome)}</b><small>${preco(p, "varejo") > 0 ? fmt(preco(p, "varejo")) : "Sem preço de varejo"}${p.lojaDesc ? " · " + esc(String(p.lojaDesc).slice(0, 50)) : ""}</small></span>
+      <span class="wmain"><b>${esc(p.nome)}</b><small>${preco(p, "varejo") > 0 ? (lojaPromoDe(p) ? `${fmt(lojaPromoDe(p))} <s>${fmt(preco(p, "varejo"))}</s> · promoção` : fmt(preco(p, "varejo"))) : "Sem preço de varejo"}${p.lojaDestaque && lojaPub(p) ? " · destaque" : ""}${p.lojaDesc ? " · " + esc(String(p.lojaDesc).slice(0, 40)) : ""}</small></span>
       <span class="right">${lojaPub(p) ? `<span class="pill ok">Na loja</span>` : p.loja ? `<span class="pill warn">Sem preço</span>` : `<span class="pill mute">Fora</span>`}</span></button>`).join("")}</div>`
     : empty("Nenhum produto de venda.", "Cadastre os produtos que você vende para colocá-los na loja.");
-  const dd = l.dados || {};
   h += `<p class="sec">Como funciona a sua loja</p><section class="card">
     <div class="kv" style="padding-top:0"><span>Retirada</span><b>${dd.retirada !== false ? "Sim" + (dd.endereco ? " · " + esc(dd.endereco) : "") : "Não"}</b></div>
     <div class="kv"><span>Entrega</span><b>${dd.entrega ? "Sim" + (Number(dd.taxa) > 0 ? " · taxa " + fmt(Number(dd.taxa)) : " · sem taxa") : "Não"}</b></div>
@@ -4411,6 +4452,8 @@ function lojaPedCard(o) {
     <div class="kv"><span>${e.modo === "entrega" ? "Entrega" : "Retirada"}</span><b>${fdy(e.data)}${e.hora ? " · " + esc(e.hora) : ""}</b></div>
     ${e.end ? `<div class="kv"><span>Endereço</span><b>${esc(e.end)}</b></div>` : ""}
     ${Number(on.taxa) > 0 ? `<div class="kv"><span>Taxa de entrega</span><b>${fmt(on.taxa)}</b></div>` : ""}
+    ${(on.combos || []).map(c => `<div class="kv"><span>Combo</span><b>${esc(String(c.q))}× ${esc(c.nome)}</b></div>`).join("")}
+    ${Number(on.econ) > 0 ? `<div class="kv"><span>Promoções e combos</span><b>−${fmt(Number(on.econ))}</b></div>` : ""}
     <div class="kv"><span>Total para o cliente</span><b>${fmt(on.total || pedCalc(o).total)}</b></div>
     ${on.motivo ? `<div class="kv"><span>Motivo</span><b>${esc(on.motivo)}</b></div>` : ""}
     ${conv ? `<button class="btn line block" style="margin-top:10px" data-a="go" data-r="pedido" data-id="${conv.id}">Ver ${conv.enc ? "encomenda" : "pedido"} #${conv.num}</button>` : ""}
@@ -4426,18 +4469,51 @@ function lojaAviso() {
 }
 
 /* Fotos: reduz no aparelho (até 1000 px) e envia para o armazenamento público da loja */
-function reduzirImg(file, max, q) {
+function reduzirImg(file, max, q, prop) {
   return new Promise((res, rej) => {
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = () => {
-      const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement("canvas");
-      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      /* prop = largura/altura desejada (1 = quadrado para a logo, 2 = faixa para a capa): corta pelo centro */
+      let sw = img.width, sh = img.height;
+      if (prop) { if (sw / sh > prop) sw = Math.round(sh * prop); else sh = Math.round(sw / prop); }
+      const sx = Math.round((img.width - sw) / 2), sy = Math.round((img.height - sh) / 2);
+      const k = Math.min(1, max / Math.max(sw, sh)), c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(sw * k)); c.height = Math.max(1, Math.round(sh * k));
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url); c.toBlob(b => b ? res(b) : rej(new Error("Imagem inválida")), "image/jpeg", q);
     };
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Imagem inválida")); };
     img.src = url;
   });
+}
+/* envia a imagem reduzida para a pasta da empresa e devolve o endereço público */
+async function lojaSubir(file, nome, max, prop) {
+  const blob = await reduzirImg(file, max, 0.82, prop);
+  const path = `${EID}/${String(nome).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 60) || "img"}-${Date.now().toString(36)}.jpg`;
+  const { error } = await SB.storage.from("produtos").upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000", upsert: false });
+  if (error) throw error;
+  return SB.storage.from("produtos").getPublicUrl(path).data.publicUrl;
+}
+function lojaApagarImg(url) {
+  const m = url && String(url).split("/produtos/")[1];
+  if (m && SB) Promise.resolve(SB.storage.from("produtos").remove([decodeURIComponent(m)])).catch(() => {});
+}
+/* logo, capa (gravam na hora) e foto do combo (fica na folha até salvar o combo) */
+async function lojaImg(tipo, file) {
+  if (!file) return;
+  if (!/^image\//.test(file.type || "image/")) { toast("Escolha uma imagem (JPG ou PNG)."); return; }
+  if (!SB || !LJ.d) { toast("Disponível na versão online."); return; }
+  const s = ui.sheet; if (s) { s.enviando = tipo; renderSheet(); }
+  try {
+    if (tipo === "combo") { const url = await lojaSubir(file, "combo", 1000, 0); if (s) { lojaApagarImg(s.fotoNova); s.fotoNova = url; s.foto = url; } }
+    else {
+      const velho = (LJ.d.dados || {})[tipo], url = await lojaSubir(file, "loja-" + tipo, tipo === "logo" ? 480 : 1600, tipo === "logo" ? 1 : 2);
+      const err = await lojaGravar({ [tipo]: url });
+      if (err) toast(err); else { toast(tipo === "logo" ? "Logo salva" : "Capa salva"); lojaApagarImg(velho); }
+    }
+  } catch (e) { toast("Não foi possível enviar a foto: " + (e.message || e)); }
+  if (s) { s.enviando = ""; if (ui.sheet === s) renderSheet(); }
+  render();
 }
 async function lojaFoto(pid, file) {
   if (!file) return;
@@ -4445,16 +4521,8 @@ async function lojaFoto(pid, file) {
   if (!SB) { toast("Disponível na versão online."); return; }
   const s = ui.sheet; if (s) { s.enviando = true; renderSheet(); }
   try {
-    const blob = await reduzirImg(file, 1000, 0.82);
-    const path = `${EID}/${pid}-${Date.now().toString(36)}.jpg`;
-    const { error } = await SB.storage.from("produtos").upload(path, blob, { contentType: "image/jpeg", cacheControl: "31536000", upsert: false });
-    if (error) throw error;
-    const url = SB.storage.from("produtos").getPublicUrl(path).data.publicUrl, velho = (P(pid) || {}).foto;
-    if (await commit([Store.patch("prod", pid, { foto: url })])) {
-      toast("Foto salva");
-      const m = velho && String(velho).split("/produtos/")[1];
-      if (m) Promise.resolve(SB.storage.from("produtos").remove([decodeURIComponent(m)])).catch(() => {});
-    }
+    const url = await lojaSubir(file, pid, 1000, 0), velho = (P(pid) || {}).foto;
+    if (await commit([Store.patch("prod", pid, { foto: url })])) { toast("Foto salva"); lojaApagarImg(velho); }
   } catch (e) { toast("Não foi possível enviar a foto: " + (e.message || e)); }
   if (s) { s.enviando = false; if (ui.sheet === s) renderSheet(); }
   render();
@@ -4486,16 +4554,71 @@ Object.assign(SH, {
   },
   lojaProd: s => {
     const p = P(s.id); if (!p) return ["Produto", empty("Produto não encontrado.", "")];
-    if (!s.init) { s.init = true; s.vals.desc = p.lojaDesc || ""; s.pub = !!p.loja; }
+    if (!s.init) { s.init = true; s.vals.desc = p.lojaDesc || ""; s.pub = !!p.loja; s.dest = !!p.lojaDestaque; s.selo = LOJA_SELOS[p.lojaSelo] ? p.lojaSelo : ""; s.vals.promo = Number(p.lojaPromo) > 0 ? money(Number(p.lojaPromo)) : ""; s.vals.ate = p.lojaPromoAte || ""; }
     const semPreco = !(preco(p, "varejo") > 0), podeEditar = can("ajuste");
     return [p.nome, `<div class="lojafoto">${lojaFotoHtml(p, "lojafotoimg")}
       ${podeEditar ? `<div class="btns" style="justify-content:center;margin-top:10px"><label class="btn sm ${s.enviando ? "disabled" : ""}">${s.enviando ? "Enviando…" : p.foto ? "Trocar foto" : "Colocar foto"}<input type="file" accept="image/*" data-loja-foto="${p.id}" hidden ${s.enviando ? "disabled" : ""}></label>${p.foto ? `<button class="btn sm ghost" data-a="lojaTirarFoto" data-id="${p.id}">Tirar foto</button>` : ""}</div>` : ""}</div>
-      <div class="kv"><span>Preço na loja</span><b>${semPreco ? "Sem preço de varejo" : fmt(preco(p, "varejo"))}</b></div>
+      <div class="kv"><span>Preço na loja</span><b>${semPreco ? "Sem preço de varejo" : lojaPromoDe(p) ? `${fmt(lojaPromoDe(p))} <s class="muted">${fmt(preco(p, "varejo"))}</s>` : fmt(preco(p, "varejo"))}</b></div>
       ${semPreco ? `<div class="note warn">Cadastre o preço de varejo do produto para ele aparecer na loja.</div>` : ""}
       ${podeEditar ? `<div class="seg" style="margin-top:12px"><button data-a="lojaPubTog" data-id="1" aria-pressed="${s.pub}">Mostrar na loja</button><button data-a="lojaPubTog" data-id="0" aria-pressed="${!s.pub}">Não mostrar</button></div>
       <label class="field" style="margin-top:12px">Descrição para o cliente<textarea data-f="desc" rows="3" maxlength="400" placeholder="Ex.: Massa de chocolate, recheio de brigadeiro. Serve 10 pessoas.">${esc(s.vals.desc)}</textarea></label>
       ${p.alerg ? `<p class="hint" style="margin:0 2px">Alérgenos aparecem na loja: ${esc(p.alerg)}</p>` : ""}
+      <span class="lbl" style="margin-top:14px">Chamar atenção na loja</span>
+      <div class="chips tight"><button type="button" class="chip" data-a="lojaProdDest" aria-pressed="${s.dest}">Destaque de hoje</button>${Object.entries(LOJA_SELOS).map(([k, t]) => `<button type="button" class="chip" data-a="lojaProdSelo" data-id="${k}" aria-pressed="${s.selo === k}">${t}</button>`).join("")}</div>
+      <div class="grid2" style="margin-top:12px"><label class="field">Preço promocional (${SIM()})<input data-f="promo" inputmode="decimal" value="${esc(s.vals.promo)}" placeholder="Sem promoção"></label>
+      <label class="field">Promoção vale até<input type="date" data-f="ate" min="${today}" value="${esc(s.vals.ate)}"></label></div>
+      <p class="hint" style="margin:0 2px">Na loja aparece o preço normal riscado e o desconto. Deixe o preço em branco para tirar a promoção; sem data, ela vale até você tirar.</p>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}
       <button class="btn block" style="margin-top:12px" data-a="lojaProdSalvar" data-id="${p.id}">Salvar</button>` : `<p class="hint">Seu papel não edita produtos.</p>`}`];
+  },
+  lojaVisual: s => {
+    const l = LJ.d; if (!l) return ["Personalizar a loja", ""];
+    const dd = l.dados || {};
+    if (!s.init) { s.init = true; s.tema = LOJA_TEMAS[dd.tema] ? dd.tema : "framboesa"; Object.assign(s.vals, { aviso: dd.aviso || "", insta: dd.insta || "" }); }
+    const arq = (tipo, tem) => `<div class="btns" style="margin-top:8px"><label class="btn sm ${s.enviando ? "disabled" : ""}">${s.enviando === tipo ? "Enviando…" : tem ? "Trocar" : "Escolher foto"}<input type="file" accept="image/*" data-loja-img="${tipo}" hidden ${s.enviando ? "disabled" : ""}></label>${tem ? `<button class="btn sm ghost" data-a="lojaImgTirar" data-id="${tipo}">Tirar</button>` : ""}</div>`;
+    return ["Personalizar a loja", `<span class="lbl">Foto de capa</span>
+      <div class="lojacapa ed" style="--lt:${LOJA_TEMAS[s.tema][1]}">${dd.capa ? `<img src="${esc(dd.capa)}" alt="">` : ""}</div>${arq("capa", !!dd.capa)}
+      <p class="hint" style="margin:6px 2px 0">Fica no topo da loja. Use uma foto larga dos seus produtos ou da sua vitrine.</p>
+      <span class="lbl" style="margin-top:16px">Logo</span>
+      <div class="lojalogo ed">${dd.logo ? `<img src="${esc(dd.logo)}" alt="">` : esc(initials(S.emp.nome))}</div>${arq("logo", !!dd.logo)}
+      <span class="lbl" style="margin-top:16px">Cor da loja</span>
+      <div class="lojacores">${Object.entries(LOJA_TEMAS).map(([k, t]) => `<button type="button" class="lojacor" data-a="lojaTema" data-id="${k}" aria-pressed="${s.tema === k}" aria-label="${t[0]}" title="${t[0]}" style="--lt:${t[1]}"></button>`).join("")}</div>
+      <label class="field" style="margin-top:14px">Aviso em destaque<input data-f="aviso" maxlength="140" value="${esc(s.vals.aviso)}" placeholder="Ex.: Encomendas de Natal até 18/12"></label>
+      <p class="hint" style="margin:-4px 2px 10px">Aparece em uma faixa no topo da loja. Bom para promoção da semana, datas e recados.</p>
+      <label class="field">Instagram<span class="slugbox"><span>@</span><input data-f="insta" maxlength="80" value="${esc(s.vals.insta)}" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="suaconfeitaria"></span></label>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}
+      <button class="btn block" style="margin-top:12px" data-a="lojaVisualSalvar">Salvar</button>`];
+  },
+  lojaDest: s => {
+    const pubs = lojaCandidatos().filter(lojaPub).sort((a, b) => a.nome.localeCompare(b.nome));
+    if (!s.init) { s.init = true; s.sel = {}; pubs.forEach(p => { if (p.lojaDestaque) s.sel[p.id] = true; }); }
+    const n = Object.values(s.sel).filter(Boolean).length;
+    return ["Destaques de hoje", `<p class="hint" style="margin-top:0">Toque nos produtos que aparecem primeiro na loja, em tamanho grande. Até 8.</p>
+      <div class="list">${pubs.map(p => `<button type="button" class="row" data-a="lojaDestTog" data-id="${p.id}" aria-pressed="${!!s.sel[p.id]}">${lojaFotoHtml(p, "lojathumb")}<span class="wmain"><b>${esc(p.nome)}</b><small>${fmt(lojaPromoDe(p) || preco(p, "varejo"))}</small></span><span class="right">${s.sel[p.id] ? `<span class="pill ok">Destaque</span>` : `<span class="pill mute">Normal</span>`}</span></button>`).join("")}</div>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}
+      <button class="btn block" style="margin-top:12px" data-a="lojaDestSalvar">${n ? `Salvar ${n} ${n === 1 ? "destaque" : "destaques"}` : "Salvar sem destaques"}</button>`];
+  },
+  lojaCombo: s => {
+    if (!s.init) {
+      s.init = true; const c = lojaCombos().find(x => x.id === s.id);
+      s.cid = c ? c.id : ""; s.q = {}; (c ? c.itens : []).forEach(i => { if (P(i.p)) s.q[i.p] = Number(i.q) || 0; });
+      s.foto = c ? c.foto || "" : ""; s.ativo = c ? c.ativo !== false : true;
+      Object.assign(s.vals, { nome: c ? c.nome : "", desc: c ? c.desc || "" : "", preco: c ? money(c.preco) : "" });
+    }
+    const cands = lojaCandidatos().filter(p => preco(p, "varejo") > 0).sort((a, b) => ((s.q[b.id] > 0) - (s.q[a.id] > 0)) || a.nome.localeCompare(b.nome));
+    return [s.cid ? "Editar combo" : "Novo combo", `<label class="field">Nome do combo<input data-f="nome" maxlength="60" value="${esc(s.vals.nome)}" placeholder="Ex.: Kit festa"></label>
+      <label class="field">Descrição (opcional)<textarea data-f="desc" rows="2" maxlength="300" placeholder="Ex.: Serve 15 pessoas. Ideal para aniversário.">${esc(s.vals.desc)}</textarea></label>
+      <span class="lbl">O que vem no combo</span>
+      <div class="list lojacombolista">${cands.map(p => `<div class="row"><span class="wmain"><b>${esc(p.nome)}</b><small>${fmt(preco(p, "varejo"))}</small></span>
+        <div class="stepper"><button type="button" data-a="lojaComboStep" data-id="${p.id}" data-d="-1" aria-label="Diminuir">−</button><output>${s.q[p.id] || 0}</output><button type="button" data-a="lojaComboStep" data-id="${p.id}" data-d="1" aria-label="Aumentar">+</button></div></div>`).join("") || `<p class="hint">Cadastre produtos com preço de varejo para montar o combo.</p>`}</div>
+      <label class="field" style="margin-top:12px">Preço do combo (${SIM()})<input data-f="preco" inputmode="decimal" value="${esc(s.vals.preco)}" placeholder="0,00"></label>
+      <p class="hint" id="comboEcon" style="margin:-4px 2px 10px">${esc(lojaComboTxt(s))}</p>
+      <div class="lojafoto" style="text-align:left">${s.foto ? `<img class="lojathumb" style="width:84px;height:84px" src="${esc(s.foto)}" alt="">` : ""}
+        <div class="btns" style="margin-top:8px"><label class="btn sm line ${s.enviando ? "disabled" : ""}">${s.enviando ? "Enviando…" : s.foto ? "Trocar foto" : "Foto do combo (opcional)"}<input type="file" accept="image/*" data-loja-img="combo" hidden ${s.enviando ? "disabled" : ""}></label></div></div>
+      <div class="seg" style="margin-top:12px"><button type="button" data-a="lojaComboAtivo" data-id="1" aria-pressed="${s.ativo}">Mostrar na loja</button><button type="button" data-a="lojaComboAtivo" data-id="0" aria-pressed="${!s.ativo}">Pausar</button></div>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}
+      <button class="btn block" style="margin-top:12px" data-a="lojaComboSalvar">Salvar combo</button>
+      ${s.cid ? `<button class="btn ghost block" style="margin-top:6px" data-a="lojaComboApagar">Apagar combo</button>` : ""}`];
   },
   lojaRecusar: s => {
     const o = Pe(s.id); if (!o) return ["Recusar", ""];
@@ -4512,9 +4635,9 @@ const LOJA_A = {
     const v = s.vals, slug = slugify(v.slug), fone = digits(v.whatsapp);
     s.err = slug.length < 3 ? "O endereço precisa ter pelo menos 3 letras ou números." : fone.length < 10 ? "Informe o WhatsApp da loja com DDD." : "";
     if (s.err) { renderSheet(); return; }
-    const dados = { whatsapp: v.whatsapp.trim(), bio: String(v.bio || "").trim().slice(0, 300), retirada: !!s.ret, entrega: !!s.ent, endereco: s.ret ? String(v.endereco || "").trim() : "",
+    const dados = Object.assign({}, (LJ.d && LJ.d.dados) || {}, { whatsapp: v.whatsapp.trim(), bio: String(v.bio || "").trim().slice(0, 300), retirada: !!s.ret, entrega: !!s.ent, endereco: s.ret ? String(v.endereco || "").trim() : "",
       horario: String(v.horario || "").trim(), taxa: s.ent ? r2(parseMoney(v.taxa) || 0) : 0, antecedencia: Number(v.antecedencia) || 0, minimo: r2(parseMoney(v.minimo) || 0),
-      cats: cats().map(c => ({ id: c.id, l: c.l })) };
+      cats: cats().map(c => ({ id: c.id, l: c.l })) });
     const novo = !LJ.d;
     const { data, error } = await SB.rpc("salvar_loja", { p_empresa: EID, p_slug: slug, p_ativa: novo ? true : LJ.d.ativa, p_dados: dados });
     if (error) {
@@ -4522,7 +4645,7 @@ const LOJA_A = {
       s.err = /slug_em_uso/.test(m) ? "Esse endereço já está em uso. Escolha outro." : /slug_reservado/.test(m) ? "Esse endereço é reservado. Escolha outro." : /slug_invalido/.test(m) ? "Use só letras minúsculas, números e hífen (3 a 40)." : /sem_permissao/.test(m) ? "Só o administrador configura a loja." : "Não foi possível salvar: " + m;
       renderSheet(); return;
     }
-    LJ.d = Object.assign({}, LJ.d || { empresa_id: EID }, { slug: data.slug, ativa: data.ativa, dados });
+    LJ.d = Object.assign({}, LJ.d || { empresa_id: EID }, { slug: data.slug, ativa: data.ativa, dados: data.dados || dados });
     commit([logMov("cadastro", novo ? `Loja online criada · ${LOJA_HOST}${data.slug}` : "Configurações da loja online atualizadas")]);
     closeSheet(); render(); toast(novo ? "Loja no ar! Agora escolha os produtos." : "Loja atualizada");
   },
@@ -4534,24 +4657,80 @@ const LOJA_A = {
     l.ativa = !l.ativa; l.dados = dados; render(); toast(l.ativa ? "Loja no ar" : "Loja pausada: os clientes veem que ela está fechada");
   },
   lojaPubTog: (t, id, s) => { s.pub = id === "1"; renderSheet(); },
+  lojaProdDest: (t, id, s) => { s.dest = !s.dest; renderSheet(); },
+  lojaProdSelo: (t, id, s) => { s.selo = s.selo === id ? "" : id; renderSheet(); },
   lojaProdSalvar: async (t, id, s) => {
     const p = P(id); if (!p) return;
-    const patch = { loja: !!s.pub, lojaDesc: String(s.vals.desc || "").trim().slice(0, 400) };
+    const promo = r2(parseMoney(s.vals.promo) || 0), v = preco(p, "varejo"), ate = promo > 0 ? String(s.vals.ate || "") : "";
+    s.err = promo > 0 && !(promo < v) ? `O preço promocional precisa ser menor que o preço normal (${fmt(v)}).` : ate && ate < today ? "A data da promoção já passou." : "";
+    if (s.err) { renderSheet(); return; }
+    const patch = { loja: !!s.pub, lojaDesc: String(s.vals.desc || "").trim().slice(0, 400), lojaDestaque: !!s.dest, lojaSelo: s.selo || "", lojaPromo: promo, lojaPromoAte: ate };
     if (!(await commit([Store.patch("prod", id, patch)]))) return;
     // mantém os nomes das categorias da loja em dia
-    if (LJ.d && can("empresa")) SB.rpc("salvar_loja", { p_empresa: EID, p_slug: LJ.d.slug, p_ativa: LJ.d.ativa, p_dados: Object.assign({}, LJ.d.dados || {}, { cats: cats().map(c => ({ id: c.id, l: c.l })) }) }).then(() => {}, () => {});
+    if (LJ.d && can("empresa")) lojaGravar().then(() => {}, () => {});
     closeSheet(); render(); toast(patch.loja ? (preco(p, "varejo") > 0 ? "Produto na loja" : "Salvo. Falta o preço de varejo para aparecer.") : "Produto fora da loja");
   },
   lojaTirarFoto: async (t, id) => {
     const p = P(id); if (!p || !p.foto) return;
-    const m = String(p.foto).split("/produtos/")[1];
-    if (await commit([Store.patch("prod", id, { foto: "" })])) { if (m && SB) Promise.resolve(SB.storage.from("produtos").remove([decodeURIComponent(m)])).catch(() => {}); renderSheet(); render(); toast("Foto removida"); }
+    const velho = p.foto;
+    if (await commit([Store.patch("prod", id, { foto: "" })])) { lojaApagarImg(velho); renderSheet(); render(); toast("Foto removida"); }
+  },
+  lojaTema: (t, id, s) => { if (LOJA_TEMAS[id]) { s.tema = id; renderSheet(); } },
+  lojaImgTirar: async (t, id, s) => {
+    if (id !== "logo" && id !== "capa") return;
+    const velho = (LJ.d.dados || {})[id], err = await lojaGravar({ [id]: "" });
+    if (err) { toast(err); return; }
+    lojaApagarImg(velho); renderSheet(); render(); toast(id === "logo" ? "Logo removida" : "Capa removida");
+  },
+  lojaVisualSalvar: async (t, id, s) => {
+    const insta = String(s.vals.insta || "").trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/[/?].*$/, "");
+    s.err = insta && !/^[A-Za-z0-9._]{1,30}$/.test(insta) ? "Confira o Instagram: só o nome do perfil, sem espaços." : "";
+    if (!s.err) s.err = await lojaGravar({ tema: s.tema, aviso: String(s.vals.aviso || "").trim().slice(0, 140), insta });
+    if (s.err) { renderSheet(); return; }
+    closeSheet(); render(); toast("Loja atualizada");
+  },
+  lojaDestTog: (t, id, s) => {
+    if (!s.sel[id] && Object.values(s.sel).filter(Boolean).length >= 8) { toast("No máximo 8 destaques."); return; }
+    s.sel[id] = !s.sel[id]; renderSheet();
+  },
+  lojaDestSalvar: async (t, id, s) => {
+    const ws = lojaCandidatos().filter(p => !!p.lojaDestaque !== !!s.sel[p.id]).map(p => Store.patch("prod", p.id, { lojaDestaque: !!s.sel[p.id] }));
+    if (ws.length && !(await commit(ws))) return;
+    closeSheet(); render(); toast("Destaques atualizados");
+  },
+  lojaComboStep: (t, id, s) => {
+    const p = P(id); if (!p) return;
+    s.q[id] = Math.max(0, Math.min(99, (s.q[id] || 0) + Number(t.dataset.d)));
+    const o = t.parentNode.querySelector("output"); if (o) o.textContent = s.q[id];
+    const e = $("comboEcon"); if (e) e.textContent = lojaComboTxt(s);
+  },
+  lojaComboAtivo: (t, id, s) => { s.ativo = id === "1"; renderSheet(); },
+  lojaComboSalvar: async (t, id, s) => {
+    const v = s.vals, nome = String(v.nome || "").trim().slice(0, 60), pc = r2(parseMoney(v.preco) || 0);
+    const itens = Object.entries(s.q).filter(([pid, q]) => q > 0 && P(pid)).map(([p, q]) => ({ p, q })), k = comboCalc(itens, pc);
+    s.err = !nome ? "Dê um nome ao combo." : k.n < 2 ? "Escolha pelo menos 2 itens para o combo." : !(pc > 0) ? "Informe o preço do combo." : pc > k.soma + 0.004 ? `O preço do combo precisa ser no máximo a soma dos produtos (${fmt(k.soma)}).` : "";
+    if (s.err) { renderSheet(); return; }
+    const novo = { id: s.cid || ("c" + rid()).slice(0, 24), nome, desc: String(v.desc || "").trim().slice(0, 300), foto: s.foto || "", preco: pc, ativo: !!s.ativo, itens };
+    const lista = lojaCombos().slice(), i = lista.findIndex(c => c.id === novo.id), fotoAntes = i >= 0 ? lista[i].foto : "";
+    if (i >= 0) lista[i] = novo; else lista.push(novo);
+    s.err = lista.length > 12 ? "Limite de 12 combos." : await lojaGravar({ combos: lista });
+    if (s.err) { renderSheet(); return; }
+    if (fotoAntes && fotoAntes !== novo.foto) lojaApagarImg(fotoAntes);
+    commit([logMov("cadastro", `Combo da loja ${i >= 0 ? "atualizado" : "criado"} · ${nome} · ${fmt(pc)}`)]);
+    closeSheet(); render(); toast("Combo salvo");
+  },
+  lojaComboApagar: async (t, id, s) => {
+    const c = lojaCombos().find(x => x.id === s.cid); if (!c) return;
+    const err = await lojaGravar({ combos: lojaCombos().filter(x => x.id !== s.cid) });
+    if (err) { s.err = err; renderSheet(); return; }
+    lojaApagarImg(c.foto); commit([logMov("cadastro", `Combo da loja apagado · ${c.nome}`)]);
+    closeSheet(); render(); toast("Combo apagado");
   },
   lojaAceitar: (t, id) => {
     const o = Pe(id); if (!o || !o.online) return;
     const q = {}; o.itens.forEach(i => { if (P(i.p)) q[i.p] = (q[i.p] || 0) + Number(i.q); });
     const e = o.enc || {}, enc = usaEnc(), quando = `${encModo(e)} ${fdy(e.data)}${e.hora ? " " + e.hora : ""}${e.end ? " · " + e.end : ""}`;
-    newDraft("venda", { cli: o.cli, tabela: "varejo", qty: q, cond: "0", obs: [o.obs, enc ? "" : quando].filter(Boolean).join("\n"), fromOrc: o.id,
+    newDraft("venda", { cli: o.cli, tabela: "varejo", qty: q, cond: "0", desc: Number(o.desc) > 0 ? money(Number(o.desc)) : "", lojaDesc: Number(o.desc) || 0, obs: [o.obs, enc ? "" : quando].filter(Boolean).join("\n"), fromOrc: o.id,
       enc, encData: e.data && e.data >= today ? e.data : addDays(today, 1), encHora: e.hora || "", encModo: e.modo === "entrega" ? "entrega" : "retirada", encEnd: e.end || "" });
     go("novoPedido"); toast(enc ? "Confira e agende a encomenda" : "Confira e confirme o pedido");
   },
@@ -4565,6 +4744,18 @@ const LOJA_A = {
 };
 
 Object.assign(ROUTES, { loja: { v: vLoja, tab: "mais" } });
-document.addEventListener("change", e => { const t = e.target; if (t && t.dataset && t.dataset.lojaFoto) { lojaFoto(t.dataset.lojaFoto, t.files && t.files[0]); t.value = ""; } });
+function lojaComboTxt(s) {
+  const itens = Object.entries(s.q || {}).filter(([pid, q]) => q > 0 && P(pid)).map(([p, q]) => ({ p, q })), pc = r2(parseMoney(s.vals.preco) || 0), k = comboCalc(itens, pc);
+  if (!k.n) return "Escolha os produtos acima para ver a soma.";
+  if (!(pc > 0)) return `Comprando separado, o cliente pagaria ${fmt(k.soma)}.`;
+  if (pc > k.soma + 0.004) return `Comprando separado sai por ${fmt(k.soma)}: o combo precisa custar isso ou menos.`;
+  return `Separado sai por ${fmt(k.soma)}. O cliente economiza ${fmt(k.econ)}${k.soma > 0 ? ` (${Math.round(k.econ / k.soma * 100)}%)` : ""}.`;
+}
+document.addEventListener("change", e => {
+  const t = e.target; if (!t || !t.dataset) return;
+  if (t.dataset.lojaFoto) { lojaFoto(t.dataset.lojaFoto, t.files && t.files[0]); t.value = ""; }
+  else if (t.dataset.lojaImg) { lojaImg(t.dataset.lojaImg, t.files && t.files[0]); t.value = ""; }
+});
+document.addEventListener("input", e => { const t = e.target; if (t && t.dataset && t.dataset.f === "preco" && ui.sheet && ui.sheet.k === "lojaCombo") { const el = $("comboEcon"); if (el) setTimeout(() => { el.textContent = lojaComboTxt(ui.sheet); }, 0); } });
 
 boot();
