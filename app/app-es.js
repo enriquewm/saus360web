@@ -1160,7 +1160,12 @@ function vInicio() {
     const varTxt = antTot > 0 ? ` · ${tot >= antTot ? "+" : "−"}${pct(Math.abs(tot / antTot - 1))} vs mismo periodo del mes pasado` : "";
     const days = []; for (let i = 13; i >= 0; i--) { const d = addDays(today, -i); days.push(sum(vendasAtivas([d, d]), o => pedCalc(o).base)); }
     const mx = Math.max(1, ...days);
+    const lucro = can("custo") ? sum(vm, o => pedCalc(o).margem) : null, meta = S.emp && S.emp.metaMes > 0 ? Number(S.emp.metaMes) : 0;
+    const lucroTxt = lucro != null && vm.length ? `Ganancia bruta ${fmt(lucro)} · margen ${pct(tot ? lucro / tot : 0)}` : "";
+    const metaTxt = meta ? (tot >= meta ? `Meta de ${fmt0(meta)} cumplida` : `Meta ${fmt0(meta)} · ${pct(tot / meta)} · faltan ${fmt0(meta - tot)}`) : "";
     hero = `<button class="hero" data-a="${can("relatorios") ? "go" : "tab"}" data-r="${can("relatorios") ? "relatorios" : "vendas"}"><span class="hl">Ventas del mes</span><span class="big">${fmt(tot)}</span>
+      ${meta ? `<span class="hmeta" aria-hidden="true"><i style="width:${Math.min(100, Math.round(tot / meta * 100))}%"></i></span><span class="sub hline">${metaTxt}</span>` : ""}
+      ${lucroTxt ? `<span class="sub hline"><b>${lucroTxt}</b></span>` : ""}
       <span class="sub">${vm.length} ${vm.length === 1 ? "pedido" : "pedidos"} · ticket promedio ${fmt0(vm.length ? tot / vm.length : 0)}${varTxt}</span>
       <span class="spark" aria-hidden="true">${days.map((v, i) => `<i class="${i === 13 ? "now" : ""}" style="height:${Math.round(v / mx * 100)}%"></i>`).join("")}</span></button>`;
     if (D) {
@@ -1173,6 +1178,7 @@ function vInicio() {
     if (D) kpi = `<button class="stat kpi-main" data-a="tab" data-r="estoque"><span>Valor del inventario (costo)</span><b>${fmt(val)}</b><small>${num(sum(S.prod, p => Math.max(0, p.estoque)))} unidades en ${S.prod.filter(p => p.ativo !== false).length} productos</small></button>`;
   }
   if (!D) h += hero;
+  if (can("empresa") && can("vendas")) h += `<button class="btn sm ghost" style="margin:6px 0 0" data-a="sheet" data-k="metaForm">${S.emp && S.emp.metaMes > 0 ? "Cambiar meta del mes" : "Definir meta del mes"}</button>`;
   const rec = titulos("receber").filter(t => t.aberto > 0.004), pag = titulos("pagar").filter(t => t.aberto > 0.004);
   const st = [];
   if (can("receber")) {
@@ -1423,13 +1429,13 @@ function prodList() {
     list.map(p => { const s = pstate(p), ct = catDe(p.tipo); return dtr(`data-a="prod" data-id="${p.id}"`, [
       td(`<span class="pcell"><span class="bt">${bottle(p.tipo)}</span><span><b>${esc(p.nome)}${p.safra && p.safra !== "NV" ? " " + esc(p.safra) : ""}</b><small>${esc(prodSub(p))}</small></span></span>`),
       td(`<span class="cat"><i style="background:${esc(ct.c)}"></i>${esc(catLabel(p.tipo))}</span>`, "muted"), td(esc(p.loc || "—"), "muted"), td(fmt(preco(p, "varejo")), "num"),
-      ...(cst ? [td(fmt(p.custo || 0), "num muted")] : []), td(`<b>${p.estoque}</b> un.${ehVinho() ? `<small>${Math.floor(p.estoque / 6)} cx</small>` : ""}`, "num"),
+      ...(cst ? [td(fmt(p.custo || 0), "num muted")] : []), td(`<b>${ehFood() ? estTxt(p) : p.estoque}</b>${ehFood() ? "" : " un."}${ehVinho() ? `<small>${Math.floor(p.estoque / 6)} cx</small>` : ""}`, "num"),
       td(`<span class="pill ${s.cls}">${s.cls === "ok" ? "En existencia" : s.t}</span>`)]); }),
     empty("No se encontraron productos.", can("ajuste") ? "Registra un producto o importa tu hoja de cálculo." : ""), "t-prod");
   return `${resumo}
   <div class="list">${list.map(p => { const s = pstate(p); return `<button class="row" data-a="prod" data-id="${p.id}"><span class="bt">${bottle(p.tipo)}</span>
     <span class="wmain"><b>${esc(p.nome)}${p.safra && p.safra !== "NV" ? " " + esc(p.safra) : ""}</b><small>${esc(prodSub(p))}</small><small>${fmt(preco(p, "varejo"))}${p.loc ? " · " + esc(p.loc) : ""}</small></span>
-    <span class="right"><b>${p.estoque} un.</b>${s.cls !== "ok" ? `<span class="pill ${s.cls}">${s.t}</span>` : (ehVinho() ? `<small>${Math.floor(p.estoque / 6)} cx</small>` : "")}</span></button>`; }).join("") || empty("No se encontraron productos.", can("ajuste") ? "Registra un producto o importa tu hoja de cálculo." : "")}</div>`;
+    <span class="right"><b>${estTxt(p)}</b>${s.cls !== "ok" ? `<span class="pill ${s.cls}">${s.t}</span>` : (ehVinho() ? `<small>${Math.floor(p.estoque / 6)} cx</small>` : "")}</span></button>`; }).join("") || empty("No se encontraron productos.", can("ajuste") ? "Registra un producto o importa tu hoja de cálculo." : "")}</div>`;
 }
 function vEstoque() {
   if (ui.fTipo && !FILTROS_EST.includes(ui.fTipo) && !cats().some(c => c.id === ui.fTipo)) ui.fTipo = "todos";
@@ -2052,7 +2058,8 @@ const SH = {
     const m = p.precos && p.precos.varejo ? (p.precos.varejo - (p.custo || 0)) / p.precos.varejo : 0;
     return ["Ficha del producto", `
     <div class="whead"><span class="bt lg">${bottle(p.tipo)}</span><div><p class="eyebrow">${esc(catLabel(p.tipo))}${p.produtor ? " · " + esc(p.produtor) : p.marca ? " · " + esc(p.marca) : ""}</p><h4>${esc(p.nome)}</h4><p class="eyebrow" style="margin:6px 0 0">${esc((ehVinho() ? [p.uva, p.safra && "Cosecha " + p.safra] : [p.ref && "ref. " + p.ref, p.material, p.medida]).filter(Boolean).join(" · "))}</p></div></div>
-    <div class="stockbox ${st.cls}"><div><span>En existencia</span><b>${p.estoque}</b><small>${ehVinho() ? `${Math.floor(Math.max(0, p.estoque) / 6)} cj. + ${Math.max(0, p.estoque) % 6} un.` : "unidades"}</small></div><div><span>Mínimo</span><b>${p.min || 0}</b><small>un.</small></div><div><span>Consignación</span><b>${cc}</b><small>con clientes</small></div></div>
+    <div class="stockbox ${st.cls}"><div><span>En existencia</span><b>${ehFood() ? dec(r4(p.estoque || 0)) : p.estoque}</b><small>${ehVinho() ? `${Math.floor(Math.max(0, p.estoque) / 6)} cj. + ${Math.max(0, p.estoque) % 6} un.` : ehFood() ? unDe(p) : "unidades"}</small></div><div><span>Mínimo</span><b>${ehFood() ? dec(p.min || 0) : p.min || 0}</b><small>${ehFood() ? unDe(p) : "un."}</small></div><div><span>Consignación</span><b>${cc}</b><small>con clientes</small></div></div>
+    ${ehFood() && estQuebrado(p) && can("ajuste") ? `<div class="note warn" style="margin-bottom:10px">Este artículo se cuenta por unidad y tiene ${dec(r4(p.estoque))} en inventario. Revisa cuántos hay de verdad.<span class="btns" style="margin-top:8px"><button class="btn sm line" data-a="arredEstoque" data-id="${p.id}">Redondear a ${Math.max(0, Math.round(p.estoque))}</button><button class="btn sm line" data-a="sheet" data-k="contagem" data-id="${p.id}">Hacer conteo</button></span></div>` : ""}
     ${ehFood() ? fichaFood(p) : ""}
     ${can("ajuste") ? `<div class="actions3${ehFood() && recDoProd(p.id) ? " four" : ""}">${ehFood() && recDoProd(p.id) ? `<button data-a="sheet" data-k="produzir" data-id="${recDoProd(p.id).id}">+ Producir</button>` : ""}<button data-a="sheet" data-k="entrada" data-id="${p.id}">${ehFood() && recDoProd(p.id) ? "+ Comprado listo" : "+ Entrada"}</button><button data-a="sheet" data-k="baixa" data-id="${p.id}" ${p.estoque > 0 ? "" : "disabled"}>− Salida</button><button data-a="sheet" data-k="contagem" data-id="${p.id}">Conteo</button></div>` : ""}
     <dl class="specs">${Object.entries(TABELAS).map(([k, l]) => `<div><dt>Precio ${l.toLowerCase()}</dt><dd>${fmt(preco(p, k))}</dd></div>`).join("")}${can("custo") ? `<div><dt>Costo promedio</dt><dd>${fmt(p.custo)} · margen ${pct(m)}</dd></div>` : ""}
@@ -2218,7 +2225,7 @@ function initSheet(k, id, t) {
   if (k === "entrada") Object.assign(o, { qty: 6, unit: "un" });
   if (k === "baixa") Object.assign(o, { qty: 1, reason: BAIXAS[0] });
   if (k === "contagem") Object.assign(o, { qty: P(id).estoque });
-  if (k === "prodForm") { const p = id ? P(id) : null; o.vals = p ? { nome: p.nome, tipo: catDe(p.tipo).id, marca: p.marca, ref: p.ref, material: p.material, medida: p.medida, safra: p.safra, uva: p.uva, vol: p.vol, pais: p.pais, regiao: p.regiao, produtor: p.produtor, teor: p.teor, forn: p.forn || "", custo: money(p.custo), pv: money(preco(p, "varejo")), pa: money(p.precos.atacado), pr: money(p.precos.restaurante), pc: p.precos.consig ? money(p.precos.consig) : "", min: p.min, ean: p.ean, loc: p.loc, temp: p.temp, harmon: p.harmon, ncm: p.ncm || "", cest: p.cest || "", origem: p.origem || (p.pais && p.pais !== "Brasil" ? "2" : "0"), st: p.st ? "sim" : "nao" } : novoProdVals(); }
+  if (k === "prodForm") { const p = id ? P(id) : null; o.vals = p ? { nome: p.nome, tipo: catDe(p.tipo).id, marca: p.marca, ref: p.ref, material: p.material, medida: p.medida, safra: p.safra, uva: p.uva, vol: p.vol, pais: p.pais, regiao: p.regiao, produtor: p.produtor, teor: p.teor, forn: p.forn || "", custo: money(p.custo), pv: money(preco(p, "varejo")), pa: money(p.precos.atacado), pr: money(p.precos.restaurante), pc: p.precos.consig ? money(p.precos.consig) : "", min: p.min, ean: p.ean, loc: p.loc, temp: p.temp, harmon: p.harmon, ncm: p.ncm || "", cest: p.cest || "", origem: p.origem || (p.pais && p.pais !== "Brasil" ? "2" : "0"), st: p.st ? "sim" : "nao", tipoItem: p.tipoItem || "", un: p.un || "", validade: p.validade || "", alerg: p.alerg || "", pack: p.pack || "" } : novoProdVals(); if (p && ehFood()) { o.vals.custo = dec(r4(p.custo || 0)); o.vals.min = p.min != null ? dec(r4(p.min)) : ""; } }
   if (k === "condCli") { const c = Cl(id); o.vals = { descPct: c.descPct ? dec(c.descPct) : "", tabela: c.tabela || "varejo" }; }
   if (k === "cliForm") { const c = id ? Cl(id) : null; o.vals = c ? Object.assign({ uf: temFiscal() ? "SC" : "", indIE: "9" }, c, { limite: c.limite ? money(c.limite) : "" }) : { tipo: "Restaurante", tabela: "restaurante", uf: temFiscal() ? (fiscalCfg().uf || "SC") : "", indIE: "9" }; }
   if (k === "fornForm") { const f = id ? Fo(id) : null; o.vals = f ? Object.assign({}, f) : { prazo: 30 }; }
@@ -3574,7 +3581,15 @@ function rdDoc() {
 function rdResumo() {
   const doc = rdDoc(), p = P(doc.prod); if (!p || !(doc.rend > 0)) return `<small class="muted">Elige el producto y el rendimiento para ver el costo.</small>`;
   const c = custoReceita(doc);
-  return `<b>Costo de la receta: ${fmt(c.total)}</b><br><small>Por ${unDe(p)}: <b>${fmt(c.unit)}</b> · rinde ${qtdTxt(c.util, unDe(p))} aprovechables</small>${c.linhas.some(l => l.erro) ? `<div class="note warn" style="margin-top:8px">${esc(c.linhas.filter(l => l.erro).map(l => l.erro).join("; "))}</div>` : ""}`;
+  return `<b>Costo de la receta: ${fmt(c.total)}</b><br><small>Por ${unDe(p)}: <b>${fmt(c.unit)}</b> · rinde ${qtdTxt(c.util, unDe(p))} aprovechables</small>${c.linhas.some(l => l.erro) ? `<div class="note warn" style="margin-top:8px">${esc(c.linhas.filter(l => l.erro).map(l => l.erro).join("; "))}</div>` : ""}${recAvisos(c, p)}`;
+}
+/* Avisos de preenchimento: aproveitamento e perda aumentam a baixa do estoque, e quase sempre são usados sem querer */
+function recAvisos(c, p) {
+  const ap = c.linhas.filter(l => l.p && !l.erro && l.aprov < 100 && l.consumo > 0), u = unDe(p);
+  let h = "";
+  if (ap.length) h += `<div class="note warn" style="margin-top:8px"><b>Aprovechamiento menor que 100%.</b> El inventario va a bajar más de lo que lleva la receta: ${ap.map(l => `${esc(l.p.nome)} ${qtdTxt(l.consumo, unDe(l.p))}`).join(", ")}. Úsalo solo cuando parte de lo que compras se desecha (cáscaras, tallos, huesos). Si no es el caso, déjalo en 100.</div>`;
+  if (c.perda > 0) h += `<div class="note warn" style="margin-top:8px"><b>Merma de ${dec(c.perda)}%.</b> El sistema cuenta que salen ${qtdTxt(c.util, u)} buenas, no ${qtdTxt(c.rend, u)}. Si ${qtdTxt(c.rend, u)} ya es lo que sale de verdad, deja la merma en 0.</div>`;
+  return h;
 }
 /* Uma receita não pode usar a si mesma, nem por meio de sub-receitas */
 function temCiclo(prod, itens, vistos) {
@@ -3590,20 +3605,39 @@ function temCiclo(prod, itens, vistos) {
 function prodPlano(s) {
   const r = RC(s.id), p = r && P(r.prod);
   if (!r || !p) return null;
-  const c = custoReceita(r), n = c.util > 0 ? (pnum(s.vals.qtd) || 0) / c.util : 0, linhas = c.linhas.map(l => ({ ...l, precisa: l.consumo == null ? null : l.consumo * n }));
+  const c = custoReceita(r), n = c.util > 0 ? (pnum(s.vals.qtd) || 0) / c.util : 0;
+  const linhas = c.linhas.map(l => {
+    const exato = l.consumo == null ? null : l.consumo * n, inteiro = l.p && unDe(l.p) === "un" && exato != null;
+    const precisa = inteiro ? Math.ceil(exato - 1e-6) : exato;
+    return { ...l, exato, precisa, arred: inteiro && Math.abs(precisa - exato) > 1e-6 };
+  });
   const falta = linhas.filter(l => l.p && l.precisa != null && l.precisa > (l.p.estoque || 0) + 1e-9);
   const previsto = c.util * n, obtido = s.vals.obtido === "" || s.vals.obtido == null ? previsto : pnum(s.vals.obtido);
-  return { r, p, c, n, linhas, falta, previsto, obtido, total: c.total * n };
+  const total = c.extra * n + sum(linhas, l => l.consumo > 0 ? l.custo * (l.precisa / l.consumo) : 0);
+  return { r, p, c, n, linhas, falta, previsto, obtido, total, inteira: n > 0 && Math.abs(n - Math.round(n)) < 1e-6 };
 }
 function prodDet(s) {
   const pl = prodPlano(s); if (!pl) return "";
-  const { p, linhas, falta, previsto, obtido, total } = pl, cst = can("custo");
-  return `<div class="list">${linhas.map(l => `<div class="row"><span class="wmain"><b>${esc(l.p ? l.p.nome : "—")}</b><small>usa ${l.precisa == null ? "—" : qtdTxt(l.precisa, unDe(l.p))} · hay ${l.p ? qtdTxt(l.p.estoque || 0, unDe(l.p)) : "—"}</small></span>${l.p && l.precisa != null && l.precisa > (l.p.estoque || 0) + 1e-9 ? `<b class="neg">falta ${qtdTxt(l.precisa - (l.p.estoque || 0), unDe(l.p))}</b>` : `<b class="pos">ok</b>`}</div>`).join("")}</div>
+  const { p, c, n, linhas, falta, previsto, obtido, total } = pl, cst = can("custo"), u = unDe(p);
+  const ab = Math.floor(n + 1e-6), ac = ab + 1, qd = k => dec(r4(c.util * k));
+  const recs = n > 0 ? (pl.inteira ? `<p class="hint" style="margin:0 0 8px">${qtdTxt(previsto, u)} = <b>${Math.round(n)}× la receta</b></p>`
+    : `<div class="note warn" style="margin:0 0 8px">${qtdTxt(previsto, u)} = ${dec(Math.round(n * 100) / 100)} recetas: no da recetas completas. ${linhas.some(l => l.arred) ? "Lo que se cuenta por unidad (huevos, empaques) se redondeó hacia arriba. " : ""}Para recetas completas:<span class="btns" style="margin-top:8px">${ab >= 1 ? `<button class="btn sm line" data-a="prodQtd" data-id="${qd(ab)}">${qd(ab)} ${u}</button>` : ""}<button class="btn sm line" data-a="prodQtd" data-id="${qd(ac)}">${qd(ac)} ${u}</button></span></div>`) : "";
+  const chips = `<div class="chips tight" style="margin-bottom:8px">${[1, 2, 3, 4, 5].map(k => `<button type="button" class="chip" data-a="prodQtd" data-id="${dec(r4(c.util * k))}" aria-pressed="${n > 0 && Math.abs(n - k) < 1e-6}">${k}× la receta</button>`).join("")}</div>`;
+  return `${chips}${recs}<div class="list">${linhas.map(l => `<div class="row"><span class="wmain"><b>${esc(l.p ? l.p.nome : "—")}</b><small>usa ${l.precisa == null ? "—" : qtdTxt(l.precisa, unDe(l.p))}${l.arred ? ` (la cuenta da ${dec(Math.round(l.exato * 100) / 100)})` : ""} · hay ${l.p ? qtdTxt(l.p.estoque || 0, unDe(l.p)) : "—"}</small></span>${l.p && l.precisa != null && l.precisa > (l.p.estoque || 0) + 1e-9 ? `<b class="neg">falta ${qtdTxt(l.precisa - (l.p.estoque || 0), unDe(l.p))}</b>` : `<b class="pos">ok</b>`}</div>`).join("")}</div>
     <div class="stats" style="margin-top:10px"><div class="stat"><span>Previsto</span><b>${dec(r4(previsto))}</b><small>${unDe(p)}</small></div><div class="stat ${obtido < previsto ? "warn" : "good"}"><span>Obtenido</span><b>${dec(r4(obtido))}</b><small>${previsto > 0 && obtido < previsto ? `merma extra ${dec(Math.round((1 - obtido / previsto) * 100))}%` : unDe(p)}</small></div>${cst ? `<div class="stat"><span>Costo/${unDe(p)}</span><b>${obtido > 0 ? fmt(total / obtido) : "—"}</b><small>total ${fmt(total)}</small></div>` : ""}</div>
     ${falta.length ? `<div class="note warn" style="margin-top:10px">Falta un ingrediente en el inventario. Registra la compra o la entrada antes de producir.</div>` : ""}`;
 }
 
+/* Estoque com a unidade certa: "1,5 kg", "24 un" */
+const estTxt = p => ehFood() ? qtdTxt(p.estoque || 0, unDe(p)) : `${p.estoque} un.`;
+const estQuebrado = p => !!p && unDe(p) === "un" && Math.abs((p.estoque || 0) - Math.round(p.estoque || 0)) > 1e-6;
 Object.assign(SH, {
+  metaForm: s => {
+    if (s.vals.meta == null) s.vals.meta = S.emp && S.emp.metaMes > 0 ? money(S.emp.metaMes) : "";
+    return ["Meta de ventas del mes", `<p class="hint" style="margin-top:0">Cuánto quieres vender por mes. El inicio muestra cuánto falta. Déjalo en blanco para no usar meta.</p>
+      <label class="field">Meta del mes (${SIM()})<input data-f="meta" inputmode="decimal" value="${esc(s.vals.meta)}" placeholder="Ej: 5000"></label>
+      ${s.err ? `<div class="note bad">${esc(s.err)}</div>` : ""}<button class="btn block" data-a="metaSalvar">Guardar</button>`];
+  },
   produzir: s => {
     const r = RC(s.id), p = r && P(r.prod); if (!p) return ["Producción", empty("Receta no encontrada.", "")];
     const c = custoReceita(r);
@@ -3634,6 +3668,17 @@ const FOOD_A = {
   },
   recArquivar: async () => { const d = ui.rdraft, r = RC(d.id); if (!r) return; if (await commit([Store.put("rec", r.id, Object.assign({}, r, { ativo: false }))])) { ui.rdraft = null; go("receitas"); toast("Receta archivada"); } },
   recUsarPreco: async (t, id) => { const r = RC(id), p = r && P(r.prod), v = Number(t.dataset.v); if (!p || !(v > 0)) return; if (await commit([Store.patch("prod", p.id, { precos: Object.assign({}, p.precos || {}, { varejo: v }) }), logMov("cadastro", `Precio de ${p.nome} → ${fmt(v)} (calculadora de la receta)`, { ps: [p.id] })])) { render(); toast("Precio minorista actualizado"); } },
+  prodQtd: (t, id, s) => { s.vals.qtd = id; s.err = ""; renderSheet(); },
+  arredEstoque: async (t, id) => {
+    const p = P(id); if (!p) return; const q = Math.max(0, Math.round(p.estoque));
+    if (await commit([Store.stock([{ id: p.id, delta: r4(q - p.estoque) }]), logMov("estoque", `Conteo · ${p.nome} · sistema ${dec(p.estoque)}, contado ${q}`, { ps: [p.id], tm: "contagem", mv: [{ p: p.id, q: r4(q - p.estoque), de: p.estoque, c: q }] })])) { renderSheet(); render(); toast("Inventario redondeado"); }
+  },
+  metaSalvar: async (t, id, s) => {
+    const raw = String(s.vals.meta || "").trim(), v = raw === "" ? null : r2(parseMoney(raw));
+    if (v != null && !(v > 0)) { s.err = "Indica un valor mayor que cero, o déjalo en blanco para quitar la meta."; renderSheet(); return; }
+    const emp = Object.assign({}, S.emp); if (v == null) delete emp.metaMes; else emp.metaMes = v;
+    if (await commit([Store.putEmp(emp), logMov("cadastro", v == null ? "Meta de ventas del mes eliminada" : `Meta de ventas del mes: ${fmt(v)}`)])) { closeSheet(); render(); toast("Meta guardada"); }
+  },
   doProduzir: async (t, id, s) => {
     const pl = prodPlano(s); if (!pl) return;
     s.err = !(pl.n > 0) ? "Informa la cantidad a producir, por ejemplo 5." : pl.linhas.some(l => l.erro) ? pl.linhas.find(l => l.erro).erro : pl.falta.length ? `Falta ${pl.falta.map(l => l.p.nome).join(", ")} en el inventario.` : !(pl.obtido > 0) ? "Informa la cantidad obtenida." : "";
