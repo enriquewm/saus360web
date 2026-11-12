@@ -973,8 +973,8 @@ const SupaBE = {
     if (res.data.novo) logMov("equipe", `${nome} entrou na empresa como Vendedor`);
     return null;
   },
-  async fn(body) {
-    const { data, error } = await SB.functions.invoke("api", { body: Object.assign({ empresa_id: EID }, body) });
+  async fn(body, funcao) {
+    const { data, error } = await SB.functions.invoke(funcao || "api", { body: Object.assign({ empresa_id: EID }, body) });
     if (error) {
       let msg = error.message, j = null; try { j = await error.context.json(); msg = j.erro || j.error || msg; } catch (e) {}
       const er = new Error(msg); if (j && j.codigo) { er.codigo = j.codigo; er.dados = j; } else Erros.enviar("servidor", msg, null, { acao: body && body.acao }); // erro de negócio não vai para o log
@@ -4206,7 +4206,7 @@ async function assCarregar(silencioso) {
   if (MODE !== "supa") return;
   if (!silencioso) { ASS.load = true; if (ui.route === "assinatura") render(); }
   try {
-    const d = await SupaBE.fn({ acao: "pix_status" });
+    const d = await SupaBE.fn({ acao: "pix_status" }, "pix");
     // a cobrança que estava aberta virou pagamento: mostra a confirmação
     if (ASS.espera && !(d.pendente && d.pendente.id === ASS.espera) && (d.historico || []).some(h => h.id === ASS.espera)) {
       ASS.pago = (d.assinatura && d.assinatura.vence_em) || ""; ASS.trocar = false; toast("Pagamento confirmado");
@@ -4306,7 +4306,7 @@ const ASS_A = {
     if (ASS.gerando || !assPlanoSel()) return;
     ASS.gerando = true; ASS.erro = ""; ASS.pago = null; render();
     try {
-      const r = await SupaBE.fn({ acao: "pix_gerar", plano_id: ASS.plano, ciclo: ASS.ciclo });
+      const r = await SupaBE.fn({ acao: "pix_gerar", plano_id: ASS.plano, ciclo: ASS.ciclo }, "pix");
       ASS.trocar = false;
       if (r && r.cobranca) { ASS.d.pendente = r.cobranca; ASS.espera = r.cobranca.id; }
       try { Promise.resolve(logMov("cadastro", `Pix da mensalidade gerado · ${fmt(r && r.cobranca ? r.cobranca.valor : assTotal(assPlanoSel()))}`)).catch(() => {}); } catch (e) {}
