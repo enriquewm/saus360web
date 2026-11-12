@@ -474,6 +474,54 @@ section.bloco{padding:84px 0}
   <a class="btn testar sm" href="app/#criar" data-i="testar">Testar grátis</a>
 </div>
 
+<script src="app/config.js"></script>
+<script>
+/* Contagem anônima de visitas (aparece no painel do dono). Não guarda IP nem dados pessoais:
+   só um código aleatório deste navegador, de onde veio o link e o tipo de tela.
+   Para não contar as suas próprias visitas, abra uma vez saus360.com.br/?nolog em cada aparelho. */
+(function () {
+  "use strict";
+  var C = window.DECANTA_CONFIG || {};
+  if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(C.supabaseUrl || "") || !C.supabaseAnonKey) return;
+  var q = new URLSearchParams(location.search);
+  try {
+    if (q.get("nolog") === "0") localStorage.removeItem("saus360-nolog");
+    else if (q.has("nolog")) localStorage.setItem("saus360-nolog", "1");
+    if (localStorage.getItem("saus360-nolog") === "1") return;
+  } catch (e) {}
+  if (navigator.webdriver || /bot|crawl|spider|preview|headless|lighthouse|facebookexternalhit|whatsapp/i.test(navigator.userAgent || "")) return;
+  var vid = "";
+  try { vid = localStorage.getItem("saus360-v") || ""; } catch (e) {}
+  if (!/^[a-f0-9]{16,40}$/.test(vid)) {
+    var b = new Uint8Array(12);
+    try { crypto.getRandomValues(b); } catch (e) { for (var i = 0; i < 12; i++) b[i] = Math.floor(Math.random() * 256); }
+    vid = Array.prototype.map.call(b, function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+    try { localStorage.setItem("saus360-v", vid); } catch (e) {}
+  }
+  var w = window.innerWidth || 1024, tela = w < 600 ? "celular" : w < 1024 ? "tablet" : "computador";
+  var de = "";
+  try { var u = new URL(document.referrer); if (u.host && u.host !== location.host) de = u.host.replace(/^www\./, ""); } catch (e) {}
+  var orig = { ref: q.get("ref") || "", src: q.get("utm_source") || "", med: q.get("utm_medium") || "", camp: q.get("utm_campaign") || "" };
+  try {
+    if (orig.ref || orig.src) sessionStorage.setItem("saus360-orig", JSON.stringify(orig));
+    else { var g = JSON.parse(sessionStorage.getItem("saus360-orig") || "null"); if (g) orig = g; }
+  } catch (e) {}
+  function enviar(ev) {
+    var idi = "pt"; try { idi = localStorage.getItem("saus360-idioma") || ((navigator.language || "").slice(0, 2) === "es" ? "es" : "pt"); } catch (e) {}
+    var corpo = { v: vid, e: ev, t: tela, i: idi, from: de, ref: String(orig.ref).slice(0, 40), src: String(orig.src).slice(0, 30), med: String(orig.med).slice(0, 30), camp: String(orig.camp).slice(0, 40) };
+    try {
+      fetch(C.supabaseUrl + "/rest/v1/rpc/landing_visita", { method: "POST", keepalive: true, credentials: "omit", referrerPolicy: "no-referrer",
+        headers: { apikey: C.supabaseAnonKey, Authorization: "Bearer " + C.supabaseAnonKey, "Content-Type": "application/json" }, body: JSON.stringify({ p: corpo }) }).catch(function () {});
+    } catch (e) {}
+  }
+  enviar("visita");
+  document.addEventListener("click", function (e) {
+    var a = e.target && e.target.closest ? e.target.closest("a[href]") : null; if (!a) return;
+    var h = a.getAttribute("href") || "";
+    if (h.indexOf("app/#criar") === 0) enviar("clique_testar"); else if (h.indexOf("app/#demo") === 0) enviar("clique_demo");
+  }, true);
+})();
+</script>
 <script>
 (function () {
   "use strict";
