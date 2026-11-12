@@ -4,573 +4,565 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Saus360 Food · Sistema de gestão para confeitarias</title>
-<meta name="description" content="Saus360 Food: sistema de gestão para confeitarias e docerias. Ficha técnica com custo real, encomendas com sinal, lista de compras automática, estoque e caixa, no celular e no computador. Teste grátis por 30 dias.">
+<meta name="description" content="Saus360 Food: descubra quanto sobra em cada doce. Ficha técnica com custo real, encomendas com sinal, lista de compras automática, estoque e caixa para confeitarias. Teste grátis por 30 dias, sem cartão.">
 <!-- Fica fora do Google enquanto o site estiver no endereço de testes; tirar quando houver domínio próprio -->
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#1F2340">
-<meta property="og:title" content="Saus360 Food · A gestão da sua confeitaria em 360°">
-<meta property="og:description" content="Receitas com custo real, encomendas com sinal, lista de compras automática, estoque e caixa. Teste grátis por 30 dias.">
+<meta property="og:title" content="Você sabe quanto sobra em cada brigadeiro?">
+<meta property="og:description" content="O Saus360 Food calcula o custo real das suas receitas, organiza as encomendas e monta a lista de compras. Teste grátis por 30 dias, sem cartão.">
 <link rel="icon" type="image/svg+xml" href="app/icons/icon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="app/icons/favicon-32.png">
 <link rel="apple-touch-icon" href="app/icons/apple-touch-icon.png">
-<link rel="preload" href="app/fonts/manrope-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/fraunces-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="app/fonts/manrope-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-@font-face{font-family:"Manrope";font-weight:400;font-display:swap;src:url(app/fonts/manrope-latin-400-normal.woff2) format("woff2")}
+/* Fraunces: SIL Open Font License 1.1 (https://github.com/undercasetype/Fraunces) */
+@font-face{font-family:"Fraunces";font-weight:600;font-display:swap;src:url(fonts/fraunces-latin-600-normal.woff2) format("woff2")}
 @font-face{font-family:"Manrope";font-weight:500;font-display:swap;src:url(app/fonts/manrope-latin-500-normal.woff2) format("woff2")}
-@font-face{font-family:"Manrope";font-weight:600;font-display:swap;src:url(app/fonts/manrope-latin-600-normal.woff2) format("woff2")}
 @font-face{font-family:"Manrope";font-weight:700;font-display:swap;src:url(app/fonts/manrope-latin-700-normal.woff2) format("woff2")}
 @font-face{font-family:"Manrope";font-weight:800;font-display:swap;src:url(app/fonts/manrope-latin-800-normal.woff2) format("woff2")}
-:root{--navy:#1F2340;--navy2:#464B71;--blue:#118AB2;--blue-d:#0E7C9F;--mint:#7CD5C7;--off:#F2F2ED;--ink:#1F2340;--muted:#5D6280;--line:#E2E3DC;--white:#fff;
-  --font:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--wrap:1180px;--r:20px}
+:root{
+  --tinta:#1F2340; --tinta2:#4A4F73; --glace:#FFFFFF; --hortela:#DDF3EE; --menta:#7CD5C7; --azul:#0E7C9F;
+  --doce:#F6B93B; --doce-d:#E0A21F; --framboesa:#B8324F; --linha:#D9DEE6;
+  --display:"Fraunces",Georgia,"Times New Roman",serif; --texto:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --wrap:1120px;
+}
 *{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:84px}
-body{margin:0;font:16px/1.6 var(--font);color:var(--ink);background:var(--white);-webkit-font-smoothing:antialiased}
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+body{margin:0;font:500 17px/1.6 var(--texto);color:var(--tinta);background:var(--glace);-webkit-font-smoothing:antialiased}
 img{max-width:100%;height:auto;display:block}
 a{color:inherit}
-h1,h2,h3{margin:0;letter-spacing:-.03em;line-height:1.1;text-wrap:balance}
-p{margin:0}
-.wrap{max-width:var(--wrap);margin:0 auto;padding:0 24px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:700 15.5px/1 var(--font);padding:15px 22px;border-radius:14px;text-decoration:none;border:1px solid transparent;cursor:pointer;transition:transform .15s,filter .15s,background .15s;white-space:nowrap}
-.btn:hover{transform:translateY(-1px);filter:brightness(1.06)}
-.btn.mint{background:var(--mint);color:var(--navy)}
-.btn.blue{background:var(--blue);color:#fff}
-.btn.ghost{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.22);color:#fff}
-.btn.line{background:#fff;border-color:var(--line);color:var(--ink)}
-.btn.sm{padding:10px 16px;font-size:14px;border-radius:11px}
-.btn svg{width:18px;height:18px}
-.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--blue)}
-.sec-title{font-size:clamp(30px,4vw,44px);font-weight:800;margin-top:12px}
-.sec-sub{font-size:18px;color:var(--muted);margin-top:14px;max-width:62ch}
-section{padding:96px 0}
+h1,h2,h3,p{margin:0}
+h1,h2{font-family:var(--display);font-weight:600;letter-spacing:-.015em;line-height:1.08;text-wrap:balance}
+h1{font-size:clamp(40px,6.4vw,70px)}
+h2{font-size:clamp(30px,4.2vw,46px)}
+h3{font:800 19px/1.3 var(--texto);letter-spacing:-.01em}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 22px}
+.sub{font-size:19px;color:var(--tinta2);max-width:60ch;margin-top:16px}
+:focus-visible{outline:3px solid var(--azul);outline-offset:3px;border-radius:6px}
 
-/* cabeçalho */
-.hdr{position:sticky;top:0;z-index:50;background:rgba(31,35,64,.92);backdrop-filter:saturate(1.4) blur(12px);-webkit-backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid rgba(255,255,255,.07)}
-.hdr .wrap{display:flex;align-items:center;gap:28px;height:68px}
-.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:#fff;flex:none}
-.logo svg{width:36px;height:36px}
-.logo b{font-size:22px;font-weight:800;letter-spacing:-.03em}
-.logo b span{color:#47BEDD;font-weight:600}
-.nav{display:flex;gap:26px;margin-left:12px}
-.nav a{color:rgba(255,255,255,.72);text-decoration:none;font-weight:600;font-size:14.5px}
-.nav a:hover{color:#fff}
-.hdr-r{margin-left:auto;display:flex;align-items:center;gap:10px}
-.lang{display:flex;background:rgba(255,255,255,.07);border-radius:10px;padding:3px}
-.lang button{border:0;background:transparent;color:rgba(255,255,255,.65);font:700 12.5px var(--font);padding:6px 9px;border-radius:7px;cursor:pointer}
-.lang button[aria-pressed="true"]{background:rgba(255,255,255,.14);color:#fff}
-.menu-btn{display:none;border:0;background:rgba(255,255,255,.08);color:#fff;width:40px;height:40px;border-radius:10px;cursor:pointer}
+/* Botões: o amarelo doce de leite é só do convite para testar */
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 26px;border-radius:14px;border:2px solid transparent;font:800 17px/1 var(--texto);text-decoration:none;cursor:pointer;transition:transform .12s,background .12s}
+.btn.testar{background:var(--doce);color:var(--tinta);box-shadow:0 3px 0 var(--doce-d)}
+.btn.testar:hover{background:#FFC64F;transform:translateY(-1px)}
+.btn.testar:active{transform:translateY(2px);box-shadow:none}
+.btn.linha{border-color:currentColor;background:transparent}
+.btn.linha:hover{background:rgba(31,35,64,.06)}
+.btn.sm{min-height:42px;padding:0 16px;font-size:15px;border-radius:12px}
+.semrisco{list-style:none;display:flex;flex-wrap:wrap;gap:6px 18px;margin:18px 0 0;padding:0;font-size:15px;font-weight:700;color:var(--tinta2)}
+.semrisco li{display:flex;align-items:center;gap:6px}
+.semrisco svg{width:18px;height:18px;color:var(--azul);flex:none}
 
-/* hero */
-.hero{background:radial-gradient(900px 520px at 85% -10%,rgba(17,138,178,.45),transparent 60%),radial-gradient(700px 500px at 0% 30%,rgba(124,213,199,.16),transparent 60%),var(--navy);color:#fff;padding:84px 0 0;overflow:hidden;position:relative}
-.hero-txt{text-align:center;max-width:860px;margin:0 auto}
-.pill{display:inline-flex;align-items:center;gap:8px;background:rgba(124,213,199,.12);border:1px solid rgba(124,213,199,.3);color:var(--mint);font-weight:700;font-size:13.5px;padding:7px 14px;border-radius:99px}
-.pill i{width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 4px rgba(124,213,199,.2)}
-.hero h1{font-size:clamp(40px,6.4vw,72px);font-weight:800;margin-top:22px;letter-spacing:-.04em}
-.hero h1 em{font-style:normal;background:linear-gradient(90deg,#47BEDD,var(--mint));-webkit-background-clip:text;background-clip:text;color:transparent}
-.hero .lead{font-size:clamp(17px,2vw,20px);color:rgba(255,255,255,.76);margin:22px auto 0;max-width:680px}
-.ctas{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:34px}
-.ctas .btn{padding:17px 26px;font-size:16px}
-.checks{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-top:22px;font-size:14px;color:rgba(255,255,255,.66)}
-.checks span{display:inline-flex;align-items:center;gap:7px}
-.checks svg{width:16px;height:16px;color:var(--mint)}
-.shots{position:relative;margin:64px auto 0;max-width:1080px}
-.browser{border-radius:16px 16px 0 0;background:#2A2F52;padding:10px 10px 0;box-shadow:0 -10px 80px rgba(17,138,178,.35),0 0 0 1px rgba(255,255,255,.08)}
-.browser .bar{display:flex;gap:6px;padding:2px 6px 10px}
-.browser .bar i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.18)}
-.browser img{border-radius:8px 8px 0 0;width:100%;aspect-ratio:16/10;object-fit:cover;object-position:top}
-.phone{position:absolute;right:-28px;bottom:-60px;width:23%;min-width:150px;border-radius:34px;background:#0E1020;padding:9px;box-shadow:0 30px 70px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.1)}
-.phone img{border-radius:26px;aspect-ratio:390/844;object-fit:cover;object-position:top}
+/* Cabeçalho */
+.topo{position:sticky;top:0;z-index:20;background:var(--tinta);color:#fff}
+.topo .wrap{display:flex;align-items:center;gap:20px;height:64px}
+.logo{display:inline-flex;align-items:center;gap:9px;text-decoration:none;font:800 21px/1 var(--texto);letter-spacing:-.03em}
+.logo svg{width:34px;height:34px}
+.logo span{color:var(--menta)}
+.nav{display:flex;gap:22px;margin-left:14px;font-size:15px;font-weight:700}
+.nav a{text-decoration:none;opacity:.85}
+.nav a:hover{opacity:1;text-decoration:underline;text-underline-offset:5px}
+.topo-r{margin-left:auto;display:flex;align-items:center;gap:10px}
+.idioma{display:flex;border:1px solid rgba(255,255,255,.3);border-radius:10px;overflow:hidden}
+.idioma button{background:none;border:0;color:#fff;font:700 13px/1 var(--texto);padding:8px 9px;cursor:pointer;opacity:.7}
+.idioma button[aria-pressed=true]{background:rgba(255,255,255,.16);opacity:1}
+.topo .entrar{color:#fff;font-weight:700;font-size:15px;text-decoration:none;padding:8px 6px}
+.topo .entrar:hover{text-decoration:underline;text-underline-offset:5px}
 
-/* faixa de ramos */
-.ramos{background:var(--off);padding:30px 0;border-bottom:1px solid var(--line)}
-.ramos .wrap{display:flex;align-items:center;gap:14px 28px;flex-wrap:wrap;justify-content:center}
-.ramos p{font-size:14px;font-weight:700;color:var(--muted)}
-.ramos span{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:15px;color:var(--navy2)}
-.ramos span::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--blue)}
+/* Abertura: a pergunta e a conta */
+.abre{background:var(--hortela);padding:56px 0 64px}
+.abre .wrap{display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,.98fr);gap:52px;align-items:center}
+.abre .lead{font-size:20px;color:var(--tinta2);margin:20px 0 28px;max-width:34em}
+.abre .acoes{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.abre .demo{font-weight:700;font-size:16px;text-underline-offset:5px}
 
-/* problema */
-.prob{background:var(--off)}
-.cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:48px}
-.card{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:28px}
-.card .n{font-size:14px;font-weight:800;color:var(--blue);letter-spacing:.06em}
-.card h3{font-size:21px;font-weight:800;margin-top:12px}
-.card p{color:var(--muted);margin-top:10px;font-size:15.5px}
+.ficha{background:#fff;border-radius:22px;padding:26px 26px 22px;box-shadow:0 1px 0 rgba(31,35,64,.08),0 24px 50px -22px rgba(31,35,64,.45);position:relative}
+.ficha h2{font-size:27px}
+.ficha .ex{font-size:14.5px;color:var(--tinta2);margin:4px 0 16px}
+.ficha .linha{display:flex;align-items:baseline;gap:8px;padding:7px 0;font-size:16px}
+.ficha .linha label,.ficha .linha .nm{font-weight:700}
+.ficha .linha i{flex:1;border-bottom:2px dotted #B9C0CE;transform:translateY(-4px);min-width:16px}
+.ficha .linha .vl{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.campo{display:inline-flex;align-items:center;border:2px solid var(--linha);border-radius:10px;background:#FAFBFC;padding:0 8px;height:38px;font-variant-numeric:tabular-nums}
+.campo:focus-within{border-color:var(--azul);background:#fff}
+.campo span{color:var(--tinta2);font-weight:700;font-size:14px;margin-right:4px}
+.campo input{width:62px;border:0;background:none;font:800 16px/1 var(--texto);color:var(--tinta);text-align:right;padding:0;outline:none}
+.ficha .dupla{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 0;padding-top:14px;border-top:2px solid var(--tinta)}
+.ficha .dupla label{display:block;font-size:14px;font-weight:700;color:var(--tinta2)}
+.ficha .dupla .campo{display:flex;margin-top:5px;height:44px}
+.ficha .dupla .campo input{width:100%;font-size:18px}
+.resultado{margin-top:18px;display:grid;grid-template-columns:auto 1fr;gap:6px 18px;align-items:center}
+.etiqueta{grid-row:span 2;background:var(--doce);color:var(--tinta);padding:12px 18px 12px 34px;border-radius:10px;transform:rotate(-2.5deg);position:relative;clip-path:polygon(18px 0,100% 0,100% 100%,18px 100%,0 50%)}
+.etiqueta::before{content:"";position:absolute;left:16px;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;background:#fff}
+.etiqueta small{display:block;font-size:13px;font-weight:800;line-height:1.2}
+.etiqueta b{display:block;font:600 34px/1.05 var(--display);font-variant-numeric:tabular-nums;white-space:nowrap}
+.etiqueta.neg{background:var(--framboesa);color:#fff}
+.resultado .custo{font-size:15px;color:var(--tinta2);font-weight:700}
+.resultado .custo b{color:var(--tinta);font-variant-numeric:tabular-nums;white-space:nowrap}
+.barra{height:10px;border-radius:99px;background:var(--hortela);overflow:hidden}
+.barra i{display:block;height:100%;background:var(--tinta);border-radius:99px;transition:width .35s ease}
+.leitura{margin-top:16px;font-size:15.5px;line-height:1.5;color:var(--tinta)}
+.leitura p+p{margin-top:8px}
+.leitura b{font-variant-numeric:tabular-nums}
+.leitura .menos{color:var(--framboesa)}
 
-/* funcionalidades */
-.feat{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:64px;align-items:center;margin-top:84px}
-.feat > *,.dev > *{min-width:0}
-.feat:first-of-type{margin-top:56px}
-.feat.rev{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
-.feat.rev .ft{order:2}
-.feat h3{font-size:clamp(26px,3vw,34px);font-weight:800;margin-top:10px}
-.feat .ft p{color:var(--muted);font-size:17px;margin-top:14px}
-.feat ul{list-style:none;padding:0;margin:22px 0 0;display:grid;gap:10px}
-.feat li{display:flex;gap:10px;align-items:flex-start;font-weight:600;font-size:15.5px}
-.feat li svg{width:20px;height:20px;flex:none;color:var(--blue);margin-top:2px}
-.fi{border-radius:18px;overflow:hidden;box-shadow:0 30px 70px rgba(31,35,64,.16),0 0 0 1px rgba(31,35,64,.08);background:#fff}
-.fi img{width:100%}
-.fi.crop img{aspect-ratio:16/10;object-fit:cover;object-position:top left}
-.fi.doc{max-width:460px;margin-left:auto;transform:rotate(1.5deg)}
-.tag{display:inline-block;font-size:12.5px;font-weight:800;color:var(--navy2);background:#E8E9F2;padding:4px 10px;border-radius:99px}
+/* Borda de forminha entre a abertura e o resto */
+.forminha{height:18px;background:radial-gradient(circle at 18px 0,var(--hortela) 17.5px,transparent 18px) 0 0/36px 18px repeat-x}
+.forminha.tinta{background:radial-gradient(circle at 18px 18px,var(--tinta) 17.5px,transparent 18px) 0 0/36px 18px repeat-x}
 
-/* módulos */
-.mods{background:var(--navy);color:#fff;background-image:radial-gradient(800px 400px at 100% 0%,rgba(17,138,178,.3),transparent 60%)}
-.mods .sec-sub{color:rgba(255,255,255,.7)}
-.mods .eyebrow{color:var(--mint)}
-.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:48px}
-.mod{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:20px}
-.mod svg{width:26px;height:26px;color:var(--mint)}
-.mod b{display:block;font-size:15.5px;margin-top:14px}
-.mod small{display:block;color:rgba(255,255,255,.6);font-size:13.5px;margin-top:4px;line-height:1.45}
+.para{padding:26px 0 0;font-size:16px;color:var(--tinta2);font-weight:700}
+.para .wrap{display:flex;flex-wrap:wrap;gap:6px 22px;align-items:baseline}
+.para b{color:var(--tinta);font-weight:800}
 
-/* celular + computador */
-.dev{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;align-items:center}
-.dev-img{position:relative;display:flex;justify-content:center;align-items:flex-start;gap:20px}
-.dev-img .phone{position:static;width:46%;min-width:0}
-.dev-img .phone:nth-child(2){margin-top:60px}
+section.bloco{padding:84px 0}
 
-/* como funciona */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:48px;counter-reset:s}
-.step{background:var(--off);border-radius:var(--r);padding:28px;position:relative}
-.step::before{counter-increment:s;content:counter(s);display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:var(--navy);color:var(--mint);font-weight:800;font-size:18px}
-.step h3{font-size:20px;font-weight:800;margin-top:18px}
-.step p{color:var(--muted);margin-top:8px;font-size:15.5px}
+/* O dia da confeitaria */
+.dia{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:26px;margin-top:44px}
+.hora{display:flex;flex-direction:column}
+.hora time{font:600 40px/1 var(--display);color:var(--azul)}
+.hora h3{margin:10px 0 10px}
+.hora p{font-size:15.5px;line-height:1.5}
+.hora .antes{color:var(--tinta2)}
+.hora .agora{margin-top:8px}
+.hora .antes b{color:var(--framboesa)}
+.hora .agora b{color:var(--azul)}
+.cel{border:7px solid var(--tinta);border-radius:30px;overflow:hidden;background:var(--tinta);box-shadow:0 22px 40px -24px rgba(31,35,64,.55)}
+.cel img{width:100%;aspect-ratio:624/1200;object-fit:cover;object-position:top;border-radius:22px}
+.hora .agora{margin-bottom:22px}
+.hora>.cel{margin-top:auto}
+.hora:nth-child(even)>.cel{transform:translateY(28px)}
+.dia{padding-bottom:28px}
 
-/* planos */
-.planos{background:var(--off)}
-.billing{display:inline-flex;background:#fff;border:1px solid var(--line);border-radius:14px;padding:4px;margin-top:28px}
-.billing button{border:0;background:transparent;font:700 14.5px var(--font);color:var(--muted);padding:10px 18px;border-radius:10px;cursor:pointer}
-.billing button[aria-pressed="true"]{background:var(--navy);color:#fff}
-.billing small{font-weight:700;color:var(--blue);margin-left:6px}
-.billing button[aria-pressed="true"] small{color:var(--mint)}
-.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:36px;align-items:stretch}
-.plan{background:#fff;border:1px solid var(--line);border-radius:22px;padding:30px;display:flex;flex-direction:column;position:relative}
-.plan.top{border:2px solid var(--blue);box-shadow:0 24px 60px rgba(17,138,178,.18)}
-.plan .badge{position:absolute;top:-13px;left:30px;background:var(--blue);color:#fff;font-size:12px;font-weight:800;padding:5px 12px;border-radius:99px;letter-spacing:.02em}
-.plan h3{font-size:24px;font-weight:800}
-.plan .for{color:var(--muted);font-size:15px;margin-top:4px;min-height:48px}
-.price{margin-top:18px;display:flex;align-items:baseline;gap:6px}
-.price b{font-size:46px;font-weight:800;letter-spacing:-.03em}
-.price span{color:var(--muted);font-weight:600}
-.price-note{font-size:13.5px;color:var(--blue-d);font-weight:700;min-height:21px}
-.plan ul{list-style:none;padding:0;margin:20px 0 26px;display:grid;align-content:start;gap:10px;border-top:1px solid var(--line);padding-top:20px;flex:1}
-.plan li{display:flex;gap:10px;font-size:15px;font-weight:600}
-.plan li svg{width:18px;height:18px;color:var(--blue);flex:none;margin-top:3px}
-.plan .btn{width:100%}
-.all{margin-top:28px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px 26px;display:flex;gap:10px 26px;flex-wrap:wrap;align-items:center}
-.all b{font-size:14.5px}
-.all span{display:inline-flex;align-items:center;gap:7px;font-size:14.5px;color:var(--muted);font-weight:600}
-.all svg{width:16px;height:16px;color:var(--blue)}
-.fine{font-size:13.5px;color:var(--muted);margin-top:16px}
+/* Cadastro feito por nós */
+.cadastro{background:var(--tinta);color:#fff;padding:76px 0 84px}
+.cadastro .wrap{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:56px;align-items:center}
+.cadastro .sub{color:#C9CDE0}
+.passos{list-style:none;counter-reset:p;margin:30px 0 30px;padding:0;display:grid;gap:18px}
+.passos li{counter-increment:p;display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:start}
+.passos li::before{content:counter(p);width:44px;height:44px;border-radius:50%;background:var(--menta);color:var(--tinta);display:grid;place-items:center;font:600 22px/1 var(--display)}
+.passos h3{color:#fff}
+.passos p{color:#C9CDE0;font-size:16px;margin-top:2px}
+.cadastro .nota{font-size:14.5px;color:#C9CDE0;margin-top:14px}
+.cadastro .cel{border-color:#fff;background:#fff;max-width:300px;margin:0 auto;transform:rotate(2deg)}
 
-/* perguntas */
-.faq{max-width:820px;margin:44px auto 0}
-.faq details{border-bottom:1px solid var(--line);padding:20px 0}
-.faq summary{font-weight:800;font-size:18px;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:16px}
-.faq summary::-webkit-details-marker{display:none}
-.faq summary::after{content:"+";font-size:24px;line-height:1;color:var(--blue);transition:transform .2s}
-.faq details[open] summary::after{transform:rotate(45deg)}
-.faq details p{color:var(--muted);margin-top:12px;font-size:16px}
+/* O que vem junto */
+.junto{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:56px;align-items:start}
+.lista{list-style:none;margin:0;padding:0;columns:2;column-gap:36px}
+.lista li{break-inside:avoid;padding:12px 0 12px 30px;border-bottom:1px solid var(--linha);position:relative;font-weight:700;font-size:16.5px;line-height:1.4}
+.lista li::before{content:"";position:absolute;left:2px;top:17px;width:14px;height:8px;border-left:3px solid var(--azul);border-bottom:3px solid var(--azul);transform:rotate(-45deg)}
+.lista small{display:block;font-weight:500;font-size:14.5px;color:var(--tinta2)}
 
-/* chamada final e rodapé */
-.final{background:radial-gradient(700px 400px at 50% 120%,rgba(124,213,199,.25),transparent 60%),var(--navy);color:#fff;text-align:center}
-.final h2{font-size:clamp(32px,4.4vw,52px);font-weight:800}
-.final p{color:rgba(255,255,255,.72);font-size:18px;margin-top:16px}
-.foot{background:#161931;color:rgba(255,255,255,.62);padding:40px 0;font-size:14px}
-.foot .wrap{display:flex;gap:20px 36px;align-items:center;flex-wrap:wrap}
-.foot a{text-decoration:none}
-.foot a:hover{color:#fff}
-.foot .links{display:flex;gap:22px;flex-wrap:wrap;margin-left:auto}
+/* Planos */
+.planos{background:#F4F6F9}
+.ciclo{display:inline-flex;margin-top:26px;border:2px solid var(--tinta);border-radius:14px;overflow:hidden;background:#fff}
+.ciclo button{border:0;background:none;font:800 15px/1.2 var(--texto);color:var(--tinta);padding:11px 18px;cursor:pointer}
+.ciclo button small{display:block;font-weight:700;font-size:12.5px;color:var(--azul)}
+.ciclo button[aria-pressed=true]{background:var(--tinta);color:#fff}
+.ciclo button[aria-pressed=true] small{color:var(--menta)}
+.cartoes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,.78fr);gap:22px;margin-top:30px;align-items:stretch}
+.plano{background:#fff;border-radius:22px;padding:28px;border:2px solid var(--linha);display:flex;flex-direction:column}
+.plano.destaque{border-color:var(--tinta);box-shadow:8px 8px 0 var(--menta)}
+.plano .selo{align-self:flex-start;background:var(--tinta);color:#fff;font-size:13px;font-weight:800;padding:5px 10px;border-radius:8px;margin-bottom:12px}
+.plano h3{font:600 26px/1.1 var(--display)}
+.plano .quem{color:var(--tinta2);font-size:15.5px;margin-top:6px;min-height:3em}
+.preco{display:flex;align-items:baseline;gap:6px;margin-top:14px}
+.preco b{font:600 50px/1 var(--display);font-variant-numeric:tabular-nums}
+.preco span{font-weight:700;color:var(--tinta2)}
+.pordia{font-size:15px;font-weight:800;color:var(--azul);margin-top:6px;min-height:1.5em}
+.plano ul{list-style:none;margin:16px 0 22px;padding:0;display:grid;gap:8px;font-size:16px}
+.plano li{padding-left:26px;position:relative}
+.plano li::before{content:"";position:absolute;left:2px;top:8px;width:12px;height:7px;border-left:3px solid var(--azul);border-bottom:3px solid var(--azul);transform:rotate(-45deg)}
+.plano .btn{margin-top:auto}
+.lado{display:flex;flex-direction:column;gap:18px;padding-top:6px}
+.garantia{background:var(--doce);color:var(--tinta);border-radius:18px;padding:22px;font-size:16.5px;line-height:1.5}
+.garantia b{display:block;font:600 24px/1.15 var(--display);margin-bottom:8px}
+.outros{font-size:15.5px;color:var(--tinta2)}
+.outros a{font-weight:800;color:var(--tinta);text-underline-offset:4px}
+.fino{font-size:14px;color:var(--tinta2);margin-top:22px}
+
+/* Dúvidas */
+.duvidas{margin-top:-6px}
+.duvidas details{border-bottom:1px solid var(--linha)}
+.duvidas summary{cursor:pointer;list-style:none;padding:18px 40px 18px 0;font-weight:800;font-size:18px;position:relative}
+.duvidas summary::-webkit-details-marker{display:none}
+.duvidas summary::after{content:"+";position:absolute;right:6px;top:12px;font:600 28px/1 var(--display);color:var(--azul)}
+.duvidas details[open] summary::after{content:"–"}
+.duvidas p{padding:0 0 20px;color:var(--tinta2);max-width:64ch}
+
+/* Convite final */
+.fim{background:var(--tinta);color:#fff;padding:72px 0 80px}
+.fim h2{max-width:16em}
+.fim .sub{color:#C9CDE0}
+.fim .acoes{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:28px}
+.fim .btn.linha{color:#fff}
+.fim .btn.linha:hover{background:rgba(255,255,255,.1)}
+.fim .ajuda{margin-top:22px;font-size:15.5px;color:#C9CDE0}
+.fim .ajuda a{color:#fff;font-weight:700}
+
+.rodape{background:var(--tinta);color:#C9CDE0;border-top:1px solid rgba(255,255,255,.14);padding:22px 0 26px;font-size:14.5px}
+.rodape .wrap{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+.rodape .logo{color:#fff;font-size:18px}
+.rodape .links{margin-left:auto;display:flex;gap:18px}
+.rodape a{text-underline-offset:4px}
+
+/* Convite fixo no celular, depois da abertura */
+.fixo{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--linha);box-shadow:0 -10px 30px -18px rgba(31,35,64,.5);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:none;align-items:center;gap:12px;transform:translateY(110%);transition:transform .25s ease}
+.fixo.on{transform:none}
+.fixo p{font-size:13.5px;font-weight:700;line-height:1.3;color:var(--tinta2);flex:1}
+.fixo p b{display:block;color:var(--tinta);font-size:15px;font-weight:800}
 
 @media (max-width:980px){
   .nav{display:none}
-  .grid5{grid-template-columns:repeat(2,1fr)}
-  .feat,.feat.rev,.dev{grid-template-columns:1fr;gap:32px}
-  .feat.rev .ft{order:0}
-  .fi.doc{margin:0 auto}
-  .cards3,.steps,.plans{grid-template-columns:1fr}
-  .plan .for{min-height:0}
-  .phone{right:-6px;bottom:-30px}
+  .abre{padding:34px 0 44px}
+  .abre .wrap{grid-template-columns:1fr;gap:30px}
+  .dia{grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:min(74vw,300px);overflow-x:auto;scroll-snap-type:x mandatory;gap:18px;margin:34px -22px 0;padding:0 22px 26px;scrollbar-width:none}
+  .dia::-webkit-scrollbar{display:none}
+  .hora{scroll-snap-align:center}
+  .hora:nth-child(even)>.cel{transform:none}
+  .cadastro .wrap,.junto{grid-template-columns:1fr;gap:34px}
+  .cartoes{grid-template-columns:1fr 1fr}
+  .lado{grid-column:1/-1}
+  .cadastro .cel{max-width:250px}
+  section.bloco{padding:60px 0}
+  .cadastro{padding:56px 0 64px}
 }
-@media (max-width:620px){
-  section{padding:68px 0}
-  .hdr .wrap{gap:12px}
-  .hdr-r .btn.mint{display:none}
-  .logo b{font-size:19px}
-  .lang button{padding:6px 7px}
-  .hero{padding-top:56px}
-  .ctas .btn{width:100%}
-  .shots{margin-top:44px}
-  .phone{width:34%;right:-10px}
-  .grid5{grid-template-columns:1fr 1fr;gap:10px}
-  .mod{padding:16px}
-  .all{padding:18px}
+@media (max-width:640px){
+  body{font-size:16.5px}
+  .topo .wrap{gap:10px;height:58px;padding:0 14px}
+  .logo{font-size:19px}.logo svg{width:30px;height:30px}
+  .topo .entrar{display:none}
+  .abre .lead{font-size:18px;margin:16px 0 22px}
+  .abre .acoes .btn{width:100%}
+  .ficha{padding:20px 18px 18px;border-radius:20px}
+  .ficha .linha{font-size:15px}
+  .etiqueta b{font-size:30px}
+  .lista{columns:1}
+  .cartoes{grid-template-columns:1fr}
+  .resultado{grid-template-columns:1fr;gap:12px}
+  .etiqueta{grid-row:auto;justify-self:start}
+  .plano{padding:22px}
+  .plano .quem{min-height:0}
+  .fim .acoes .btn{width:100%}
+  .rodape .links{margin-left:0;width:100%}
+  .fixo{display:flex}
+  .rodape{padding-bottom:92px}
 }
-@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn{transition:none}}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.barra i,.fixo{transition:none}}
 </style>
 </head>
 <body>
-<header class="hdr">
+<header class="topo">
   <div class="wrap">
     <a class="logo" href="#topo" aria-label="Saus360"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="msescuroa" gradientUnits="userSpaceOnUse" x1="30" y1="16" x2="62" y2="50"><stop offset="0" stop-color="#2B9FCB"/><stop offset="1" stop-color="#47BEDD"/></linearGradient><linearGradient id="msescurob" gradientUnits="userSpaceOnUse" x1="50" y1="50" x2="40" y2="84"><stop offset="0" stop-color="#47BEDD"/><stop offset="1" stop-color="#7CD5C7"/></linearGradient></defs><g fill="none" stroke-width="15" stroke-linejoin="miter" stroke-miterlimit="4"><path d="M71.2 28.24 L50 16 L20.56 33 L20.56 50 L52 50" stroke="url(#msescuroa)"/><path d="M48 50 L79.44 50 L79.44 67 L50 84 L28.8 71.76" stroke="url(#msescurob)"/></g><path d="M50 33.5 L64.3 41.75 L64.3 58.25 L50 66.5 L35.7 58.25 L35.7 41.75 Z" style="fill:#1F2340;stroke:#1F2340" stroke-width="3" stroke-linejoin="round"/><path d="M50 36 L62.1 43 L50 50 L37.9 43 Z" fill="#FFFFFF"/><path d="M37.9 43 L50 50 L50 64 L37.9 57 Z" fill="#E4E7EF"/><path d="M50 50 L62.1 43 L62.1 57 L50 64 Z" fill="#C3C9DA"/><path d="M50 36 L62.1 43 L62.1 57 L50 64 L37.9 57 L37.9 43 Z M37.9 43 L50 50 L62.1 43 M50 50 L50 64" fill="none" stroke="#464B71" stroke-width="1.3" stroke-linejoin="round"/><path d="M43.9 39.5 L56 46.5 L56 50.8" fill="none" stroke="#464B71" stroke-width="1.3" stroke-linejoin="round" opacity=".85"/></svg><b>Saus<span>360</span></b></a>
     <nav class="nav" aria-label="Seções">
-      <a href="#food" data-i="nav1">Saus360 Food</a>
-      <a href="#ramos" data-i="nav2">Para quem é</a>
+      <a href="#dia" data-i="nav1">Como funciona</a>
+      <a href="#cadastro" data-i="nav2">Cadastro feito por nós</a>
       <a href="#planos" data-i="nav3">Planos</a>
       <a href="#duvidas" data-i="nav4">Dúvidas</a>
     </nav>
-    <div class="hdr-r">
-      <div class="lang" role="group" aria-label="Idioma"><button data-lang="pt" aria-pressed="true">PT</button><button data-lang="es" aria-pressed="false">ES</button></div>
-      <a class="btn ghost sm" href="app/" data-i="entrar">Entrar</a>
-      <a class="btn mint sm" href="app/#criar" data-i="testar">Teste grátis</a>
+    <div class="topo-r">
+      <div class="idioma" role="group" aria-label="Idioma"><button data-lang="pt" aria-pressed="true">PT</button><button data-lang="es" aria-pressed="false">ES</button></div>
+      <a class="entrar" href="app/" data-i="entrar">Entrar</a>
+      <a class="btn testar sm" href="app/#criar" data-i="testar">Testar grátis</a>
     </div>
   </div>
 </header>
 
 <main id="topo">
-<section class="hero">
+<section class="abre">
   <div class="wrap">
-    <div class="hero-txt">
-      <span class="pill"><i></i><span data-i="pill">Novo: Saus360 Food para confeitarias</span></span>
-      <h1 data-i="h1">A gestão da sua confeitaria em <em>360°</em></h1>
-      <p class="lead" data-i="lead">Receitas com custo real, encomendas com sinal, lista de compras automática, estoque e caixa num só sistema. Para confeitarias e docerias de pequeno e médio porte, no celular e no computador.</p>
-      <div class="ctas">
-        <a class="btn mint" href="app/#criar"><span data-i="cta1">Começar teste grátis de 30 dias</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-        <a class="btn ghost" href="app/#demo" data-i="cta2">Ver a demonstração</a>
+    <div>
+      <h1 data-i="h1">Você sabe quanto sobra em cada brigadeiro?</h1>
+      <p class="lead" data-i="lead">O Saus360 Food calcula o custo real das suas receitas, organiza as encomendas com sinal e monta a lista de compras. Para confeitarias e docerias, no celular e no computador.</p>
+      <div class="acoes">
+        <a class="btn testar" href="app/#criar" data-i="cta">Testar grátis por 30 dias</a>
+        <a class="demo" href="app/#demo" data-i="demo">Ver a demonstração</a>
       </div>
-      <div class="checks">
-        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="ck1">Sem cartão de crédito</span></span>
-        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="ck2">Sem fidelidade</span></span>
-        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="ck3">Sem instalar nada</span></span>
+      <ul class="semrisco">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="ck1">Sem cartão de crédito</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="ck2">Sem fidelidade</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="ck3">Sem instalar nada</span></li>
+      </ul>
+    </div>
+
+    <form class="ficha" id="conta" onsubmit="return false" aria-labelledby="conta-t">
+      <h2 id="conta-t" data-i="c-t">Faça a conta de um brigadeiro</h2>
+      <p class="ex" data-i="c-ex">Um exemplo. Troque pelos seus números.</p>
+      <div class="linha"><label for="c-lata" data-i="c-lata">Lata de leite condensado</label><i></i><span class="campo"><span>R$</span><input id="c-lata" inputmode="decimal" autocomplete="off" value="7,11"></span></div>
+      <div class="linha"><span class="nm" data-i="c-outros">Chocolate, manteiga e granulado</span><i></i><span class="vl">R$ 5,55</span></div>
+      <div class="linha"><span class="nm" data-i="c-form">Forminhas</span><i></i><span class="vl">R$ 1,50</span></div>
+      <div class="linha"><label for="c-extra" data-i="c-extra">Gás, embalagem e o seu tempo</label><i></i><span class="campo"><span>R$</span><input id="c-extra" inputmode="decimal" autocomplete="off" value="12,00"></span></div>
+      <div class="dupla">
+        <label><span data-i="c-rende">A receita rende</span><span class="campo"><input id="c-rende" inputmode="numeric" autocomplete="off" value="30"><span style="margin:0 0 0 6px">un</span></span></label>
+        <label><span data-i="c-preco">Você vende cada um a</span><span class="campo"><span>R$</span><input id="c-preco" inputmode="decimal" autocomplete="off" value="3,50"></span></label>
       </div>
-    </div>
-    <div class="shots">
-      <div class="browser"><div class="bar"><i></i><i></i><i></i></div><img src="img/hero-desk.webp" width="2160" height="1350" alt="Painel do Saus360 no computador: vendas do mês, contas a receber, gráfico de vendas e pedidos" data-ia="alt1"></div>
-      <div class="phone"><img src="img/hero-phone.webp" width="780" height="1688" alt="Saus360 no celular" data-ia="alt2"></div>
-    </div>
+      <div class="resultado" aria-live="polite">
+        <div class="etiqueta" id="r-etq"><small id="r-rot">Sobra para você</small><b id="r-sobra">R$ 2,63</b></div>
+        <p class="custo"><span data-i="c-custo">Custo real de cada um:</span> <b id="r-custo">R$ 0,87</b></p>
+        <div class="barra" aria-hidden="true"><i id="r-barra" style="width:25%"></i></div>
+      </div>
+      <div class="leitura" id="r-leitura"></div>
+    </form>
   </div>
 </section>
+<div class="forminha" aria-hidden="true"></div>
 
-<div class="ramos" id="ramos">
-  <div class="wrap">
-    <p data-i="ramos">Feito para:</p>
-    <span data-i="r1">Confeitarias</span><span data-i="r2">Docerias</span><span data-i="r3">Bolos por encomenda</span><span data-i="r4">Padarias artesanais</span><span data-i="r5">Cafeterias</span>
-  </div>
+<div class="para">
+  <div class="wrap"><b data-i="para">Feito para</b><span data-i="r1">confeitarias</span><span data-i="r2">docerias</span><span data-i="r3">bolos por encomenda</span><span data-i="r4">padarias artesanais</span><span data-i="r5">cafeterias</span></div>
 </div>
 
-<section class="prob">
+<section class="bloco" id="dia">
   <div class="wrap">
-    <span class="eyebrow" data-i="pb-e">O problema</span>
-    <h2 class="sec-title" data-i="pb-t">Caderno, planilha e WhatsApp não dão conta de uma confeitaria</h2>
-    <div class="cards3">
-      <div class="card"><span class="n">01</span><h3 data-i="pb1t">Preço no chute</h3><p data-i="pb1">Sem ficha técnica você não sabe quanto custa cada bolo. O chocolate sobe, o preço fica igual e a margem some sem você perceber.</p></div>
-      <div class="card"><span class="n">02</span><h3 data-i="pb2t">Encomendas espalhadas</h3><p data-i="pb2">Data, sinal, saldo e o que produzir ficam entre o WhatsApp e o caderno. Um esquecimento custa uma cliente.</p></div>
-      <div class="card"><span class="n">03</span><h3 data-i="pb3t">Ingrediente que falta na hora</h3><p data-i="pb3">Descobrir no meio da produção que acabou o leite condensado atrasa a entrega e obriga a comprar correndo.</p></div>
+    <h2 data-i="d-t">Um dia de confeitaria, sem caderno e sem susto</h2>
+    <p class="sub" data-i="d-s">Quatro momentos do seu dia em que o sistema faz a conta, lembra e avisa por você.</p>
+    <div class="dia">
+      <article class="hora">
+        <time datetime="07:00">7h</time>
+        <h3 data-i="d1t">Você já sabe o que produzir</h3>
+        <p class="antes"><b data-i="antes">No caderno:</b> <span data-i="d1a">folhear páginas e conversas para somar as encomendas do dia.</span></p>
+        <p class="agora"><b data-i="agora">No Saus360:</b> <span data-i="d1b">o quadro de produção soma tudo e avisa quanto fazer de massa e recheio antes.</span></p>
+        <div class="cel"><img src="img/food/producao.webp" width="624" height="1200" loading="lazy" alt="Agenda de encomendas com o quadro do que produzir hoje e amanhã" data-ia="alt1"></div>
+      </article>
+      <article class="hora">
+        <time datetime="10:00">10h</time>
+        <h3 data-i="d2t">Chegou encomenda, sinal anotado</h3>
+        <p class="antes"><b data-i="antes">No caderno:</b> <span data-i="d2a">o comprovante do Pix se perde na conversa e o saldo fica de cabeça.</span></p>
+        <p class="agora"><b data-i="agora">No Saus360:</b> <span data-i="d2b">data, horário, retirada ou entrega, sinal pago e saldo a receber numa tela só.</span></p>
+        <div class="cel"><img src="img/food/encomenda.webp" width="624" height="1200" loading="lazy" alt="Nova encomenda com data, horário, sinal de 50% e saldo na retirada" data-ia="alt2"></div>
+      </article>
+      <article class="hora">
+        <time datetime="15:00">15h</time>
+        <h3 data-i="d3t">A lista de compras já está pronta</h3>
+        <p class="antes"><b data-i="antes">No caderno:</b> <span data-i="d3a">descobrir no meio da receita que acabou o leite condensado.</span></p>
+        <p class="agora"><b data-i="agora">No Saus360:</b> <span data-i="d3b">o app cruza encomendas, receitas e estoque e diz o que comprar, por fornecedor.</span></p>
+        <div class="cel"><img src="img/food/compras.webp" width="624" height="1200" loading="lazy" alt="Lista de compras calculada a partir das encomendas dos próximos 7 dias" data-ia="alt3"></div>
+      </article>
+      <article class="hora">
+        <time datetime="19:00">19h</time>
+        <h3 data-i="d4t">Caixa fechado e conferido</h3>
+        <p class="antes"><b data-i="antes">No caderno:</b> <span data-i="d4a">contar a gaveta sem saber quanto deveria ter.</span></p>
+        <p class="agora"><b data-i="agora">No Saus360:</b> <span data-i="d4b">abertura com troco, sangria e fechamento. O sistema mostra quanto era para ter.</span></p>
+        <div class="cel"><img src="img/food/caixa.webp" width="624" height="1200" loading="lazy" alt="Fechamento de caixa com o valor esperado na gaveta e a conferência" data-ia="alt4"></div>
+      </article>
     </div>
   </div>
 </section>
 
-<section id="food">
+<div class="forminha tinta" aria-hidden="true"></div>
+<section class="cadastro" id="cadastro">
   <div class="wrap">
-    <span class="eyebrow" data-i="fd-e">Saus360 Food</span>
-    <h2 class="sec-title" data-i="fd-t">Feito para o dia a dia da confeitaria</h2>
-    <p class="sec-sub" data-i="fd-s">Da receita à entrega: o sistema calcula, lembra e avisa, para você cuidar do que importa.</p>
-    <div class="cards3">
-      <div class="card"><span class="n">01</span><h3 data-i="fd1t">Ficha técnica com custo real</h3><p data-i="fd1">Cadastre a receita uma vez e veja o custo por unidade, a margem e o preço sugerido. Mudou o preço de um ingrediente? O custo atualiza sozinho.</p></div>
-      <div class="card"><span class="n">02</span><h3 data-i="fd2t">Encomendas com sinal e saldo</h3><p data-i="fd2">Data, horário, retirada ou entrega, sinal pago e saldo a receber. A agenda mostra o que entregar hoje, amanhã e nos próximos dias.</p></div>
-      <div class="card"><span class="n">03</span><h3 data-i="fd3t">O que produzir, inclusive os preparos</h3><p data-i="fd3">O quadro de produção soma as encomendas e diz quanto fazer de cada produto, e também da massa e do recheio que vêm antes.</p></div>
-      <div class="card"><span class="n">04</span><h3 data-i="fd4t">Lista de compras automática</h3><p data-i="fd4">Com as encomendas e as receitas, o app diz o que comprar e quanto, separado por fornecedor e arredondado pela embalagem.</p></div>
-      <div class="card"><span class="n">05</span><h3 data-i="fd5t">Estoque em dois níveis</h3><p data-i="fd5">Ingredientes de um lado, produto pronto do outro. A produção baixa os ingredientes, e a venda do que é feito na hora também.</p></div>
-      <div class="card"><span class="n">06</span><h3 data-i="fd6t">Caixa do dia e equipe</h3><p data-i="fd6">Abertura com troco, sangria, suprimento e fechamento com conferência. Cada pessoa com seu usuário e limite de desconto.</p></div>
-    </div>
-  </div>
-</section>
-
-<section id="funcoes">
-  <div class="wrap">
-    <span class="eyebrow" data-i="fn-e">A solução</span>
-    <h2 class="sec-title" data-i="fn-t">Tudo o que o seu comércio faz, num lugar só</h2>
-    <p class="sec-sub" data-i="fn-s">Pensado para o dia a dia de quem vende para outras empresas: cada tela resolve uma tarefa, sem planilha paralela.</p>
-
-    <div class="feat">
-      <div class="ft">
-        <span class="tag" data-i="f1g">Vendas</span>
-        <h3 data-i="f1t">O preço certo para cada cliente, sem fazer conta</h3>
-        <p data-i="f1p">Tabelas de varejo, atacado e restaurante, descontos e preços especiais aplicados sozinhos no pedido. O sistema avisa se o cliente tem conta vencida ou passou do limite de crédito.</p>
-        <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="f1a">Pedido, orçamento e consignação na mesma tela</span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="f1b">Parcelas e prazos que entram direto no contas a receber</span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="f1c">Leitor de código de barras pela câmera ou USB</span></li>
-        </ul>
-      </div>
-      <div class="fi crop"><img src="img/f-pedido.webp" width="2160" height="1350" loading="lazy" alt="Tela de novo pedido com produtos, cliente e condições de pagamento" data-ia="alt3"></div>
-    </div>
-
-    <div class="feat rev">
-      <div class="ft">
-        <span class="tag" data-i="f2g">Consignação</span>
-        <h3 data-i="f2t">Consignação com acerto: cobre só o que foi vendido</h3>
-        <p data-i="f2p">Veja o que cada cliente levou, vendeu e devolveu. No acerto, um toque registra a venda ou a devolução, e o saldo do cliente se atualiza na hora.</p>
-        <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="f2a">Ficha do cliente com saldo, crédito e histórico</span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="f2b">Alertas de consignações antigas e contas vencidas</span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="f2c">Cobrança pelo WhatsApp com o resumo do pedido</span></li>
-        </ul>
-      </div>
-      <div class="fi crop"><img src="img/f-cliente.webp" width="2160" height="1350" loading="lazy" alt="Ficha do cliente com saldo em aberto, consignação e pedidos" data-ia="alt4"></div>
-    </div>
-
-    <div class="feat">
-      <div class="ft">
-        <span class="tag" data-i="f3g">Catálogo</span>
-        <h3 data-i="f3t">Catálogo em PDF pelo WhatsApp, com os preços daquele cliente</h3>
-        <p data-i="f3p">Gere em segundos um catálogo com o estoque disponível e a tabela de preços do cliente, com os preços especiais destacados. Pronto para mandar pelo WhatsApp.</p>
-        <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="f3a">Por padrão, só entra o que tem em estoque</span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="f3b">Organizado por categoria, com o nome da sua empresa</span></li>
-        </ul>
-      </div>
-      <div class="fi doc"><img src="img/f-catalogo.webp" width="900" height="798" loading="lazy" alt="Catálogo em PDF com preços para um restaurante" data-ia="alt5"></div>
-    </div>
-
-    <div class="feat rev">
-      <div class="ft">
-        <span class="tag" data-i="f4g">Estoque e financeiro</span>
-        <h3 data-i="f4t">Estoque, compras e dinheiro sob controle</h3>
-        <p data-i="f4p">Estoque com mínimo e inventário, compras com o XML da nota do fornecedor, contas a receber e a pagar, fluxo de caixa e relatórios de margem e curva ABC.</p>
-        <ul>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="f4a">Sugestão de reposição por fornecedor</span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="f4b">Atrasos por faixa e quem está devendo</span></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="f4c">NF-e e NFC-e emitidas a partir do pedido</span></li>
-        </ul>
-      </div>
-      <div class="fi crop"><img src="img/f-estoque.webp" width="2160" height="1350" loading="lazy" alt="Estoque em tabela com preço, custo e situação de cada produto" data-ia="alt6"></div>
-    </div>
-  </div>
-</section>
-
-<section class="mods">
-  <div class="wrap">
-    <span class="eyebrow" data-i="md-e">Tudo incluído</span>
-    <h2 class="sec-title" data-i="md-t">Um sistema completo, sem módulos extras</h2>
-    <p class="sec-sub" data-i="md-s">As funções principais estão em todos os planos. O que muda é o tamanho da equipe e a ajuda para começar.</p>
-    <div class="grid5">
-      <div class="mod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg><b data-i="m1">Vendas e orçamentos</b><small data-i="m1s">Tabelas, parcelas e descontos</small></div>
-      <div class="mod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/></svg><b data-i="m2">Consignação</b><small data-i="m2s">O que está com cada cliente</small></div>
-      <div class="mod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5l9-4.5 9 4.5v9l-9 4.5-9-4.5z"/><path d="M3 7.5l9 4.5 9-4.5M12 12v9"/></svg><b data-i="m3">Estoque</b><small data-i="m3s">Entradas, baixas e inventário</small></div>
-      <div class="mod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 6h11v10H2zM13 10h5l3 3v3h-8"/><circle cx="6" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg><b data-i="m4">Compras</b><small data-i="m4s">Pedidos e XML do fornecedor</small></div>
-      <div class="mod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h15a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 7l11-3v3"/><circle cx="16" cy="13.5" r="1.2"/></svg><b data-i="m5">Financeiro</b><small data-i="m5s">A receber, a pagar e caixa</small></div>
-      <div class="mod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><b data-i="m6">Relatórios</b><small data-i="m6s">Curva ABC, margem e comissões</small></div>
-      <div class="mod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-2-1.4L14 21l-2-1.4L10 21l-2-1.4L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><b data-i="m7">Nota fiscal</b><small data-i="m7s">NF-e e NFC-e integradas</small></div>
-      <div class="mod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></svg><b data-i="m8">Catálogo em PDF</b><small data-i="m8s">Com os preços do cliente</small></div>
-      <div class="mod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.9.7 3.1 2.5 3.5 5.2"/></svg><b data-i="m9">Equipe</b><small data-i="m9s">Papéis e permissões</small></div>
-      <div class="mod"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg><b data-i="m10">Importação</b><small data-i="m10s">Produtos e clientes de planilha</small></div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap dev">
     <div>
-      <span class="eyebrow" data-i="dv-e">Onde você estiver</span>
-      <h2 class="sec-title" data-i="dv-t">No balcão pelo celular, no escritório pelo computador</h2>
-      <p class="sec-sub" data-i="dv-s">Os mesmos dados em todos os aparelhos, na hora. O vendedor tira o pedido na rua, o estoque baixa e o financeiro já vê o que vai entrar.</p>
-      <div class="feat" style="margin:0;display:block"><ul>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="dv1">App para Android e versão para navegador (iPhone, tablet e computador)</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="dv2">Cada pessoa com seu usuário: vendedor, estoquista, gerente</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="dv3">Histórico de quem fez o quê e quando</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="dv4">Seus dados são seus: exporte quando quiser</span></li>
-      </ul></div>
+      <h2 data-i="k-t">Sem tempo de cadastrar? A gente cadastra para você</h2>
+      <p class="sub" data-i="k-s">Você preenche uma planilha simples, no seu ritmo. Nós colocamos tudo dentro do sistema.</p>
+      <ol class="passos">
+        <li><div><h3 data-i="k1t">Crie sua conta</h3><p data-i="k1">Dois minutos, só com o seu e-mail.</p></div></li>
+        <li><div><h3 data-i="k2t">Preencha a planilha modelo</h3><p data-i="k2">Ingredientes, receitas, produtos e clientes. Ela vem com exemplos e listas prontas.</p></div></li>
+        <li><div><h3 data-i="k3t">Abra o app e veja o custo de cada receita</h3><p data-i="k3">Com o preço sugerido e a margem, prontos para você decidir.</p></div></li>
+      </ol>
+      <a class="btn testar" href="app/#criar" data-i="cta">Testar grátis por 30 dias</a>
+      <p class="nota" data-i="k-n">O cadastro feito por nós faz parte do plano Food Completo.</p>
     </div>
-    <div class="dev-img">
-      <div class="phone"><img src="img/hero-phone.webp" width="780" height="1688" loading="lazy" alt="Início do Saus360 no celular" data-ia="alt7"></div>
-      <div class="phone"><img src="img/f-phone-pedido.webp" width="780" height="1688" loading="lazy" alt="Pedido de consignação no celular" data-ia="alt8"></div>
-    </div>
+    <div class="cel"><img src="img/food/ficha.webp" width="624" height="1200" loading="lazy" alt="Ficha técnica do bolo no pote com custo da receita, custo por unidade e ingredientes" data-ia="alt5"></div>
   </div>
 </section>
 
-<section style="padding-top:0">
-  <div class="wrap">
-    <span class="eyebrow" data-i="cf-e">Como começar</span>
-    <h2 class="sec-title" data-i="cf-t">Em uma tarde o seu comércio está rodando</h2>
-    <div class="steps">
-      <div class="step"><h3 data-i="s1t">Crie sua conta</h3><p data-i="s1">Com seu e-mail, em dois minutos. Escolha o ramo e o sistema já vem com as categorias certas.</p></div>
-      <div class="step"><h3 data-i="s2t">Traga seus dados</h3><p data-i="s2">Importe produtos e clientes de uma planilha ou do XML das notas dos fornecedores.</p></div>
-      <div class="step"><h3 data-i="s3t">Chame a equipe e venda</h3><p data-i="s3">Convide vendedores com um código, defina o que cada um pode ver e comece a registrar.</p></div>
+<section class="bloco">
+  <div class="wrap junto">
+    <div>
+      <h2 data-i="j-t">Tudo o que a confeitaria precisa, num lugar só</h2>
+      <p class="sub" data-i="j-s">Sem módulo extra para comprar depois. O que muda entre os planos é o tamanho da equipe e a ajuda para começar.</p>
     </div>
+    <ul class="lista">
+      <li><span data-i="j1">Ficha técnica com custo real</span><small data-i="j1s">Preço sugerido e margem por receita</small></li>
+      <li><span data-i="j2">Encomendas com sinal e saldo</span><small data-i="j2s">Agenda de entregas e retiradas</small></li>
+      <li><span data-i="j3">Quadro de produção</span><small data-i="j3s">Inclui massas, recheios e caldas</small></li>
+      <li><span data-i="j4">Lista de compras automática</span><small data-i="j4s">Por fornecedor e pela embalagem</small></li>
+      <li><span data-i="j5">Estoque em dois níveis</span><small data-i="j5s">Ingredientes e produto pronto</small></li>
+      <li><span data-i="j6">Caixa do dia</span><small data-i="j6s">Abertura, sangria e fechamento</small></li>
+      <li><span data-i="j7">Contas a receber e a pagar</span><small data-i="j7s">Quem deve e o que vence</small></li>
+      <li><span data-i="j8">Equipe com permissões</span><small data-i="j8s">Cada pessoa vê só o que precisa</small></li>
+      <li><span data-i="j9">Meta e lucro do mês</span><small data-i="j9s">Na primeira tela do app</small></li>
+      <li><span data-i="j10">Celular e computador</span><small data-i="j10s">App Android e navegador, com os mesmos dados</small></li>
+    </ul>
   </div>
 </section>
 
-<section class="planos" id="planos">
-  <div class="wrap" style="text-align:center">
-    <span class="eyebrow" data-i="pl-e">Planos</span>
-    <h2 class="sec-title" data-i="pl-t">Preço justo, do tamanho do seu negócio</h2>
-    <p class="sec-sub" style="margin-left:auto;margin-right:auto" data-i="pl-s">Comece com 30 dias grátis. Depois, escolha o plano. Sem taxa de instalação e sem fidelidade.</p>
-    <div class="billing" role="group" aria-label="Forma de pagamento"><button data-bill="m" aria-pressed="true" data-i="mensal">Mensal</button><button data-bill="a" aria-pressed="false"><span data-i="anual">Anual</span><small data-i="anual-off">2 meses de desconto</small></button></div>
-  </div>
+<section class="bloco planos" id="planos">
   <div class="wrap">
-    <div class="plans">
-      <div class="plan">
-        <h3>Food Essencial</h3><p class="for" data-i="p1f">Confeitaria ou doceria com um ponto</p>
-        <div class="price"><b data-m="69" data-a="57.5">R$ 69</b><span data-i="mes">/mês</span></div><p class="price-note" data-note="1"></p>
-        <ul><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="p1a">Até 3 usuários</span></li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="p1b">Receitas, encomendas e lista de compras</span></li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="p1c">Estoque, caixa e financeiro</span></li></ul>
-        <a class="btn line" href="app/#criar" data-i="pcta">Começar teste grátis</a>
+    <h2 data-i="p-t">Menos que um brigadeiro por dia</h2>
+    <p class="sub" data-i="p-s">Os primeiros 30 dias são grátis. Depois você escolhe o plano, sem taxa de instalação e sem fidelidade.</p>
+    <div class="ciclo" role="group" aria-label="Forma de pagamento"><button data-bill="m" aria-pressed="true" data-i="mensal">Mensal</button><button data-bill="a" aria-pressed="false"><span data-i="anual">Anual</span><small data-i="anual-off">2 meses de desconto</small></button></div>
+    <div class="cartoes">
+      <div class="plano">
+        <h3>Food Essencial</h3><p class="quem" data-i="p1f">Confeitaria ou doceria com um ponto</p>
+        <div class="preco"><b data-m="69" data-a="57.5">R$ 69</b><span data-i="mes">por mês</span></div><p class="pordia" data-dia></p>
+        <ul><li data-i="p1a">Até 3 usuários</li><li data-i="p1b">Receitas, encomendas e lista de compras</li><li data-i="p1c">Estoque, caixa e financeiro</li></ul>
+        <a class="btn linha" href="app/#criar" data-i="cta">Testar grátis por 30 dias</a>
       </div>
-      <div class="plan top">
-        <span class="badge" data-i="rec">Recomendado</span>
-        <h3>Food Completo</h3><p class="for" data-i="p2f">Confeitaria com equipe ou que vende para cafés e restaurantes</p>
-        <div class="price"><b data-m="99" data-a="82.5">R$ 99</b><span data-i="mes">/mês</span></div><p class="price-note" data-note="1"></p>
-        <ul><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="p2a">Até 8 usuários</span></li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="p2b">Tudo do Essencial</span></li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="p2c">Tabelas de preço e consignação para cafés e restaurantes</span></li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="p2d">Cadastro das suas receitas feito por nós</span></li></ul>
-        <a class="btn blue" href="app/#criar" data-i="pcta">Começar teste grátis</a>
+      <div class="plano destaque">
+        <span class="selo" data-i="rec">Com cadastro feito por nós</span>
+        <h3>Food Completo</h3><p class="quem" data-i="p2f">Confeitaria com equipe ou que vende para cafés e restaurantes</p>
+        <div class="preco"><b data-m="99" data-a="82.5">R$ 99</b><span data-i="mes">por mês</span></div><p class="pordia" data-dia></p>
+        <ul><li data-i="p2a">Até 8 usuários</li><li data-i="p2b">Tudo do Essencial</li><li data-i="p2c">Tabelas de preço e consignação para cafés e restaurantes</li><li data-i="p2d">Cadastro das suas receitas feito por nós</li></ul>
+        <a class="btn testar" href="app/#criar" data-i="cta">Testar grátis por 30 dias</a>
       </div>
-      <div class="plan">
-        <h3 data-i="p3h">Outros ramos</h3><p class="for" data-i="p3f">Vinhos, empórios, semijoias e distribuidoras</p>
-        <div class="price"><b data-i="p3p" style="font-size:32px">Sob consulta</b></div>
-        <ul><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="p3a">Consignação, catálogo em PDF e vendedores na rua</span></li><li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="p3b">Proposta do tamanho da sua operação</span></li></ul>
-        <a class="btn line" href="mailto:vendas@saus360.com.br" data-i="p3cta">Falar com a gente</a>
+      <div class="lado">
+        <p class="garantia" data-i="gar"><b>Você testa sem arriscar nada.</b> São 30 dias com todas as funções, sem cartão de crédito. Se não servir, você não paga e ainda leva seus dados em planilha.</p>
+        <p class="outros"><span data-i="o1">Vende vinhos, empório ou semijoias? O Saus360 também atende outros ramos.</span> <a href="mailto:vendas@saus360.com.br" data-i="o2">Fale com a gente</a></p>
       </div>
     </div>
-    <div class="all">
-      <b data-i="inc">Em todos os planos:</b>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="i1">App Android e versão web</span></span>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="i2">Ajuda para começar</span></span>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="i3">Atualizações sem custo</span></span>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="i4">Dados na nuvem, em qualquer aparelho</span></span>
-      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg><span data-i="i5">Exportação dos seus dados</span></span>
-    </div>
-    <p class="fine" data-i="fine">Valores em reais, para empresas no Brasil. Nota fiscal (NF-e e NFC-e) no Food: em breve, como adicional de R$ 49/mês.</p>
+    <p class="fino" data-i="fine">Valores em reais, para empresas no Brasil. Nota fiscal (NF-e e NFC-e) no Food: em breve, como adicional de R$ 49/mês.</p>
   </div>
 </section>
 
-<section id="duvidas">
-  <div class="wrap">
-    <div style="text-align:center"><span class="eyebrow" data-i="fq-e">Dúvidas</span><h2 class="sec-title" data-i="fq-t">Perguntas frequentes</h2></div>
-    <div class="faq">
-      <details><summary data-i="q1">Preciso instalar alguma coisa?</summary><p data-i="a1">Não. O Saus360 funciona no navegador do computador, do tablet e do iPhone, e tem app para Android. É só entrar com seu e-mail e senha.</p></details>
+<section class="bloco" id="duvidas">
+  <div class="wrap junto">
+    <h2 data-i="fq-t">Antes de testar, você pode estar se perguntando</h2>
+    <div class="duvidas">
       <details><summary data-i="q2">Tenho que pagar para testar?</summary><p data-i="a2">Não. São 30 dias grátis, sem cartão de crédito. No fim do teste você escolhe o plano; seus dados continuam lá.</p></details>
+      <details><summary data-i="q8">Vocês cadastram minhas receitas?</summary><p data-i="a8">Sim. Mandamos uma planilha para você preencher com os ingredientes, as receitas e o estoque, e nós carregamos tudo no sistema.</p></details>
+      <details><summary data-i="q1">Preciso instalar alguma coisa?</summary><p data-i="a1">Não. O Saus360 funciona no navegador do computador, do tablet e do iPhone, e tem app para Android. É só entrar com seu e-mail e senha.</p></details>
       <details><summary data-i="q3">Tem fidelidade ou multa?</summary><p data-i="a3">Não. Você pode cancelar quando quiser e levar seus dados em planilha.</p></details>
+      <details><summary data-i="q7">Consigo trazer meus produtos e clientes?</summary><p data-i="a7">Sim. Você importa produtos e clientes de uma planilha (CSV) e pode cadastrar produtos a partir do XML da nota do fornecedor.</p></details>
+      <details><summary data-i="q6">Quem da equipe vê o quê?</summary><p data-i="a6">Cada pessoa entra com o próprio usuário e um papel: administrador, gerente, vendedor ou estoquista. O vendedor, por exemplo, pode não ver custos e margens.</p></details>
       <details><summary data-i="q4">Emite nota fiscal?</summary><p data-i="a4">No plano Food, a emissão de NF-e e NFC-e chega em breve como adicional. Ela já existe no sistema e está na fase final de testes.</p></details>
       <details><summary data-i="q5">Serve para o meu ramo?</summary><p data-i="a5">O foco agora são confeitarias, docerias, padarias artesanais e cafeterias. O Saus360 também atende vinhos, empórios e semijoias: fale com a gente.</p></details>
-      <details><summary data-i="q6">Quem da equipe vê o quê?</summary><p data-i="a6">Cada pessoa entra com o próprio usuário e um papel: administrador, gerente, vendedor ou estoquista. O vendedor, por exemplo, pode não ver custos e margens.</p></details>
-      <details><summary data-i="q7">Consigo trazer meus produtos e clientes?</summary><p data-i="a7">Sim. Você importa produtos e clientes de uma planilha (CSV) e pode cadastrar produtos a partir do XML da nota do fornecedor.</p></details>
-      <details><summary data-i="q8">Vocês cadastram minhas receitas?</summary><p data-i="a8">Sim. Mandamos uma planilha para você preencher com os ingredientes, as receitas e o estoque, e nós carregamos tudo no sistema.</p></details>
     </div>
   </div>
 </section>
 
-<section class="final">
+<div class="forminha tinta" aria-hidden="true"></div>
+<section class="fim" id="fim">
   <div class="wrap">
-    <h2 data-i="fn2">Teste o Saus360 Food na sua confeitaria por 30 dias</h2>
-    <p data-i="fn2s">Crie sua conta agora ou explore a demonstração com dados de exemplo.</p>
-    <div class="ctas">
-      <a class="btn mint" href="app/#criar"><span data-i="cta1">Começar teste grátis de 30 dias</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-      <a class="btn ghost" href="app/#demo" data-i="cta2">Ver a demonstração</a>
+    <h2 data-i="f-t">Descubra hoje quanto sobra em cada doce que você vende</h2>
+    <p class="sub" data-i="f-s">Crie a conta em dois minutos. Se preferir olhar antes, a demonstração abre com dados de exemplo, sem cadastro.</p>
+    <div class="acoes">
+      <a class="btn testar" href="app/#criar" data-i="cta">Testar grátis por 30 dias</a>
+      <a class="btn linha" href="app/#demo" data-i="demo">Ver a demonstração</a>
     </div>
+    <p class="ajuda"><span data-i="f-a">Dúvida durante o teste? Escreva para</span> <a href="mailto:suporte@saus360.com.br">suporte@saus360.com.br</a></p>
   </div>
 </section>
 </main>
 
-<footer class="foot">
+<footer class="rodape">
   <div class="wrap">
-    <a class="logo" href="#topo" aria-label="Saus360"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="msescuroa" gradientUnits="userSpaceOnUse" x1="30" y1="16" x2="62" y2="50"><stop offset="0" stop-color="#2B9FCB"/><stop offset="1" stop-color="#47BEDD"/></linearGradient><linearGradient id="msescurob" gradientUnits="userSpaceOnUse" x1="50" y1="50" x2="40" y2="84"><stop offset="0" stop-color="#47BEDD"/><stop offset="1" stop-color="#7CD5C7"/></linearGradient></defs><g fill="none" stroke-width="15" stroke-linejoin="miter" stroke-miterlimit="4"><path d="M71.2 28.24 L50 16 L20.56 33 L20.56 50 L52 50" stroke="url(#msescuroa)"/><path d="M48 50 L79.44 50 L79.44 67 L50 84 L28.8 71.76" stroke="url(#msescurob)"/></g><path d="M50 33.5 L64.3 41.75 L64.3 58.25 L50 66.5 L35.7 58.25 L35.7 41.75 Z" style="fill:#1F2340;stroke:#1F2340" stroke-width="3" stroke-linejoin="round"/><path d="M50 36 L62.1 43 L50 50 L37.9 43 Z" fill="#FFFFFF"/><path d="M37.9 43 L50 50 L50 64 L37.9 57 Z" fill="#E4E7EF"/><path d="M50 50 L62.1 43 L62.1 57 L50 64 Z" fill="#C3C9DA"/><path d="M50 36 L62.1 43 L62.1 57 L50 64 L37.9 57 L37.9 43 Z M37.9 43 L50 50 L62.1 43 M50 50 L50 64" fill="none" stroke="#464B71" stroke-width="1.3" stroke-linejoin="round"/><path d="M43.9 39.5 L56 46.5 L56 50.8" fill="none" stroke="#464B71" stroke-width="1.3" stroke-linejoin="round" opacity=".85"/></svg><b>Saus<span>360</span></b></a>
-    <span>© <span id="ano">2026</span> Saus360 · <span data-i="sc">Feito em Santa Catarina</span></span>
+    <a class="logo" href="#topo" aria-label="Saus360"><b>Saus<span>360</span></b></a>
+    <span>© <span id="ano">2026</span> Saus360. <span data-i="sc">Feito em Santa Catarina.</span></span>
     <div class="links">
       <a href="app/" data-i="entrar">Entrar</a>
       <a href="app/#termos" data-i="termos">Termos e privacidade</a>
-      <a href="mailto:enriquelarezwm@gmail.com?subject=Saus360" data-i="contato">Contato</a>
+      <a href="mailto:contato@saus360.com.br" data-i="contato">Contato</a>
     </div>
   </div>
 </footer>
+
+<div class="fixo" id="fixo">
+  <p><b data-i="fx1">30 dias grátis</b><span data-i="fx2">Sem cartão de crédito</span></p>
+  <a class="btn testar sm" href="app/#criar" data-i="testar">Testar grátis</a>
+</div>
 
 <script>
 (function () {
   "use strict";
   // Textos em espanhol; o português já está na página. A escolha vale também para o app (mesma chave).
   var ES = {
-    "a8": "Sí. Te mandamos una hoja de cálculo para llenar con los ingredientes, las recetas y el inventario, y nosotros cargamos todo en el sistema.",
-    "q8": "¿Ustedes cargan mis recetas?",
-    "p3cta": "Hablar con nosotros",
-    "p3p": "Bajo consulta",
-    "p3h": "Otros giros",
-    "p2d": "Nosotros cargamos tus recetas",
-    "p2c": "Listas de precio y consignación para cafés y restaurantes",
-    "p1c": "Inventario, caja y finanzas",
-    "fd6": "Apertura con fondo de cambio, retiros, aportes y cierre con conteo. Cada persona con su usuario y límite de descuento.",
-    "fd6t": "Caja del día y equipo",
-    "fd5": "Ingredientes por un lado, producto listo por el otro. La producción descuenta los ingredientes, y la venta de lo hecho al momento también.",
-    "fd5t": "Inventario en dos niveles",
-    "fd4": "Con los encargos y las recetas, la app dice qué comprar y cuánto, separado por proveedor y redondeado por empaque.",
-    "fd4t": "Lista de compras automática",
-    "fd3": "El cuadro de producción suma los encargos y dice cuánto hacer de cada producto, y también de la masa y el relleno que van antes.",
-    "fd3t": "Qué producir, incluso las preparaciones",
-    "fd2": "Fecha, horario, retiro o entrega, anticipo pagado y saldo por cobrar. La agenda muestra qué entregar hoy, mañana y los próximos días.",
-    "fd2t": "Encargos con anticipo y saldo",
-    "fd1": "Registra la receta una vez y ve el costo por unidad, el margen y el precio sugerido. ¿Cambió el precio de un ingrediente? El costo se actualiza solo.",
-    "fd1t": "Ficha técnica con costo real",
-    "fd-s": "De la receta a la entrega: el sistema calcula, recuerda y avisa, para que te ocupes de lo importante.",
-    "fd-t": "Hecho para el día a día de la pastelería",
-    "fd-e": "Saus360 Food",
-    "nav1": "Saus360 Food", "nav2": "Para quién es", "nav3": "Planes", "nav4": "Preguntas", "entrar": "Entrar", "testar": "Prueba gratis",
-    "pill": "Nuevo: Saus360 Food para pastelerías",
-    "h1": "La gestión de tu pastelería en <em>360°</em>",
-    "lead": "Recetas con costo real, pedidos por encargo con anticipo, lista de compras automática, inventario y caja en un solo sistema. Para pastelerías y reposterías pequeñas y medianas, en el celular y en la computadora.",
-    "cta1": "Empezar prueba gratis de 30 días", "cta2": "Ver la demostración",
+    "nav1": "Cómo funciona", "nav2": "Nosotros cargamos tus datos", "nav3": "Planes", "nav4": "Preguntas", "entrar": "Entrar", "testar": "Probar gratis",
+    "h1": "¿Sabes cuánto te queda de cada brigadeiro?",
+    "lead": "Saus360 Food calcula el costo real de tus recetas, organiza los encargos con anticipo y arma la lista de compras. Para pastelerías y reposterías, en el celular y en la computadora.",
+    "cta": "Probar gratis por 30 días", "demo": "Ver la demostración",
     "ck1": "Sin tarjeta de crédito", "ck2": "Sin plazo forzoso", "ck3": "Sin instalar nada",
-    "ramos": "Hecho para:", "r1": "Pastelerías", "r2": "Reposterías", "r3": "Pasteles por encargo", "r4": "Panaderías artesanales", "r5": "Cafeterías",
-    "pb-e": "El problema", "pb-t": "Cuaderno, hoja de cálculo y WhatsApp no alcanzan para una pastelería",
-    "pb1t": "Precio a ojo", "pb1": "Sin ficha técnica no sabes cuánto cuesta cada pastel. El chocolate sube, el precio se queda igual y el margen desaparece sin que lo notes.",
-    "pb2t": "Encargos dispersos", "pb2": "Fecha, anticipo, saldo y qué producir quedan entre el WhatsApp y el cuaderno. Un olvido cuesta una clienta.",
-    "pb3t": "El ingrediente que falta", "pb3": "Darte cuenta a media producción de que se acabó la leche condensada atrasa la entrega y obliga a comprar corriendo.",
-    "fn-e": "La solución", "fn-t": "Todo lo que hace tu negocio, en un solo lugar", "fn-s": "Pensado para el día a día de quien le vende a otras empresas: cada pantalla resuelve una tarea, sin hojas de cálculo aparte.",
-    "f1g": "Ventas", "f1t": "El precio correcto para cada cliente, sin hacer cuentas", "f1p": "Listas de precio de menudeo, mayoreo y restaurante, descuentos y precios especiales aplicados solos en el pedido. El sistema avisa si el cliente tiene cuentas vencidas o pasó su límite de crédito.",
-    "f1a": "Pedido, cotización y consignación en la misma pantalla", "f1b": "Pagos y plazos que entran directo a cuentas por cobrar", "f1c": "Lector de código de barras con la cámara o USB",
-    "f2g": "Consignación", "f2t": "Consignación con corte: cobra solo lo que se vendió", "f2p": "Ve lo que cada cliente se llevó, vendió y devolvió. En el corte, un toque registra la venta o la devolución y el saldo del cliente se actualiza al momento.",
-    "f2a": "Ficha del cliente con saldo, crédito e historial", "f2b": "Alertas de consignaciones antiguas y cuentas vencidas", "f2c": "Cobranza por WhatsApp con el resumen del pedido",
-    "f3g": "Catálogo", "f3t": "Catálogo en PDF por WhatsApp, con los precios de ese cliente", "f3p": "Genera en segundos un catálogo con el inventario disponible y la lista de precios del cliente, con los precios especiales destacados. Listo para mandar por WhatsApp.",
-    "f3a": "Por defecto, solo entra lo que hay en existencia", "f3b": "Ordenado por categoría, con el nombre de tu empresa",
-    "f4g": "Inventario y finanzas", "f4t": "Inventario, compras y dinero bajo control", "f4p": "Inventario con mínimos y conteo, compras con el XML de la factura del proveedor, cuentas por cobrar y por pagar, flujo de caja y reportes de margen y curva ABC.",
-    "f4a": "Sugerencia de reposición por proveedor", "f4b": "Atrasos por rango y quién debe", "f4c": "Facturas electrónicas desde el pedido (Brasil: NF-e y NFC-e)",
-    "md-e": "Todo incluido", "md-t": "Un sistema completo, sin módulos extra", "md-s": "Las funciones principales están en todos los planes. Lo que cambia es el tamaño del equipo y la ayuda para empezar.",
-    "m1": "Ventas y cotizaciones", "m1s": "Listas, pagos y descuentos", "m2": "Consignación", "m2s": "Lo que tiene cada cliente", "m3": "Inventario", "m3s": "Entradas, salidas y conteo",
-    "m4": "Compras", "m4s": "Pedidos y XML del proveedor", "m5": "Finanzas", "m5s": "Por cobrar, por pagar y caja", "m6": "Reportes", "m6s": "Curva ABC, margen y comisiones",
-    "m7": "Factura", "m7s": "Facturación electrónica", "m8": "Catálogo en PDF", "m8s": "Con los precios del cliente", "m9": "Equipo", "m9s": "Roles y permisos", "m10": "Importación", "m10s": "Productos y clientes desde hoja de cálculo",
-    "dv-e": "Donde estés", "dv-t": "En el mostrador con el celular, en la oficina con la computadora", "dv-s": "Los mismos datos en todos los aparatos, al instante. El vendedor levanta el pedido en la calle, el inventario baja y finanzas ya ve lo que va a entrar.",
-    "dv1": "App para Android y versión para navegador (iPhone, tablet y computadora)", "dv2": "Cada persona con su usuario: vendedor, almacenista, gerente", "dv3": "Historial de quién hizo qué y cuándo", "dv4": "Tus datos son tuyos: expórtalos cuando quieras",
-    "cf-e": "Cómo empezar", "cf-t": "En una tarde tu negocio está funcionando",
-    "s1t": "Crea tu cuenta", "s1": "Con tu correo, en dos minutos. Elige tu giro y el sistema ya viene con las categorías correctas.",
-    "s2t": "Trae tus datos", "s2": "Importa productos y clientes desde una hoja de cálculo o del XML de las facturas de tus proveedores.",
-    "s3t": "Invita a tu equipo y vende", "s3": "Invita a tus vendedores con un código, define qué puede ver cada uno y empieza a registrar.",
-    "pl-e": "Planes", "pl-t": "Precio justo, del tamaño de tu negocio", "pl-s": "Empieza con 30 días gratis. Después, elige tu plan. Sin cuota de instalación y sin plazo forzoso.",
-    "mensal": "Mensual", "anual": "Anual", "anual-off": "2 meses de descuento", "mes": "/mes", "rec": "Recomendado",
-    "p1f": "Pastelería o repostería con un local", "p1a": "Hasta 3 usuarios", "p1b": "Recetas, encargos y lista de compras", "pall": "Todas las funciones", "pcta": "Empezar prueba gratis",
-    "p2f": "Pastelería con equipo o que vende a cafés y restaurantes", "p2a": "Hasta 8 usuarios", "p2b": "Todo lo del Esencial",
-    "p3f": "Vinos, tiendas gourmet, joyería y distribuidoras", "p3a": "Consignación, catálogo en PDF y vendedores en la calle", "p3b": "Propuesta del tamaño de tu operación",
-    "inc": "En todos los planes:", "i1": "App Android y versión web", "i2": "Ayuda para empezar", "i3": "Actualizaciones sin costo", "i4": "Datos en la nube, en cualquier aparato", "i5": "Exportación de tus datos",
+    "c-t": "Haz la cuenta de un brigadeiro", "c-ex": "Un ejemplo. Cámbialo por tus números.",
+    "c-lata": "Lata de leche condensada", "c-outros": "Chocolate, mantequilla y granillo", "c-form": "Capacillos", "c-extra": "Gas, empaque y tu tiempo",
+    "c-rende": "La receta rinde", "c-preco": "Vendes cada uno a", "c-custo": "Costo real de cada uno:",
+    "para": "Hecho para", "r1": "pastelerías", "r2": "reposterías", "r3": "pasteles por encargo", "r4": "panaderías artesanales", "r5": "cafeterías",
+    "d-t": "Un día de pastelería, sin cuaderno y sin sustos", "d-s": "Cuatro momentos de tu día en que el sistema hace la cuenta, recuerda y avisa por ti.",
+    "antes": "En el cuaderno:", "agora": "En Saus360:",
+    "d1t": "Ya sabes qué producir", "d1a": "hojear páginas y conversaciones para sumar los encargos del día.", "d1b": "el cuadro de producción suma todo y avisa cuánto hacer de masa y relleno antes.",
+    "d2t": "Llegó un encargo, anticipo anotado", "d2a": "el comprobante de pago se pierde en la conversación y el saldo queda de memoria.", "d2b": "fecha, horario, retiro o entrega, anticipo pagado y saldo por cobrar en una sola pantalla.",
+    "d3t": "La lista de compras ya está lista", "d3a": "darte cuenta a media receta de que se acabó la leche condensada.", "d3b": "la app cruza encargos, recetas e inventario y dice qué comprar, por proveedor.",
+    "d4t": "Caja cerrada y revisada", "d4a": "contar el cajón sin saber cuánto debería haber.", "d4b": "apertura con fondo, retiros y cierre. El sistema muestra cuánto debía haber.",
+    "k-t": "¿Sin tiempo para cargar todo? Nosotros lo cargamos por ti", "k-s": "Llenas una hoja de cálculo sencilla, a tu ritmo. Nosotros ponemos todo dentro del sistema.",
+    "k1t": "Crea tu cuenta", "k1": "Dos minutos, solo con tu correo.",
+    "k2t": "Llena la hoja modelo", "k2": "Ingredientes, recetas, productos y clientes. Viene con ejemplos y listas listas para usar.",
+    "k3t": "Abre la app y ve el costo de cada receta", "k3": "Con el precio sugerido y el margen, listos para que decidas.",
+    "k-n": "La carga hecha por nosotros es parte del plan Food Completo.",
+    "j-t": "Todo lo que la pastelería necesita, en un solo lugar", "j-s": "Sin módulos extra para comprar después. Lo que cambia entre los planes es el tamaño del equipo y la ayuda para empezar.",
+    "j1": "Ficha técnica con costo real", "j1s": "Precio sugerido y margen por receta", "j2": "Encargos con anticipo y saldo", "j2s": "Agenda de entregas y retiros",
+    "j3": "Cuadro de producción", "j3s": "Incluye masas, rellenos y jarabes", "j4": "Lista de compras automática", "j4s": "Por proveedor y por empaque",
+    "j5": "Inventario en dos niveles", "j5s": "Ingredientes y producto listo", "j6": "Caja del día", "j6s": "Apertura, retiros y cierre",
+    "j7": "Cuentas por cobrar y por pagar", "j7s": "Quién debe y qué vence", "j8": "Equipo con permisos", "j8s": "Cada persona ve solo lo que necesita",
+    "j9": "Meta y ganancia del mes", "j9s": "En la primera pantalla de la app", "j10": "Celular y computadora", "j10s": "App Android y navegador, con los mismos datos",
+    "p-t": "Menos que un brigadeiro al día", "p-s": "Los primeros 30 días son gratis. Después eliges tu plan, sin cuota de instalación y sin plazo forzoso.",
+    "mensal": "Mensual", "anual": "Anual", "anual-off": "2 meses de descuento", "mes": "al mes", "rec": "Con carga hecha por nosotros",
+    "p1f": "Pastelería o repostería con un local", "p1a": "Hasta 3 usuarios", "p1b": "Recetas, encargos y lista de compras", "p1c": "Inventario, caja y finanzas",
+    "p2f": "Pastelería con equipo o que vende a cafés y restaurantes", "p2a": "Hasta 8 usuarios", "p2b": "Todo lo del Esencial", "p2c": "Listas de precio y consignación para cafés y restaurantes", "p2d": "Nosotros cargamos tus recetas",
+    "gar": "<b>Pruebas sin arriesgar nada.</b> Son 30 días con todas las funciones, sin tarjeta de crédito. Si no te sirve, no pagas y además te llevas tus datos en una hoja de cálculo.",
+    "o1": "¿Vendes vinos, productos gourmet o joyería? Saus360 también atiende otros giros.", "o2": "Escríbenos",
     "fine": "Precios en reales para empresas en Brasil. ¿Estás en otro país? Escríbenos y te pasamos una propuesta.",
-    "fq-e": "Preguntas", "fq-t": "Preguntas frecuentes",
-    "q1": "¿Tengo que instalar algo?", "a1": "No. El Saus360 funciona en el navegador de la computadora, la tablet y el iPhone, y tiene app para Android. Solo entra con tu correo y contraseña.",
+    "fq-t": "Antes de probar, quizá te preguntes",
+    "q1": "¿Tengo que instalar algo?", "a1": "No. Saus360 funciona en el navegador de la computadora, la tablet y el iPhone, y tiene app para Android. Solo entra con tu correo y contraseña.",
     "q2": "¿Tengo que pagar para probarlo?", "a2": "No. Son 30 días gratis, sin tarjeta de crédito. Al final de la prueba eliges tu plan; tus datos se quedan ahí.",
     "q3": "¿Hay plazo forzoso o penalización?", "a3": "No. Puedes cancelar cuando quieras y llevarte tus datos en una hoja de cálculo.",
     "q4": "¿Emite factura?", "a4": "En Brasil, la emisión de NF-e y NFC-e llega pronto al plan Food como adicional; ya existe en el sistema y está en la fase final de pruebas. Para otros países, pregúntanos.",
-    "q5": "¿Sirve para mi giro?", "a5": "El enfoque ahora son pastelerías, reposterías, panaderías artesanales y cafeterías. El Saus360 también atiende vinos, tiendas gourmet y joyería: escríbenos.",
+    "q5": "¿Sirve para mi giro?", "a5": "El enfoque ahora son pastelerías, reposterías, panaderías artesanales y cafeterías. Saus360 también atiende vinos, tiendas gourmet y joyería: escríbenos.",
     "q6": "¿Quién del equipo ve qué?", "a6": "Cada persona entra con su propio usuario y un rol: administrador, gerente, vendedor o almacenista. El vendedor, por ejemplo, puede no ver costos ni márgenes.",
     "q7": "¿Puedo traer mis productos y clientes?", "a7": "Sí. Importas productos y clientes desde una hoja de cálculo (CSV) y puedes dar de alta productos desde el XML de la factura del proveedor.",
-    "fn2": "Prueba el Saus360 Food en tu pastelería por 30 días", "fn2s": "Crea tu cuenta ahora o explora la demostración con datos de ejemplo.",
-    "sc": "Hecho en Santa Catarina, Brasil", "termos": "Términos y privacidad", "contato": "Contacto",
-    "alt1": "Panel del Saus360 en la computadora: ventas del mes, cuentas por cobrar, gráfica de ventas y pedidos", "alt2": "Saus360 en el celular", "alt3": "Pantalla de nuevo pedido con productos, cliente y condiciones de pago",
-    "alt4": "Ficha del cliente con saldo pendiente, consignación y pedidos", "alt5": "Catálogo en PDF con precios para un restaurante", "alt6": "Inventario en tabla con precio, costo y estado de cada producto",
-    "alt7": "Inicio del Saus360 en el celular", "alt8": "Pedido de consignación en el celular"
+    "q8": "¿Ustedes cargan mis recetas?", "a8": "Sí. Te mandamos una hoja de cálculo para llenar con los ingredientes, las recetas y el inventario, y nosotros cargamos todo en el sistema.",
+    "f-t": "Descubre hoy cuánto te queda de cada postre que vendes", "f-s": "Crea la cuenta en dos minutos. Si prefieres mirar antes, la demostración abre con datos de ejemplo, sin registro.",
+    "f-a": "¿Dudas durante la prueba? Escribe a",
+    "sc": "Hecho en Santa Catarina, Brasil.", "termos": "Términos y privacidad", "contato": "Contacto",
+    "fx1": "30 días gratis", "fx2": "Sin tarjeta de crédito",
+    "alt1": "Agenda de encargos con el cuadro de qué producir hoy y mañana", "alt2": "Nuevo encargo con fecha, horario, anticipo de 50% y saldo al retirar",
+    "alt3": "Lista de compras calculada con los encargos de los próximos 7 días", "alt4": "Cierre de caja con el valor esperado en el cajón y la revisión",
+    "alt5": "Ficha técnica del pastel en vaso con costo de la receta, costo por unidad e ingredientes"
   };
-  var IMG_ES = ["hero-desk.webp", "hero-phone.webp", "f-pedido.webp", "f-cliente.webp", "f-estoque.webp", "f-phone-pedido.webp"];
+  var T = {
+    pt: { sobra: "Sobra para você", falta: "Você perde", un: "por unidade", dia: "Dá {v} por dia", ano: "{v} por ano, ou {d} por dia",
+      vazio: "Preencha os números para ver a conta.",
+      parece: "Contando só os ingredientes, pareceria <b>{a}</b>. A cada 100 brigadeiros, são <b class=\"menos\">{b}</b> que somem sem você ver.",
+      alta: "Se a lata subir R$ 1,00, são <b class=\"menos\">{a}</b> a menos a cada 100. O Saus360 refaz essa conta sozinho quando o preço muda.",
+      neg: "Com esses números, cada brigadeiro vendido custa mais do que rende. Vale rever o preço ou a receita antes da próxima fornada." },
+    es: { sobra: "Te queda", falta: "Pierdes", un: "por unidad", dia: "Son {v} al día", ano: "{v} al año, o {d} al día",
+      vazio: "Llena los números para ver la cuenta.",
+      parece: "Contando solo los ingredientes, parecería <b>{a}</b>. Por cada 100 brigadeiros, son <b class=\"menos\">{b}</b> que se van sin que lo veas.",
+      alta: "Si la lata sube R$ 1,00, son <b class=\"menos\">{a}</b> menos por cada 100. Saus360 rehace esa cuenta solo cuando el precio cambia.",
+      neg: "Con estos números, cada brigadeiro vendido cuesta más de lo que deja. Conviene revisar el precio o la receta antes de la próxima tanda." }
+  };
   var PT = {}, lang = "pt", bill = "m";
   var els = document.querySelectorAll("[data-i]"), alts = document.querySelectorAll("[data-ia]");
-  els.forEach(function (el) { PT[el.getAttribute("data-i")] = el.innerHTML; });
+  els.forEach(function (el) { var k = el.getAttribute("data-i"); if (PT[k] == null) PT[k] = el.innerHTML; });
   alts.forEach(function (el) { PT[el.getAttribute("data-ia")] = el.getAttribute("alt"); });
-  var brl = function (n) { return "R$ " + n.toLocaleString("pt-BR", { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
+  var $ = function (id) { return document.getElementById(id); };
+  var brl = function (n, casas) { return "R$ " + n.toLocaleString("pt-BR", { minimumFractionDigits: casas == null ? (n % 1 ? 2 : 0) : casas, maximumFractionDigits: casas == null ? 2 : casas }); };
+  var num = function (id) { var v = parseFloat(String($(id).value).replace(/[^\d,.-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".")); return isFinite(v) ? v : NaN; };
+
+  /* A conta do brigadeiro: custo só dos ingredientes x custo real (com gás, embalagem e tempo) */
+  var FIXO = 5.55 + 1.5;
+  function conta() {
+    var t = T[lang], lata = num("c-lata"), extra = num("c-extra"), rende = num("c-rende"), preco = num("c-preco"), etq = $("r-etq");
+    if (!(lata >= 0) || !(extra >= 0) || !(rende > 0) || !(preco > 0)) {
+      $("r-rot").textContent = t.sobra; $("r-sobra").textContent = "R$ –"; $("r-custo").textContent = "R$ –"; $("r-barra").style.width = "0%"; etq.className = "etiqueta";
+      $("r-leitura").innerHTML = "<p>" + t.vazio + "</p>"; return;
+    }
+    var ing = lata + FIXO, real = (ing + extra) / rende, sobra = preco - real, parece = preco - ing / rende;
+    $("r-custo").textContent = brl(real, 2);
+    $("r-barra").style.width = Math.max(0, Math.min(100, real / preco * 100)).toFixed(1) + "%";
+    etq.className = "etiqueta" + (sobra <= 0 ? " neg" : "");
+    $("r-rot").textContent = (sobra <= 0 ? t.falta : t.sobra) + " " + t.un;
+    $("r-sobra").textContent = brl(Math.abs(sobra), 2);
+    var h = sobra <= 0 ? "<p>" + t.neg + "</p>" : (extra > 0 ? "<p>" + t.parece.replace("{a}", brl(parece, 2)).replace("{b}", brl(extra / rende * 100, 2)) + "</p>" : "");
+    h += "<p>" + t.alta.replace("{a}", brl(100 / rende, 2)) + "</p>";
+    $("r-leitura").innerHTML = h;
+  }
+  ["c-lata", "c-extra", "c-rende", "c-preco"].forEach(function (id) { $(id).addEventListener("input", conta); });
+
   function precos() {
-    document.querySelectorAll("[data-m]").forEach(function (b) { b.textContent = brl(Number(b.getAttribute(bill === "a" ? "data-a" : "data-m"))); });
-    document.querySelectorAll("[data-note]").forEach(function (p) {
-      var b = p.previousElementSibling.querySelector("[data-a]"), anual = Number(b.getAttribute("data-a")) * 12;
-      p.textContent = bill === "a" ? (lang === "es" ? brl(anual) + " al año" : brl(anual) + " por ano") : "";
+    var t = T[lang];
+    document.querySelectorAll("[data-m]").forEach(function (b) {
+      var mes = Number(b.getAttribute(bill === "a" ? "data-a" : "data-m")), nota = b.closest(".plano").querySelector("[data-dia]");
+      b.textContent = brl(mes);
+      nota.textContent = bill === "a" ? t.ano.replace("{v}", brl(mes * 12)).replace("{d}", brl(mes / 30, 2)) : t.dia.replace("{v}", brl(mes / 30, 2));
     });
     document.querySelectorAll("[data-bill]").forEach(function (x) { x.setAttribute("aria-pressed", String(x.getAttribute("data-bill") === bill)); });
   }
@@ -582,14 +574,7 @@ section{padding:96px 0}
     document.documentElement.lang = lang === "es" ? "es" : "pt-BR";
     document.title = lang === "es" ? "Saus360 Food · Sistema de gestión para pastelerías" : "Saus360 Food · Sistema de gestão para confeitarias";
     document.querySelectorAll("[data-lang]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-lang") === lang)); });
-    // capturas do app no idioma escolhido (o catálogo em PDF só existe em português)
-    document.querySelectorAll('img[src^="img/"]').forEach(function (im) {
-      var base = im.getAttribute("data-src") || im.getAttribute("src"), f = base.slice(4);
-      im.setAttribute("data-src", base);
-      var novo = lang === "es" && IMG_ES.indexOf(f) >= 0 ? "img/es/" + f : base;
-      if (im.getAttribute("src") !== novo) im.setAttribute("src", novo);
-    });
-    precos();
+    precos(); conta();
   }
   document.querySelectorAll("[data-lang]").forEach(function (b) {
     b.addEventListener("click", function () { var l = b.getAttribute("data-lang"); try { localStorage.setItem("saus360-idioma", l); } catch (e) {} idioma(l); });
@@ -597,7 +582,17 @@ section{padding:96px 0}
   document.querySelectorAll("[data-bill]").forEach(function (b) { b.addEventListener("click", function () { bill = b.getAttribute("data-bill"); precos(); }); });
   var salvo = null; try { salvo = localStorage.getItem("saus360-idioma"); } catch (e) {}
   idioma(salvo === "es" || salvo === "pt" ? salvo : (/^es/i.test(navigator.language || "") ? "es" : "pt"));
-  document.getElementById("ano").textContent = new Date().getFullYear();
+  $("ano").textContent = new Date().getFullYear();
+
+  /* Convite fixo no celular: aparece depois da abertura e some quando o convite final está na tela */
+  if ("IntersectionObserver" in window) {
+    var fixo = $("fixo"), vis = { abre: true, fim: false };
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { vis[e.target.id === "fim" ? "fim" : "abre"] = e.isIntersecting; });
+      fixo.classList.toggle("on", !vis.abre && !vis.fim);
+    });
+    io.observe(document.querySelector(".abre")); io.observe($("fim"));
+  }
 })();
 </script>
 </body>
