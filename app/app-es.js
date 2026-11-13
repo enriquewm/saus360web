@@ -2061,7 +2061,7 @@ const SH = {
     const vend90 = sum(vendasAtivas([addDays(today, -89), today]), o => sum(o.itens.filter(i => i.p === p.id), i => soldQ(o, i)));
     const m = p.precos && p.precos.varejo ? (p.precos.varejo - (p.custo || 0)) / p.precos.varejo : 0;
     return ["Ficha del producto", `
-    <div class="whead"><span class="bt lg">${bottle(p.tipo)}</span><div><p class="eyebrow">${esc(catLabel(p.tipo))}${p.produtor ? " · " + esc(p.produtor) : p.marca ? " · " + esc(p.marca) : ""}</p><h4>${esc(p.nome)}</h4><p class="eyebrow" style="margin:6px 0 0">${esc((ehVinho() ? [p.uva, p.safra && "Cosecha " + p.safra] : [p.ref && "ref. " + p.ref, p.material, p.medida]).filter(Boolean).join(" · "))}</p></div></div>
+    <div class="whead"><span class="bt lg">${bottle(p.tipo)}</span><div><p class="eyebrow">${esc(catLabel(p.tipo))}${p.produtor ? " · " + esc(p.produtor) : p.marca ? " · " + esc(p.marca) : ""}</p><h3>${esc(p.nome)}</h3><p class="eyebrow" style="margin:6px 0 0">${esc((ehVinho() ? [p.uva, p.safra && "Cosecha " + p.safra] : [p.ref && "ref. " + p.ref, p.material, p.medida]).filter(Boolean).join(" · "))}</p></div></div>
     <div class="stockbox ${st.cls}"><div><span>En existencia</span><b>${ehFood() ? dec(r4(p.estoque || 0)) : p.estoque}</b><small>${ehVinho() ? `${Math.floor(Math.max(0, p.estoque) / 6)} cj. + ${Math.max(0, p.estoque) % 6} un.` : ehFood() ? unDe(p) : "unidades"}</small></div><div><span>Mínimo</span><b>${ehFood() ? dec(p.min || 0) : p.min || 0}</b><small>${ehFood() ? unDe(p) : "un."}</small></div><div><span>Consignación</span><b>${cc}</b><small>con clientes</small></div></div>
     ${ehFood() && estQuebrado(p) && can("ajuste") ? `<div class="note warn" style="margin-bottom:10px">Este artículo se cuenta por unidad y tiene ${dec(r4(p.estoque))} en inventario. Revisa cuántos hay de verdad.<span class="btns" style="margin-top:8px"><button class="btn sm line" data-a="arredEstoque" data-id="${p.id}">Redondear a ${Math.max(0, Math.round(p.estoque))}</button><button class="btn sm line" data-a="sheet" data-k="contagem" data-id="${p.id}">Hacer conteo</button></span></div>` : ""}
     ${ehFood() ? fichaFood(p) : ""}
@@ -4479,7 +4479,7 @@ function reduzirImg(file, max, q, prop) {
       const sx = Math.round((img.width - sw) / 2), sy = Math.round((img.height - sh) / 2);
       const k = Math.min(1, max / Math.max(sw, sh)), c = document.createElement("canvas");
       c.width = Math.max(1, Math.round(sw * k)); c.height = Math.max(1, Math.round(sh * k));
-      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      const g = c.getContext("2d"); g.fillStyle = "white"; // fundo do JPEG (fotos com transparência), não é cor da interface g.fillRect(0, 0, c.width, c.height); g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url); c.toBlob(b => b ? res(b) : rej(new Error("Imagen inválida")), "image/jpeg", q);
     };
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Imagen inválida")); };
