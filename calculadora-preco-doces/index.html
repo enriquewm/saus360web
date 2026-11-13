@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora de Preço de Doces Grátis: Quanto Cobrar | Saus360</title>
+<meta name="description" content="Calcule grátis o preço de venda de brigadeiro, bolo de pote, brownie e outros doces: custo dos ingredientes, embalagem, gás, mão de obra e margem de lucro. Sem cadastro.">
+<meta name="keywords" content="calculadora de preço de doces, como calcular preço de doces, precificação de doces, quanto cobrar por brigadeiro, preço do cento de brigadeiro, preço de bolo de pote, ficha técnica confeitaria, margem de lucro confeitaria">
+<link rel="canonical" href="https://saus360.com.br/calculadora-preco-doces/">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#1F2340">
+<meta property="og:title" content="Calculadora grátis: quanto cobrar pelos seus doces?">
+<meta property="og:description" content="Coloque os ingredientes, o rendimento e a sua margem. A calculadora mostra o custo de cada doce e o preço de venda certo.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Saus360">
+<meta property="og:url" content="https://saus360.com.br/calculadora-preco-doces/">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:image" content="https://saus360.com.br/img/og-calculadora.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Calculadora grátis de preço de doces do Saus360">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://saus360.com.br/img/og-calculadora.jpg">
+<link rel="icon" type="image/svg+xml" href="/app/icons/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/app/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/app/icons/apple-touch-icon.png">
+<link rel="preload" href="/fonts/fraunces-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/app/fonts/manrope-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "@id": "https://saus360.com.br/calculadora-preco-doces/#calculadora",
+      "name": "Calculadora de preço de doces",
+      "url": "https://saus360.com.br/calculadora-preco-doces/",
+      "description": "Calcula o custo de cada doce (ingredientes, embalagem, gás, energia e mão de obra) e o preço de venda com a margem de lucro desejada.",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "inLanguage": "pt-BR",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" },
+      "publisher": { "@id": "https://saus360.com.br/#org" }
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://saus360.com.br/#org",
+      "name": "Saus360",
+      "url": "https://saus360.com.br/",
+      "logo": "https://saus360.com.br/app/icons/icon-512.png",
+      "email": "contato@saus360.com.br",
+      "sameAs": ["https://www.instagram.com/saus.360/"]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Saus360", "item": "https://saus360.com.br/" },
+        { "@type": "ListItem", "position": 2, "name": "Calculadora de preço de doces", "item": "https://saus360.com.br/calculadora-preco-doces/" }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {"@type":"Question","name":"Quanto cobrar por um brigadeiro?","acceptedAnswer":{"@type":"Answer","text":"Depende do custo da sua receita. Some os ingredientes na proporção usada, a forminha, uma parte do gás e da energia e o seu tempo, divida pelo rendimento e aplique a margem de lucro. No exemplo desta página, com ingredientes de supermercado e 35% de lucro, o brigadeiro tradicional sai por R$ 1,90 a unidade, ou R$ 190,00 o cento."}},
+        {"@type":"Question","name":"Qual é a fórmula para calcular o preço de venda de doces?","acceptedAnswer":{"@type":"Answer","text":"Preço de venda = custo total por unidade ÷ (1 − margem de lucro − taxas). Com custo de R$ 1,21, 35% de lucro e nenhuma taxa: R$ 1,21 ÷ 0,65 = R$ 1,86."}},
+        {"@type":"Question","name":"Qual margem de lucro usar na confeitaria?","acceptedAnswer":{"@type":"Answer","text":"Com a mão de obra já incluída no custo, margens entre 25% e 40% sobre o preço são comuns para doces do dia a dia. Encomendas personalizadas e bolos decorados costumam ter margens maiores."}},
+        {"@type":"Question","name":"Como calcular a mão de obra de um doce?","acceptedAnswer":{"@type":"Answer","text":"Conte as horas de preparo, modelagem, embalagem e limpeza da receita e multiplique pelo valor que você quer ganhar por hora. Depois divida pelo rendimento para saber quanto de mão de obra vai em cada unidade."}},
+        {"@type":"Question","name":"Como incluir gás e energia no preço dos doces?","acceptedAnswer":{"@type":"Answer","text":"Como é difícil medir o gás de cada receita, a maioria das confeitarias usa um percentual do custo dos ingredientes, geralmente entre 5% e 15%. Receitas de forno longo ficam perto do valor mais alto."}},
+        {"@type":"Question","name":"Preciso cobrar mais caro no aplicativo de delivery?","acceptedAnswer":{"@type":"Answer","text":"Sim. Coloque a comissão do aplicativo no campo de taxa da calculadora. O preço sobe o suficiente para que o seu lucro continue o mesmo depois que o aplicativo fica com a parte dele."}},
+        {"@type":"Question","name":"A calculadora é grátis? Os meus dados ficam salvos?","acceptedAnswer":{"@type":"Answer","text":"É grátis e não precisa de cadastro. A conta fica salva só no seu navegador, para você continuar depois. Nada da receita é enviado para o Saus360."}}
+      ]
+    }
+  ]
+}
+</script>
+<style>
+/* Fraunces: SIL Open Font License 1.1 */
+@font-face{font-family:"Fraunces";font-weight:600;font-display:swap;src:url(/fonts/fraunces-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Manrope";font-weight:500;font-display:swap;src:url(/app/fonts/manrope-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Manrope";font-weight:700;font-display:swap;src:url(/app/fonts/manrope-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Manrope";font-weight:800;font-display:swap;src:url(/app/fonts/manrope-latin-800-normal.woff2) format("woff2")}
+:root{
+  --tinta:#1F2340; --tinta2:#4A4F73; --hortela:#DDF3EE; --menta:#7CD5C7; --azul:#0E7C9F;
+  --doce:#F6B93B; --doce-d:#E0A21F; --framboesa:#B8324F; --linha:#D9DEE6; --papel:#FBF8F3; --erro:#B42318;
+  --display:"Fraunces",Georgia,"Times New Roman",serif; --texto:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:76px}
+body{margin:0;font:500 17px/1.6 var(--texto);color:var(--tinta);background:#fff;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+h1,h2,h3,p{margin:0}
+h1,h2{font-family:var(--display);font-weight:600;letter-spacing:-.015em;line-height:1.1;text-wrap:balance}
+h1{font-size:clamp(36px,5.6vw,60px)}
+h2{font-size:clamp(27px,3.6vw,38px);margin-top:56px}
+h3{font:800 19px/1.3 var(--texto)}
+.wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+:focus-visible{outline:3px solid var(--azul);outline-offset:3px;border-radius:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 26px;border-radius:14px;border:2px solid transparent;font:800 17px/1 var(--texto);text-decoration:none;cursor:pointer;transition:transform .12s,background .12s}
+.btn.testar{background:var(--doce);color:var(--tinta);box-shadow:0 3px 0 var(--doce-d)}
+.btn.testar:hover{background:#FFC64F;transform:translateY(-1px)}
+.btn.sm{min-height:42px;padding:0 16px;font-size:15px;border-radius:12px}
+.btn.linha{border-color:currentColor;background:transparent}
+
+.topo{position:sticky;top:0;z-index:20;background:var(--tinta);color:#fff}
+.topo .wrap{display:flex;align-items:center;gap:16px;height:64px}
+.logo{display:inline-flex;align-items:center;gap:9px;text-decoration:none;font:800 21px/1 var(--texto);letter-spacing:-.03em;color:#fff}
+.logo svg{width:34px;height:34px}
+.logo span{color:var(--menta)}
+.topo .r{margin-left:auto;display:flex;align-items:center;gap:12px}
+.topo .r a.entrar{color:#fff;font-weight:700;font-size:15px;text-decoration:none}
+
+.trilha{font-size:14px;color:var(--tinta2);padding-top:22px}
+.trilha a{text-underline-offset:3px}
+.abre{padding:18px 0 8px}
+.abre .lead{font-size:19px;color:var(--tinta2);max-width:62ch;margin-top:14px}
+
+/* Calculadora */
+.calc{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:28px;align-items:start;margin-top:30px}
+.painel{background:var(--papel);border:1px solid #EFE7DA;border-radius:22px;padding:24px}
+.painel h2{margin:0;font-size:26px}
+.modelos{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px}
+.modelos span{font-size:14.5px;color:var(--tinta2);align-self:center;margin-right:4px}
+.chip{border:1.5px solid var(--linha);background:#fff;border-radius:999px;padding:7px 14px;font:700 14.5px/1 var(--texto);color:var(--tinta);cursor:pointer}
+.chip[aria-pressed=true]{background:var(--tinta);border-color:var(--tinta);color:#fff}
+.bloco{margin-top:22px}
+.bloco > h3{margin-bottom:4px}
+.bloco > p.dica{font-size:14.5px;color:var(--tinta2);margin-bottom:10px}
+label.c{display:block;font-size:14px;font-weight:700;color:var(--tinta2)}
+input,select{font:600 16px/1.2 var(--texto);color:var(--tinta);width:100%;min-height:44px;padding:9px 11px;border:1.5px solid var(--linha);border-radius:11px;background:#fff;margin-top:4px}
+input:focus,select:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(14,124,159,.18)}
+input[aria-invalid=true]{border-color:var(--erro)}
+.nome input{font-weight:700}
+.ings{display:flex;flex-direction:column;gap:10px}
+.ing{display:grid;grid-template-columns:minmax(0,1fr) 74px 62px 60px 62px 60px 66px 26px;gap:8px;align-items:end;background:#fff;border:1px solid #EFE7DA;border-radius:14px;padding:10px 12px}
+.ing input,.ing select{padding:9px 8px;font-size:15.5px}
+.ing select{padding-right:2px}
+.ing .custo{font-weight:800;text-align:right;padding-bottom:11px;font-variant-numeric:tabular-nums}
+.ing .custo small{display:block;font-size:11.5px;font-weight:700;color:var(--tinta2)}
+.ing .tira{width:26px;height:44px;border:0;background:transparent;color:var(--tinta2);cursor:pointer;border-radius:10px;font-size:22px;line-height:1}
+.ing .tira:hover{background:#F4EEE4;color:var(--erro)}
+.ing .aviso{grid-column:1/-1;font-size:13.5px;color:var(--erro);font-weight:700}
+.ing .lbl{display:none}
+.mais{margin-top:10px;border:1.5px dashed #CDBFA8;background:transparent;border-radius:12px;padding:11px 14px;font:800 15px/1 var(--texto);color:var(--tinta);cursor:pointer;width:100%}
+.mais:hover{background:#fff}
+.grade{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.grade.dois{grid-template-columns:repeat(2,minmax(0,1fr))}
+.uni{position:relative}
+.uni input{padding-right:44px}
+.uni em{position:absolute;right:12px;bottom:12px;font-style:normal;font-weight:700;color:var(--tinta2);font-size:14px}
+
+/* Resultado */
+.res{background:var(--tinta);color:#fff;border-radius:22px;padding:24px;box-shadow:0 22px 50px -30px rgba(31,35,64,.9)}
+.res .rot{font-size:14.5px;color:#C9CDE0}
+.res .preco{font:600 clamp(48px,6vw,60px)/1 var(--display);margin:6px 0 4px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.res .preco small{font:700 17px var(--texto);color:#C9CDE0;margin-left:6px;letter-spacing:0}
+.res .sob{font-size:14.5px;color:#C9CDE0}
+.res .linhas{margin-top:18px;border-top:1px solid rgba(255,255,255,.14)}
+.res .kv{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.1);font-size:15.5px}
+.res .kv b{font-variant-numeric:tabular-nums}
+.res .kv.forte b{color:var(--menta)}
+.barra{display:flex;height:12px;border-radius:999px;overflow:hidden;margin:18px 0 8px;background:rgba(255,255,255,.12)}
+.barra i{display:block;height:100%}
+.leg{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:13px;color:#C9CDE0}
+.leg span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;background:var(--c)}
+.alerta{margin-top:14px;background:rgba(246,185,59,.16);border:1px solid rgba(246,185,59,.5);color:#FFE4A8;border-radius:12px;padding:10px 12px;font-size:14.5px}
+.alerta.ruim{background:rgba(255,120,120,.14);border-color:rgba(255,140,140,.5);color:#FFD0D0}
+.compara{margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.14)}
+.compara label{color:#C9CDE0}
+.compara input{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:#fff}
+.compara p{font-size:14.5px;margin-top:8px}
+.acoesr{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.acoesr button,.acoesr a{flex:1 1 auto;min-height:44px;border-radius:12px;border:1.5px solid rgba(255,255,255,.3);background:transparent;color:#fff;font:800 14.5px/1 var(--texto);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;padding:0 12px}
+.acoesr button:hover,.acoesr a:hover{background:rgba(255,255,255,.08)}
+.convite{margin-top:16px;background:#fff;color:var(--tinta);border-radius:16px;padding:16px}
+.convite p{font-size:15px;margin-bottom:12px}
+.convite .btn{width:100%}
+
+/* Texto */
+.texto{max-width:760px;padding:24px 0 30px}
+.texto p{margin-top:16px;font-size:18px;line-height:1.7}
+.texto ol,.texto ul{padding-left:22px;margin:16px 0 0}
+.texto li{margin-top:10px;font-size:18px;line-height:1.65}
+.texto h3{margin-top:28px}
+.formula{margin-top:18px;background:var(--hortela);border-radius:16px;padding:16px 18px;font:700 17px/1.5 var(--texto)}
+.formula code{font:inherit}
+table.ex{width:100%;border-collapse:collapse;margin-top:18px;font-size:16px}
+table.ex th,table.ex td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--linha)}
+table.ex td:last-child,table.ex th:last-child{text-align:right;font-variant-numeric:tabular-nums}
+table.ex tfoot td{font-weight:800}
+.duvidas details{border-bottom:1px solid var(--linha);padding:16px 0}
+.duvidas summary{font:800 18px/1.4 var(--texto);cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:16px}
+.duvidas summary::after{content:"+";font-size:24px;line-height:1;color:var(--azul)}
+.duvidas details[open] summary::after{content:"−"}
+.duvidas details p{margin-top:10px}
+.fim{background:var(--tinta);color:#fff;margin-top:40px;padding:56px 0}
+.fim h2{margin:0;color:#fff}
+.fim p{color:#C9CDE0;font-size:18px;max-width:60ch;margin-top:12px}
+.fim .btn{margin-top:22px}
+.rodape{background:var(--tinta);color:#C9CDE0;border-top:1px solid rgba(255,255,255,.14);padding:22px 0 26px;font-size:14.5px}
+.rodape .wrap{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+.rodape .logo{font-size:18px}
+.rodape .links{margin-left:auto;display:flex;flex-wrap:wrap;gap:18px}
+.rodape a{text-underline-offset:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (min-width:981px) and (min-height:1060px){.res{position:sticky;top:84px}}
+@media (max-width:980px){
+  .calc{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .painel{padding:18px 14px;border-radius:18px}
+  .ing{grid-template-columns:repeat(4,minmax(0,1fr));padding:12px}
+  .ing .f-nome{grid-column:1/-2}
+  .ing .tira{grid-column:4;grid-row:1;justify-self:end}
+  .ing .f-preco{grid-column:1/3}
+  .ing .f-emb{grid-column:3}.ing .f-embu{grid-column:4}
+  .ing .f-uso{grid-column:1/3}.ing .f-usou{grid-column:3}
+  .ing .custo{grid-column:4;padding-bottom:10px}
+  .ing .lbl{display:block}
+  .cab{display:none}
+  .grade{grid-template-columns:1fr 1fr}
+  .topo .r a.entrar{display:none}
+}
+@media (prefers-reduced-motion:reduce){.btn{transition:none}}
+@media print{.topo,.fim,.rodape,.convite,.acoesr,.mais,.tira,.modelos,.texto,.duvidas{display:none!important}.res{position:static;background:#fff;color:#000;box-shadow:none;border:1px solid #000}}
+</style>
+</head>
+<body>
+<header class="topo">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Saus360, página inicial"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="msescuroa" gradientUnits="userSpaceOnUse" x1="30" y1="16" x2="62" y2="50"><stop offset="0" stop-color="#2B9FCB"/><stop offset="1" stop-color="#47BEDD"/></linearGradient><linearGradient id="msescurob" gradientUnits="userSpaceOnUse" x1="50" y1="50" x2="40" y2="84"><stop offset="0" stop-color="#47BEDD"/><stop offset="1" stop-color="#7CD5C7"/></linearGradient></defs><g fill="none" stroke-width="15" stroke-linejoin="miter" stroke-miterlimit="4"><path d="M71.2 28.24 L50 16 L20.56 33 L20.56 50 L52 50" stroke="url(#msescuroa)"/><path d="M48 50 L79.44 50 L79.44 67 L50 84 L28.8 71.76" stroke="url(#msescurob)"/></g><path d="M50 33.5 L64.3 41.75 L64.3 58.25 L50 66.5 L35.7 58.25 L35.7 41.75 Z" style="fill:#1F2340;stroke:#1F2340" stroke-width="3" stroke-linejoin="round"/><path d="M50 36 L62.1 43 L50 50 L37.9 43 Z" fill="#FFFFFF"/><path d="M37.9 43 L50 50 L50 64 L37.9 57 Z" fill="#E4E7EF"/><path d="M50 50 L62.1 43 L62.1 57 L50 64 Z" fill="#C3C9DA"/><path d="M50 36 L62.1 43 L62.1 57 L50 64 L37.9 57 L37.9 43 Z M37.9 43 L50 50 L62.1 43 M50 50 L50 64" fill="none" stroke="#464B71" stroke-width="1.3" stroke-linejoin="round"/><path d="M43.9 39.5 L56 46.5 L56 50.8" fill="none" stroke="#464B71" stroke-width="1.3" stroke-linejoin="round" opacity=".85"/></svg><b>Saus<span>360</span></b></a>
+    <div class="r">
+      <a class="entrar" href="/app/">Entrar</a>
+      <a class="btn testar sm" href="/app/#criar">Testar grátis</a>
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  <nav class="trilha" aria-label="Você está em"><a href="/">Saus360</a> › Calculadora de preço de doces</nav>
+  <section class="abre">
+    <h1>Calculadora de preço de doces</h1>
+    <p class="lead">Descubra quanto cobrar por brigadeiro, bolo de pote, brownie ou qualquer doce que você faz. Coloque os ingredientes, o rendimento e o lucro que você quer: a conta inclui embalagem, gás, energia e o seu tempo. É grátis e não precisa de cadastro.</p>
+  </section>
+
+  <div class="calc" id="calculadora">
+    <form class="painel" id="form" onsubmit="return false" aria-labelledby="t-receita" novalidate>
+      <h2 id="t-receita">Sua receita</h2>
+      <div class="modelos" role="group" aria-label="Começar com um exemplo"><span>Começar com:</span>
+        <button type="button" class="chip" data-modelo="brigadeiro">Brigadeiro</button>
+        <button type="button" class="chip" data-modelo="bolopote">Bolo de pote</button>
+        <button type="button" class="chip" data-modelo="brownie">Brownie</button>
+        <button type="button" class="chip" data-modelo="vazio">Receita em branco</button>
+      </div>
+      <div class="grade dois bloco nome">
+        <label class="c">Nome do doce<input id="nome" maxlength="60" autocomplete="off" placeholder="Ex.: Brigadeiro gourmet"></label>
+        <div class="uni"><label class="c">A receita rende<input id="rende" inputmode="decimal" autocomplete="off"></label><em>un.</em></div>
+      </div>
+
+      <div class="bloco">
+        <h3>Ingredientes</h3>
+        <p class="dica">Coloque quanto pagou pela embalagem inteira e quanto usa na receita. A calculadora faz a proporção, inclusive de quilo para grama.</p>
+        <div class="ing cab" aria-hidden="true" style="background:transparent;border:0;padding:0 12px;font-size:13px;font-weight:700;color:var(--tinta2)">
+          <span>Ingrediente</span><span>Paguei</span><span>Embalagem</span><span></span><span>Uso</span><span></span><span style="text-align:right">Custo</span><span></span>
+        </div>
+        <div class="ings" id="ings"></div>
+        <button type="button" class="mais" id="addIng">+ Adicionar ingrediente</button>
+      </div>
+
+      <div class="bloco">
+        <h3>Outros custos</h3>
+        <p class="dica">O que quase todo mundo esquece de cobrar.</p>
+        <div class="grade">
+          <label class="c">Embalagem por unidade (R$)<input id="emb" inputmode="decimal" autocomplete="off"></label>
+          <div class="uni"><label class="c">Gás, energia e água<input id="ind" inputmode="decimal" autocomplete="off"></label><em>%</em></div>
+          <div class="uni"><label class="c">Horas de trabalho<input id="horas" inputmode="decimal" autocomplete="off"></label><em>h</em></div>
+          <label class="c">Valor da sua hora (R$)<input id="vhora" inputmode="decimal" autocomplete="off"></label>
+          <div class="uni"><label class="c">Lucro desejado<input id="margem" inputmode="decimal" autocomplete="off"></label><em>%</em></div>
+          <div class="uni"><label class="c">Taxa de cartão ou app<input id="taxa" inputmode="decimal" autocomplete="off"></label><em>%</em></div>
+        </div>
+        <p class="dica" style="margin-top:10px">Gás, energia e água entram como um percentual do custo dos ingredientes. O lucro é a parte do preço que sobra depois de pagar tudo, inclusive o seu tempo.</p>
+      </div>
+    </form>
+
+    <aside class="res" id="res" aria-live="polite" aria-labelledby="t-res">
+      <h2 id="t-res" class="sr">Resultado</h2>
+      <p class="rot" id="rRot">Preço de venda sugerido por unidade</p>
+      <p class="preco" id="rPreco">—</p>
+      <p class="sob" id="rSob"></p>
+      <div class="barra" id="rBarra" aria-hidden="true"></div>
+      <div class="leg" id="rLeg"></div>
+      <div class="linhas" id="rLinhas"></div>
+      <div id="rAlerta"></div>
+      <div class="compara">
+        <label class="c">Quanto você cobra hoje por unidade? (opcional)<input id="atual" inputmode="decimal" autocomplete="off" placeholder="R$"></label>
+        <p id="rAtual"></p>
+      </div>
+      <div class="acoesr">
+        <button type="button" id="copiar">Copiar resultado</button>
+        <a id="zap" href="#" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+      </div>
+      <div class="convite">
+        <p><b>Cansou de refazer a conta toda vez que o leite condensado sobe?</b> No Saus360 cada receita fica salva com a ficha técnica e o preço se atualiza sozinho.</p>
+        <a class="btn testar" href="/app/#criar">Testar grátis por 30 dias</a>
+      </div>
+    </aside>
+  </div>
+
+  <article class="texto">
+    <h2>Como calcular o preço de venda de doces</h2>
+    <p>A conta certa de precificação de doces tem seis partes. Quem pula alguma delas acaba vendendo bem e ganhando pouco, porque o dinheiro do gás, da forminha ou do próprio tempo sai do bolso sem ninguém perceber.</p>
+    <ol>
+      <li><b>Custo dos ingredientes na proporção usada.</b> Se o pacote de 200 g de chocolate em pó custou R$ 9,90 e a receita usa 30 g, o custo é R$ 9,90 ÷ 200 × 30 = R$ 1,49. Não entra o pacote inteiro, só o que foi para a panela.</li>
+      <li><b>Custo por unidade.</b> Some todos os ingredientes e divida pelo rendimento. Uma receita de R$ 12,54 que rende 25 brigadeiros custa R$ 0,50 de ingredientes por unidade.</li>
+      <li><b>Embalagem.</b> Forminha, pote, caixinha, fita e etiqueta. Some o que vai em cada unidade.</li>
+      <li><b>Gás, energia e água.</b> São difíceis de medir doce a doce, por isso a maioria das confeitarias usa entre 5% e 15% do custo dos ingredientes. Receitas de forno longo ficam perto do valor mais alto.</li>
+      <li><b>Mão de obra.</b> Multiplique as horas que a receita leva (preparo, modelagem, embalagem e limpeza) pelo valor da sua hora. Se você não cobra o seu tempo, está trabalhando de graça.</li>
+      <li><b>Lucro e taxas.</b> Por último, defina quanto do preço quer que sobre como lucro e quanto vai para a maquininha ou o aplicativo de delivery.</li>
+    </ol>
+    <div class="formula"><code>Preço de venda = custo total por unidade ÷ (1 − lucro − taxas)</code></div>
+    <p>Com 35% de lucro e sem taxa, o divisor é 0,65. Um doce que custa R$ 1,21 para fazer sai por R$ 1,21 ÷ 0,65 = R$ 1,86, arredondado para R$ 1,90.</p>
+
+    <h2>Exemplo: quanto cobrar pelo brigadeiro</h2>
+    <p>Este é o modelo "Brigadeiro" da calculadora acima, com preços de exemplo. Troque pelos valores que você paga no seu mercado ou atacadista.</p>
+    <table class="ex">
+      <thead><tr><th>Item</th><th>Custo na receita</th></tr></thead>
+      <tbody>
+        <tr><td>Leite condensado (1 lata de 395 g, R$ 7,49)</td><td>R$ 7,49</td></tr>
+        <tr><td>Chocolate em pó 50% (30 g de um pacote de 200 g a R$ 9,90)</td><td>R$ 1,49</td></tr>
+        <tr><td>Manteiga (15 g de um tablete de 200 g a R$ 12,90)</td><td>R$ 0,97</td></tr>
+        <tr><td>Chocolate granulado (60 g de um pacote de 150 g a R$ 6,50)</td><td>R$ 2,60</td></tr>
+        <tr><td>Gás, energia e água (10% dos ingredientes)</td><td>R$ 1,25</td></tr>
+        <tr><td>Forminhas (25 × R$ 0,06)</td><td>R$ 1,50</td></tr>
+        <tr><td>Mão de obra (1 hora a R$ 15)</td><td>R$ 15,00</td></tr>
+      </tbody>
+      <tfoot><tr><td>Total para 25 brigadeiros</td><td>R$ 30,30</td></tr></tfoot>
+    </table>
+    <p>O custo de cada brigadeiro é R$ 1,21. Com 35% de lucro, o preço sugerido é <b>R$ 1,90 por unidade</b>, ou R$ 190,00 o cento. Repare que os ingredientes sozinhos custam só R$ 0,50 por brigadeiro: quem calcula o preço só pelos ingredientes esquece mais da metade do custo real.</p>
+
+    <h2>Qual margem de lucro usar na confeitaria</h2>
+    <p>Não existe um número único, mas há uma regra: o lucro vem depois de pagar o seu tempo. Se a mão de obra já está no custo, uma margem de lucro entre 25% e 40% é comum para doces do dia a dia. Doces de festa, encomendas personalizadas e bolos decorados costumam ter margens maiores, porque têm mais risco e mais trabalho de atendimento.</p>
+    <p>Cuidado com a diferença entre margem e multiplicador. Multiplicar o custo por 2 dá 50% de margem sobre o preço, não 100%. A calculadora usa a margem sobre o preço, que é como o lucro aparece de verdade no seu caixa.</p>
+
+    <h2>Quanto cobrar pelo cento de brigadeiro e doces de festa</h2>
+    <p>Para doces vendidos ao cento, faça a conta da unidade e multiplique por 100. Se o cliente pede sabores diferentes, calcule cada sabor separado: um brigadeiro de pistache pode custar o triplo do tradicional e não deve sair pelo mesmo preço do cento. Quando o pedido tem entrega, cobre o frete à parte em vez de diluir no preço do doce.</p>
+
+    <h2>Erros comuns na precificação de doces</h2>
+    <ul>
+      <li>Copiar o preço da concorrente sem saber o próprio custo.</li>
+      <li>Calcular só os ingredientes e esquecer embalagem, gás e mão de obra.</li>
+      <li>Usar o preço antigo dos ingredientes. Leite condensado, chocolate e manteiga mudam de preço o tempo todo.</li>
+      <li>Vender pelo aplicativo de delivery com o mesmo preço do balcão, sem incluir a comissão.</li>
+      <li>Não contar as perdas: o doce que quebrou, a massa que ficou na panela, a amostra para a cliente.</li>
+    </ul>
+
+    <h2>Deixe a ficha técnica pronta para todas as receitas</h2>
+    <p>A calculadora resolve uma receita de cada vez. Quando você tem 20 ou 30 produtos, refazer as contas a cada aumento de ingrediente vira um trabalho à parte. O <a href="/">Saus360</a> guarda a ficha técnica de cada receita, atualiza o custo quando você registra uma compra nova e mostra o preço sugerido e a margem de todos os produtos de uma vez, junto com as encomendas, o estoque e o caixa.</p>
+  </article>
+
+  <section class="texto duvidas" aria-labelledby="t-faq" style="padding-top:0">
+    <h2 id="t-faq">Perguntas frequentes</h2>
+    <details><summary>Quanto cobrar por um brigadeiro?</summary><p>Depende do custo da sua receita. Some os ingredientes na proporção usada, a forminha, uma parte do gás e da energia e o seu tempo, divida pelo rendimento e aplique a margem de lucro. No exemplo desta página, com ingredientes de supermercado e 35% de lucro, o brigadeiro tradicional sai por R$ 1,90 a unidade, ou R$ 190,00 o cento.</p></details>
+    <details><summary>Qual é a fórmula para calcular o preço de venda de doces?</summary><p>Preço de venda = custo total por unidade ÷ (1 − margem de lucro − taxas). Com custo de R$ 1,21, 35% de lucro e nenhuma taxa: R$ 1,21 ÷ 0,65 = R$ 1,86.</p></details>
+    <details><summary>Qual margem de lucro usar na confeitaria?</summary><p>Com a mão de obra já incluída no custo, margens entre 25% e 40% sobre o preço são comuns para doces do dia a dia. Encomendas personalizadas e bolos decorados costumam ter margens maiores.</p></details>
+    <details><summary>Como calcular a mão de obra de um doce?</summary><p>Conte as horas de preparo, modelagem, embalagem e limpeza da receita e multiplique pelo valor que você quer ganhar por hora. Depois divida pelo rendimento para saber quanto de mão de obra vai em cada unidade.</p></details>
+    <details><summary>Como incluir gás e energia no preço dos doces?</summary><p>Como é difícil medir o gás de cada receita, a maioria das confeitarias usa um percentual do custo dos ingredientes, geralmente entre 5% e 15%. Receitas de forno longo ficam perto do valor mais alto.</p></details>
+    <details><summary>Preciso cobrar mais caro no aplicativo de delivery?</summary><p>Sim. Coloque a comissão do aplicativo no campo de taxa da calculadora. O preço sobe o suficiente para que o seu lucro continue o mesmo depois que o aplicativo fica com a parte dele.</p></details>
+    <details><summary>A calculadora é grátis? Os meus dados ficam salvos?</summary><p>É grátis e não precisa de cadastro. A conta fica salva só no seu navegador, para você continuar depois. Nada da receita é enviado para o Saus360.</p></details>
+  </section>
+</div>
+
+<section class="fim">
+  <div class="wrap">
+    <h2>Saiba quanto sobra em cada doce, todos os dias</h2>
+    <p>Ficha técnica com custo real, encomendas com sinal, lista de compras automática, estoque e caixa. Teste grátis por 30 dias, sem cartão de crédito.</p>
+    <a class="btn testar" href="/app/#criar">Testar grátis por 30 dias</a>
+  </div>
+</section>
+</main>
+
+<footer class="rodape">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Saus360, página inicial"><b>Saus<span>360</span></b></a>
+    <span>© 2026 Saus360. Feito em Santa Catarina.</span>
+    <div class="links">
+      <a href="/">Sistema para confeitaria</a>
+      <a href="/calculadora-preco-doces/">Calculadora de preço de doces</a>
+      <a href="/app/#termos">Termos e privacidade</a>
+      <a href="mailto:contato@saus360.com.br">Contato</a>
+    </div>
+  </div>
+</footer>
+
+<script src="/app/config.js"></script>
+<script>
+/* Calculadora de preço de doces. Tudo roda no navegador; nada da receita é enviado a lugar nenhum. */
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  var num = function (v) { var s = String(v == null ? "" : v).replace(/\s|R\$|%/g, ""); if (!s) return NaN; if (s.indexOf(",") >= 0) s = s.replace(/\./g, "").replace(",", "."); var n = parseFloat(s); return isFinite(n) ? n : NaN; };
+  var brl = function (n) { return isFinite(n) ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"; };
+  var dec = function (n) { return isFinite(n) ? String(Math.round(n * 1000) / 1000).replace(".", ",") : ""; };
+  var din = function (n) { return typeof n === "number" && isFinite(n) ? n.toFixed(2).replace(".", ",") : ""; };
+  var pct = function (n) { return isFinite(n) ? Math.round(n * 100) + "%" : "—"; };
+  var FAT = { g: ["m", 1], kg: ["m", 1000], ml: ["v", 1], l: ["v", 1000], un: ["u", 1] };
+  var UN = ["g", "kg", "ml", "l", "un"];
+  var arred = function (x) { var p = x < 10 ? 0.05 : x < 50 ? 0.5 : 1; return Math.ceil(Math.round(x / p * 1e6) / 1e6) * p; };
+
+  var MODELOS = {
+    brigadeiro: { nome: "Brigadeiro tradicional", rende: 25, emb: 0.06, ind: 10, horas: 1, vhora: 15, margem: 35, taxa: 0, ings: [
+      ["Leite condensado", 7.49, 395, "g", 395, "g"], ["Chocolate em pó 50%", 9.9, 200, "g", 30, "g"], ["Manteiga", 12.9, 200, "g", 15, "g"], ["Chocolate granulado", 6.5, 150, "g", 60, "g"]] },
+    bolopote: { nome: "Bolo de pote de chocolate", rende: 10, emb: 1.2, ind: 12, horas: 2, vhora: 15, margem: 35, taxa: 0, ings: [
+      ["Farinha de trigo", 5.49, 1, "kg", 240, "g"], ["Açúcar", 4.99, 1, "kg", 200, "g"], ["Ovos", 11.9, 12, "un", 4, "un"], ["Leite", 5.29, 1, "l", 240, "ml"],
+      ["Chocolate em pó 50%", 9.9, 200, "g", 60, "g"], ["Leite condensado", 7.49, 395, "g", 790, "g"], ["Creme de leite", 3.79, 200, "g", 400, "g"]] },
+    brownie: { nome: "Brownie", rende: 12, emb: 0.8, ind: 15, horas: 1.5, vhora: 15, margem: 35, taxa: 0, ings: [
+      ["Chocolate meio amargo", 59.9, 1, "kg", 200, "g"], ["Manteiga", 12.9, 200, "g", 150, "g"], ["Açúcar", 4.99, 1, "kg", 250, "g"], ["Ovos", 11.9, 12, "un", 4, "un"], ["Farinha de trigo", 5.49, 1, "kg", 100, "g"]] },
+    vazio: { nome: "", rende: "", emb: "", ind: 10, horas: "", vhora: 15, margem: 35, taxa: 0, ings: [["", "", "", "g", "", "g"], ["", "", "", "g", "", "g"]] }
+  };
+
+  var CAMPOS = ["nome", "rende", "emb", "ind", "horas", "vhora", "margem", "taxa", "atual"];
+  var lista = $("ings"), uid = 0, modeloAtual = "";
+
+  function linha(d) {
+    d = d || ["", "", "", "g", "", "g"]; var id = "i" + (++uid);
+    var opt = function (sel) { return UN.map(function (u) { return '<option value="' + u + '"' + (u === sel ? " selected" : "") + ">" + u + "</option>"; }).join(""); };
+    var el = document.createElement("div"); el.className = "ing"; el.id = id;
+    el.innerHTML =
+      '<label class="c f-nome"><span class="lbl">Ingrediente</span><input data-k="n" maxlength="50" autocomplete="off" placeholder="Ingrediente" aria-label="Ingrediente" value="' + esc(d[0]) + '"></label>' +
+      '<label class="c f-preco"><span class="lbl">Paguei (R$)</span><input data-k="p" inputmode="decimal" autocomplete="off" placeholder="R$" aria-label="Preço pago pela embalagem" value="' + esc(din(d[1])) + '"></label>' +
+      '<label class="c f-emb"><span class="lbl">Embalagem</span><input data-k="q" inputmode="decimal" autocomplete="off" aria-label="Tamanho da embalagem" value="' + esc(dec(d[2])) + '"></label>' +
+      '<label class="c f-embu"><span class="lbl">&nbsp;</span><select data-k="qu" aria-label="Unidade da embalagem">' + opt(d[3]) + "</select></label>" +
+      '<label class="c f-uso"><span class="lbl">Uso na receita</span><input data-k="u" inputmode="decimal" autocomplete="off" aria-label="Quantidade usada na receita" value="' + esc(dec(d[4])) + '"></label>' +
+      '<label class="c f-usou"><span class="lbl">&nbsp;</span><select data-k="uu" aria-label="Unidade usada">' + opt(d[5]) + "</select></label>" +
+      '<div class="custo" data-k="c">—</div>' +
+      '<button type="button" class="tira" aria-label="Remover ingrediente">×</button>';
+    lista.appendChild(el);
+    return el;
+  }
+  function custoLinha(el) {
+    var g = function (k) { return el.querySelector('[data-k="' + k + '"]'); };
+    var p = num(g("p").value), q = num(g("q").value), u = num(g("u").value), a = FAT[g("qu").value], b = FAT[g("uu").value];
+    var av = el.querySelector(".aviso"); if (av) av.remove();
+    g("u").setAttribute("aria-invalid", "false");
+    if (!g("n").value.trim() && !g("p").value.trim() && !g("q").value.trim() && !g("u").value.trim()) return 0;
+    if (!isFinite(p) || !isFinite(q) || !isFinite(u) || q <= 0 || p < 0 || u < 0) return NaN;
+    if (a[0] !== b[0]) { var m = document.createElement("p"); m.className = "aviso"; m.textContent = "A unidade da embalagem e a do uso não combinam (ex.: kg com g, l com ml)."; el.appendChild(m); g("u").setAttribute("aria-invalid", "true"); return NaN; }
+    return p / (q * a[1]) * (u * b[1]);
+  }
+
+  var CORES = { ing: "#7CD5C7", emb: "#F6B93B", ind: "#E58FA5", mo: "#9DB4FF", lucro: "#FFFFFF" };
+  var ultimo = null;
+  function calcular() {
+    var ing = 0, faltando = 0;
+    Array.prototype.forEach.call(lista.children, function (el) {
+      var c = custoLinha(el), cel = el.querySelector('[data-k="c"]');
+      if (isFinite(c)) { ing += c; cel.innerHTML = brl(c); } else { faltando++; cel.innerHTML = "—"; }
+    });
+    var v = function (k) { return num($(k).value); };
+    var rende = v("rende"), emb = v("emb") || 0, indP = v("ind") || 0, horas = v("horas") || 0, vh = v("vhora") || 0, mg = v("margem") || 0, tx = v("taxa") || 0;
+    var ind = ing * indP / 100, mo = horas * vh, embT = emb * (rende || 0), total = ing + ind + mo + embT;
+    var un = rende > 0 ? total / rende : NaN, div = 1 - mg / 100 - tx / 100;
+    var bruto = isFinite(un) && div > 0.05 ? un / div : NaN, preco = isFinite(bruto) ? arred(bruto) : NaN;
+    var lucroUn = preco * (1 - tx / 100) - un;
+    var nome = $("nome").value.trim();
+    $("rRot").textContent = "Preço de venda sugerido" + (nome ? " · " + nome : " por unidade");
+    $("rPreco").innerHTML = isFinite(preco) && un > 0 ? esc(brl(preco)) + "<small>/unidade</small>" : "—";
+    $("rSob").textContent = isFinite(preco) && un > 0 ? "Arredondado para cima a partir de " + brl(bruto) + "." : (rende > 0 ? "Preencha os ingredientes para ver o preço." : "Diga quantas unidades a receita rende.");
+    var partes = [["ing", "Ingredientes", ing], ["emb", "Embalagem", embT], ["ind", "Gás e energia", ind], ["mo", "Mão de obra", mo]];
+    var fat = isFinite(preco) && rende > 0 ? preco * rende * (1 - tx / 100) : 0, lucroT = Math.max(0, fat - total), base = Math.max(total + lucroT, 1e-9);
+    $("rBarra").innerHTML = total > 0 ? partes.concat([["lucro", "Lucro", lucroT]]).map(function (p) { return '<i style="width:' + (p[2] / base * 100).toFixed(2) + "%;background:" + CORES[p[0]] + '"></i>'; }).join("") : "";
+    $("rLeg").innerHTML = total > 0 ? partes.concat([["lucro", "Lucro", lucroT]]).filter(function (p) { return p[2] > 0; }).map(function (p) { return '<span style="--c:' + CORES[p[0]] + '">' + p[1] + " " + pct(p[2] / base) + "</span>"; }).join("") : "";
+    var L = [];
+    if (rende > 0 && total > 0) {
+      L.push(["Custo da receita inteira", brl(total)]);
+      L.push(["Custo por unidade", brl(un)]);
+      L.push(["Só ingredientes, por unidade", brl(ing / rende)]);
+      if (isFinite(preco)) {
+        L.push(["Lucro por unidade", brl(lucroUn), true]);
+        L.push(["Lucro na receita inteira", brl(lucroUn * rende), true]);
+        if (preco < 10) L.push(["Preço do cento", brl(preco * 100)]);
+        if (ing > 0) L.push(["Preço ÷ custo dos ingredientes", dec(Math.round(preco / (ing / rende) * 10) / 10) + "×"]);
+      }
+    }
+    $("rLinhas").innerHTML = L.map(function (l) { return '<div class="kv' + (l[2] ? " forte" : "") + '"><span>' + l[0] + "</span><b>" + esc(l[1]) + "</b></div>"; }).join("");
+    var al = "";
+    if (div <= 0.05) al = '<p class="alerta ruim">Lucro e taxas somam ' + pct(1 - div) + ' do preço. Não sobra nada para pagar os custos: diminua um dos dois.</p>';
+    else if (faltando) al = '<p class="alerta">' + (faltando === 1 ? "Um ingrediente está" : faltando + " ingredientes estão") + " incompleto" + (faltando === 1 ? "" : "s") + " e ficou fora da conta.</p>";
+    else if (total > 0 && !mo) al = '<p class="alerta">Você não colocou o seu tempo. Sem mão de obra, o "lucro" é na verdade o seu salário.</p>';
+    $("rAlerta").innerHTML = al;
+    var at = v("atual"), ra = "";
+    if (isFinite(at) && at > 0 && isFinite(un) && un > 0) {
+      var lu = at * (1 - tx / 100) - un, mr = lu / at;
+      ra = lu < 0 ? "<b>Você perde " + esc(brl(-lu)) + " em cada unidade.</b> Esse preço não paga o custo." : "Cobrando " + esc(brl(at)) + ", sobram <b>" + esc(brl(lu)) + "</b> por unidade (" + pct(mr) + " de lucro)." + (isFinite(preco) && at < preco ? " Para chegar ao lucro que você quer, faltam " + esc(brl(preco - at)) + "." : "");
+    }
+    $("rAtual").innerHTML = ra;
+    ultimo = isFinite(preco) && un > 0 ? { nome: nome, preco: preco, un: un, lucro: lucroUn, rende: rende, mg: mg } : null;
+    var txt = ultimo ? "Calculei o preço do " + (nome || "meu doce") + ": custo " + brl(un) + " e preço sugerido " + brl(preco) + " por unidade." : "Calculadora grátis de preço de doces:";
+    $("zap").href = "https://wa.me/?text=" + encodeURIComponent(txt + " Faça a sua: https://saus360.com.br/calculadora-preco-doces/?utm_source=whatsapp&utm_campaign=compartilhar");
+    salvar();
+  }
+
+  function aplicar(k) {
+    var m = MODELOS[k]; if (!m) return; modeloAtual = k;
+    lista.innerHTML = ""; m.ings.forEach(linha);
+    ["nome", "rende", "emb", "ind", "horas", "vhora", "margem", "taxa"].forEach(function (c) { $(c).value = typeof m[c] === "number" ? (c === "emb" || c === "vhora" ? din(m[c]) : dec(m[c])) : m[c]; });
+    document.querySelectorAll("[data-modelo]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-modelo") === k)); });
+    calcular();
+  }
+  function estado() {
+    return { m: modeloAtual, c: CAMPOS.reduce(function (o, k) { o[k] = $(k).value; return o; }, {}),
+      i: Array.prototype.map.call(lista.children, function (el) { return ["n", "p", "q", "qu", "u", "uu"].map(function (k) { return el.querySelector('[data-k="' + k + '"]').value; }); }) };
+  }
+  var tSalvar = null;
+  function salvar() { clearTimeout(tSalvar); tSalvar = setTimeout(function () { try { localStorage.setItem("saus360-calc", JSON.stringify(estado())); } catch (e) {} }, 400); }
+  function restaurar() {
+    try {
+      var s = JSON.parse(localStorage.getItem("saus360-calc") || "null");
+      if (!s || !s.c || !Array.isArray(s.i)) return false;
+      lista.innerHTML = "";
+      s.i.slice(0, 40).forEach(function (r) { var el = linha(); ["n", "p", "q", "qu", "u", "uu"].forEach(function (k, j) { var f = el.querySelector('[data-k="' + k + '"]'); if (f.tagName === "SELECT") { if (UN.indexOf(r[j]) >= 0) f.value = r[j]; } else f.value = String(r[j] == null ? "" : r[j]).slice(0, 60); }); });
+      CAMPOS.forEach(function (k) { if (typeof s.c[k] === "string") $(k).value = s.c[k].slice(0, 60); });
+      modeloAtual = s.m || "";
+      document.querySelectorAll("[data-modelo]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-modelo") === modeloAtual)); });
+      if (!lista.children.length) linha();
+      calcular(); return true;
+    } catch (e) { return false; }
+  }
+
+  var usou = false;
+  function marcarUso() { if (usou) return; usou = true; if (window.saus360Evento) window.saus360Evento("calculou"); }
+  document.addEventListener("input", function (e) {
+    if (!e.target.closest("#form, .compara")) return;
+    if (e.target.closest("#form")) { modeloAtual = ""; document.querySelectorAll("[data-modelo]").forEach(function (b) { b.setAttribute("aria-pressed", "false"); }); }
+    calcular(); marcarUso();
+  });
+  document.addEventListener("change", function (e) { if (e.target.tagName === "SELECT" && e.target.closest("#form")) { calcular(); marcarUso(); } });
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-modelo]"); if (t) { aplicar(t.getAttribute("data-modelo")); marcarUso(); return; }
+    var x = e.target.closest(".tira"); if (x) { x.closest(".ing").remove(); if (!lista.children.length) linha(); calcular(); return; }
+  });
+  $("addIng").addEventListener("click", function () { var el = linha(); el.querySelector("input").focus(); calcular(); });
+  $("copiar").addEventListener("click", function () {
+    if (!ultimo) return;
+    var t = (ultimo.nome || "Doce") + "\nRende: " + dec(ultimo.rende) + " unidades\nCusto por unidade: " + brl(ultimo.un) + "\nPreço sugerido: " + brl(ultimo.preco) + "\nLucro por unidade: " + brl(ultimo.lucro) + "\n\nCalculado em saus360.com.br/calculadora-preco-doces";
+    var ok = function () { var b = $("copiar"), o = b.textContent; b.textContent = "Copiado!"; setTimeout(function () { b.textContent = o; }, 1800); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(ok, function () {});
+  });
+
+  if (!restaurar()) aplicar("brigadeiro");
+})();
+</script>
+<script>
+/* Contagem anônima de visitas (painel do dono). Sem IP e sem dados pessoais. */
+(function () {
+  "use strict";
+  var C = window.DECANTA_CONFIG || {};
+  if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(C.supabaseUrl || "") || !C.supabaseAnonKey) return;
+  var q = new URLSearchParams(location.search);
+  try {
+    if (q.get("nolog") === "0") localStorage.removeItem("saus360-nolog");
+    else if (q.has("nolog")) localStorage.setItem("saus360-nolog", "1");
+    if (localStorage.getItem("saus360-nolog") === "1") return;
+  } catch (e) {}
+  if (navigator.webdriver || /bot|crawl|spider|preview|headless|lighthouse|facebookexternalhit|whatsapp/i.test(navigator.userAgent || "")) return;
+  var vid = "";
+  try { vid = localStorage.getItem("saus360-v") || ""; } catch (e) {}
+  if (!/^[a-f0-9]{16,40}$/.test(vid)) {
+    var b = new Uint8Array(12);
+    try { crypto.getRandomValues(b); } catch (e) { for (var i = 0; i < 12; i++) b[i] = Math.floor(Math.random() * 256); }
+    vid = Array.prototype.map.call(b, function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+    try { localStorage.setItem("saus360-v", vid); } catch (e) {}
+  }
+  var w = window.innerWidth || 1024, tela = w < 600 ? "celular" : w < 1024 ? "tablet" : "computador";
+  var de = "";
+  try { var u = new URL(document.referrer); if (u.host && u.host !== location.host) de = u.host.replace(/^www\./, ""); } catch (e) {}
+  var orig = { ref: q.get("ref") || "", src: q.get("utm_source") || "", med: q.get("utm_medium") || "", camp: q.get("utm_campaign") || "" };
+  try {
+    if (orig.ref || orig.src) sessionStorage.setItem("saus360-orig", JSON.stringify(orig));
+    else { var g = JSON.parse(sessionStorage.getItem("saus360-orig") || "null"); if (g) orig = g; }
+  } catch (e) {}
+  function enviar(ev) {
+    var corpo = { v: vid, e: ev, t: tela, i: "pt", pg: "calculadora", from: de, ref: String(orig.ref).slice(0, 40), src: String(orig.src).slice(0, 30), med: String(orig.med).slice(0, 30), camp: String(orig.camp).slice(0, 40) };
+    try {
+      fetch(C.supabaseUrl + "/rest/v1/rpc/landing_visita", { method: "POST", keepalive: true, credentials: "omit", referrerPolicy: "no-referrer",
+        headers: { apikey: C.supabaseAnonKey, Authorization: "Bearer " + C.supabaseAnonKey, "Content-Type": "application/json" }, body: JSON.stringify({ p: corpo }) }).catch(function () {});
+    } catch (e) {}
+  }
+  window.saus360Evento = enviar;
+  enviar("visita");
+  document.addEventListener("click", function (e) {
+    var a = e.target && e.target.closest ? e.target.closest("a[href]") : null; if (!a) return;
+    var h = a.getAttribute("href") || "";
+    if (h.indexOf("/app/#criar") === 0) enviar("clique_testar"); else if (h.indexOf("/app/#demo") === 0) enviar("clique_demo");
+  }, true);
+})();
+</script>
+</body>
+</html>
