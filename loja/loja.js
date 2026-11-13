@@ -26,12 +26,10 @@
   var dataBR = function (s) { if (!/^\d{4}-\d{2}-\d{2}$/.test(s || "")) return ""; var p = s.split("-"); return p[2] + "/" + p[1]; };
   var somaDias = function (iso, n) { var d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
   var diaSem = function (iso, longo) { return new Date(iso + "T12:00:00Z").toLocaleDateString("pt-BR", { weekday: longo ? "long" : "short", timeZone: "UTC" }).replace(".", ""); };
-  var CORES = [["#FBE9F0", "#951E48"], ["#E7F1FB", "#1D5C96"], ["#FFF3DC", "#8A5A00"], ["#E8F6EF", "#1F7A55"], ["#EFEAFB", "#5B3FA6"]];
-  var cor = function (s) { var h = 0; String(s).split("").forEach(function (c) { h = (h * 31 + c.charCodeAt(0)) >>> 0; }); return CORES[h % CORES.length]; };
   var iniciais = function (s) { var w = String(s || "?").split(/\s+/).filter(function (x) { return x && !/^(de|da|do|das|dos|com|e|no|na|em|\d.*)$/i.test(x); }); return (w.length ? w : [String(s || "?")]).slice(0, 2).map(function (x) { return x[0]; }).join("").toUpperCase(); };
   /* imagem só do armazenamento do Saus360 (o servidor já confere; aqui é a segunda trava) */
   var imgOk = function (u) { return typeof u === "string" && !!CFG.supabaseUrl && u.indexOf(CFG.supabaseUrl + "/storage/v1/object/public/produtos/") === 0 && !/["'<>\s\\]/.test(u); };
-  var ph = function (nome, cls) { var c = cor(nome); return '<span class="ph ' + (cls || "") + '" style="background:' + c[0] + ";color:" + c[1] + '" aria-hidden="true">' + esc(iniciais(nome)) + "</span>"; };
+  var ph = function (nome, cls) { return '<span class="ph ' + (cls || "") + '" aria-hidden="true">' + IC.bolo + "</span>"; };
   var foto = function (o, alt) { return imgOk(o.foto) ? '<img src="' + esc(o.foto) + '" alt="' + esc(alt || "") + '" loading="lazy" decoding="async">' : ph(o.nome); };
 
   var IC = {
@@ -47,6 +45,8 @@
     cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="5.500" width="16" height="14.500" rx="3"/><path d="M4 10h16M8.500 3.500v4M15.500 3.500v4"/></svg>',
     sino: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10v4h3l7 4V6l-7 4H4zM17.500 9.500a4 4 0 010 5"/></svg>',
     volta: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
+    bolo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h16M5 20v-6.500a1.500 1.500 0 011.500-1.500h11a1.500 1.500 0 011.500 1.500V20"/><path d="M5 15.500c1.200 1 2.300 1 3.500 0s2.300-1 3.500 0 2.300 1 3.500 0 2.300-1 3.500 0M8 12V9.500M12 12V9.500M16 12V9.500"/><path d="M8 7.500c-.700-.700-.700-1.600 0-2.500.700.900.700 1.800 0 2.500zM12 7.500c-.700-.700-.700-1.600 0-2.500.700.900.700 1.800 0 2.500zM16 7.500c-.700-.700-.700-1.600 0-2.500.700.900.700 1.800 0 2.500z"/></svg>',
+    sacola: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.200 11.200a1.800 1.800 0 01-1.800 1.600H8a1.800 1.800 0 01-1.800-1.600L5 8z"/><path d="M9 10V7a3 3 0 016 0v3"/></svg>',
     certo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>'
   };
 
@@ -182,26 +182,43 @@
   }
   function desenhar() {
     var fatos = [], ss = secoes(), temCapa = imgOk(L.capa);
-    if (L.retirada) fatos.push("<li>" + IC.pino + "Retirada" + (L.endereco ? " em " + esc(L.endereco) : "") + "</li>");
-    if (L.entrega) fatos.push("<li>" + IC.moto + "Entrega" + (L.taxa > 0 ? " por " + money(L.taxa) : " grátis") + "</li>");
-    fatos.push("<li>" + IC.cal + (L.antecedencia > 0 ? "Peça com " + L.antecedencia + (L.antecedencia === 1 ? " dia" : " dias") + " de antecedência" : "Aceita pedidos para hoje") + "</li>");
-    if (L.horario) fatos.push("<li>" + IC.hora + esc(L.horario) + "</li>");
-    if (L.minimo > 0) fatos.push("<li>Pedido mínimo " + money(L.minimo) + "</li>");
+    var fato = function (ic, rot, val) { return "<li>" + ic + "<span><small>" + rot + "</small><b>" + val + "</b></span></li>"; };
+    if (L.retirada) fatos.push(fato(IC.pino, "Retirada", L.endereco ? esc(L.endereco) : "Na loja"));
+    if (L.entrega) fatos.push(fato(IC.moto, "Entrega", L.taxa > 0 ? money(L.taxa) : "Grátis"));
+    fatos.push(fato(IC.cal, "Encomendas", L.antecedencia > 0 ? "Com " + L.antecedencia + (L.antecedencia === 1 ? " dia" : " dias") + " de antecedência" : "Também para hoje"));
+    if (L.horario) fatos.push(fato(IC.hora, "Horário", esc(L.horario)));
+    if (L.minimo > 0) fatos.push(fato(IC.sacola, "Pedido mínimo", money(L.minimo)));
     var h = '<div class="capa' + (temCapa ? "" : " lisa") + '">' + (temCapa ? '<img src="' + esc(L.capa) + '" alt="" fetchpriority="high">' : "") + "</div>" +
       '<div class="wrap"><header class="topo"><div class="linha"><div class="logo">' + (imgOk(L.logo) ? '<img src="' + esc(L.logo) + '" alt="Logo de ' + esc(L.nome) + '">' : esc(iniciais(L.nome))) + '</div><div class="acoes">' +
       (digits(L.whatsapp) ? '<a class="wa" href="' + esc(waLink("Olá! Vim pela loja online.")) + '" target="_blank" rel="noopener" aria-label="Falar pelo WhatsApp">' + IC.wa + "</a>" : "") +
       (/^[A-Za-z0-9._]{1,30}$/.test(L.insta || "") ? '<a href="https://instagram.com/' + esc(L.insta) + '" target="_blank" rel="noopener" aria-label="Instagram da loja">' + IC.insta + "</a>" : "") +
       '<button data-a="compartilhar" aria-label="Compartilhar a loja">' + IC.envia + "</button></div></div>" +
-      "<h1>" + esc(L.nome) + "</h1>" + (L.bio ? '<p class="bio">' + esc(L.bio) + "</p>" : "") + '<ul class="fatos">' + fatos.join("") + "</ul>" +
-      (L.aviso ? '<p class="fita">' + IC.sino + "<span>" + esc(L.aviso) + "</span></p>" : "") + "</header></div>";
+      '<div class="corpo"><div class="ident"><h1>' + esc(L.nome) + "</h1>" + (L.bio ? '<p class="bio">' + esc(L.bio) + "</p>" : "") +
+      (L.aviso ? '<p class="fita">' + IC.sino + "<span>" + esc(L.aviso) + "</span></p>" : "") + '</div><ul class="fatos" aria-label="Como a loja atende">' + fatos.join("") + "</ul></div></header></div>";
     if (PRODS.length + COMBOS.length > 0) {
       h += '<nav class="nav" aria-label="Seções da loja"><div class="wrap">' +
         (PRODS.length > 8 ? '<div class="busca">' + IC.busca + '<input type="search" id="busca" placeholder="Buscar na loja" value="' + esc(BUSCA) + '" aria-label="Buscar na loja" autocomplete="off" enterkeyhint="search" maxlength="60"></div>' : "") +
         (ss.length > 1 ? '<div class="abas" id="abas">' + ss.map(function (s, i) { return '<button data-a="ir" data-id="' + esc(s.id) + '" aria-current="' + (i === 0) + '">' + esc(s.l) + "</button>"; }).join("") + "</div>" : "") + "</div></nav>";
     }
-    h += '<div class="wrap" id="conteudo">' + conteudo() + "</div>";
+    h += '<div class="wrap" id="conteudo">' + conteudo() + "</div>" + (PRODS.length + COMBOS.length > 0 ? fimLoja() : "");
     $("app").innerHTML = h;
     barra(); espiar();
+  }
+  /* fim da vitrine: como o pedido funciona e os dados da loja */
+  function fimLoja() {
+    var wa = digits(L.whatsapp), ig = /^[A-Za-z0-9._]{1,30}$/.test(L.insta || "") ? L.insta : "";
+    var passos = '<section class="como" aria-labelledby="t-como"><h2 id="t-como">Como fazer seu pedido</h2><ol>' +
+      "<li><b>Escolha os produtos</b><span>Toque no + e eles vão para a sacola.</span></li>" +
+      "<li><b>Marque o dia</b><span>" + (L.retirada && L.entrega ? "Retirada na loja ou entrega, no dia que preferir." : L.entrega ? "Escolha o dia da entrega." : "Escolha o dia da retirada.") + "</span></li>" +
+      "<li><b>Envie o pedido</b><span>" + esc(L.nome || "A loja") + " confirma" + (wa ? " pelo WhatsApp" : "") + " e combina o pagamento com você.</span></li></ol></section>";
+    var dados = [];
+    if (L.retirada && L.endereco) dados.push("<li>" + IC.pino + "<span>" + esc(L.endereco) + "</span></li>");
+    if (L.horario) dados.push("<li>" + IC.hora + "<span>" + esc(L.horario) + "</span></li>");
+    var links = (wa ? '<a class="btn wa" href="' + esc(waLink("Olá! Vim pela loja online.")) + '" target="_blank" rel="noopener">' + IC.wa + "Falar no WhatsApp</a>" : "") +
+      (ig ? '<a class="btn linha" href="https://instagram.com/' + esc(ig) + '" target="_blank" rel="noopener">' + IC.insta + "@" + esc(ig) + "</a>" : "");
+    var marca = imgOk(L.logo) ? '<img src="' + esc(L.logo) + '" alt="">' : esc(iniciais(L.nome));
+    return '<div class="wrap" id="fimloja">' + passos + '<section class="sobre" aria-labelledby="t-sobre"><div class="sobre-id"><span class="logo pequena">' + marca + '</span><div><h2 id="t-sobre">' + esc(L.nome) + "</h2>" +
+      (L.bio ? '<p class="muted">' + esc(L.bio) + "</p>" : "") + "</div></div>" + (dados.length ? '<ul class="dados">' + dados.join("") + "</ul>" : "") + (links ? '<div class="links">' + links + "</div>" : "") + "</section></div>";
   }
   /* marca na navegação a seção que está na tela */
   var OBS = null;
@@ -340,7 +357,7 @@
     if (a === "fechar-fundo" && e.target !== t) return;
     if (a === "fechar" || a === "fechar-fundo") { fechar(); return; }
     if (a === "ir") { var s = $("s-" + id); if (s) s.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
-    if (a === "limpar") { BUSCA = ""; var b = $("busca"); if (b) b.value = ""; $("conteudo").innerHTML = conteudo(); if ($("abas")) $("abas").hidden = false; espiar(); return; }
+    if (a === "limpar") { BUSCA = ""; var b = $("busca"); if (b) b.value = ""; $("conteudo").innerHTML = conteudo(); if ($("abas")) $("abas").hidden = false; if ($("fimloja")) $("fimloja").hidden = false; espiar(); return; }
     if (a === "compartilhar") { compartilhar(); return; }
     if (a === "ver" && it) { verItem(k); return; }
     if (a === "add" && it) { var novo = !CARRO[k]; mudar(k, 1); if (novo) brinde("Adicionado à sacola"); return; }
@@ -358,7 +375,7 @@
   });
   document.addEventListener("input", function (e) {
     var t = e.target;
-    if (t.id === "busca") { BUSCA = t.value.slice(0, 60); $("conteudo").innerHTML = conteudo(); if ($("abas")) $("abas").hidden = !!BUSCA.trim(); if (!BUSCA.trim()) espiar(); return; }
+    if (t.id === "busca") { BUSCA = t.value.slice(0, 60); $("conteudo").innerHTML = conteudo(); if ($("abas")) $("abas").hidden = !!BUSCA.trim(); if ($("fimloja")) $("fimloja").hidden = !!BUSCA.trim(); if (!BUSCA.trim()) espiar(); return; }
     var f = t.dataset && t.dataset.f; if (!f || !(f in FORM)) return;
     if (f === "fone") { var v = mascara(t.value); if (v !== t.value) t.value = v; }
     FORM[f] = t.value;
