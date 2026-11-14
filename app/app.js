@@ -33,6 +33,8 @@ function marcaHtml(o) {
 "use strict";
 /* ================= Utilidades ================= */
 const APP = "Saus360";
+/* Versão dos Termos de uso e da Política de privacidade (saus360.com.br/privacidade/). Mudou o texto? Troque a data: todos aceitam de novo. */
+const TERMOS_VERSAO = "2026-11-14";
 /* Idioma do app: o build gera app.js (português) e app-es.js (espanhol); o index.html escolhe qual carregar
    pela preferência salva ou pelo idioma do celular, e marca o <html lang>. */
 const IDIOMA = /^es/i.test(document.documentElement.lang || "") ? "es" : "pt";
@@ -1046,13 +1048,33 @@ async function bootSupa(CFG) {
     await afterLogin(data.session);
   } catch (e) { cloudState = "off"; render(); }
 }
-async function afterLogin(session) {
+async function afterLogin(session, aceiteFeito) {
   SESSION = session; UID = REAL_UID = session.user.id;
+  if (!aceiteFeito && !(await conferirAceite())) return;
   PROFILE = { empresas: [] };
   try { await SupaBE.empresas(); } catch (e) {}
   let atual = ""; try { atual = localStorage.getItem("decanta-atual") || ""; } catch (e) {}
   if (MODE === null && atual && PROFILE.empresas.some(x => x.eid === atual)) await SupaBE.open(atual);
   else { ui.route = "entrada"; render(); }
+}
+/* LGPD: só entra quem aceitou a versão atual dos termos. Quem acabou de marcar a caixa no cadastro registra aqui (a conta
+   pode ter sido confirmada por código, sem sessão no momento do cadastro). Falha de rede não trava o app: tenta de novo no próximo login. */
+async function conferirAceite() {
+  try {
+    const r = await SB.rpc("meu_aceite"); if (r.error) throw r.error;
+    const ultima = r.data || "";
+    if (ultima >= TERMOS_VERSAO) { ui.precisaAceite = false; return true; }
+    let pend = ""; try { pend = localStorage.getItem("saus360-aceite-pend") || ""; } catch (e) {}
+    const meta = (SESSION.user && SESSION.user.user_metadata) || {};
+    if (pend === TERMOS_VERSAO || meta.aceite_termos === TERMOS_VERSAO) {
+      const a = await SB.rpc("aceitar_termos", { p_versao: TERMOS_VERSAO, p_origem: "cadastro", p_agente: navigator.userAgent.slice(0, 300) });
+      if (a.error) throw a.error;
+      try { localStorage.removeItem("saus360-aceite-pend"); } catch (e) {}
+      ui.precisaAceite = false; return true;
+    }
+    ui.precisaAceite = true; ui.aceiteAnterior = ultima; ui.aceiteOk = false; ui.aceiteErr = ""; ui.route = "aceite"; closeSheet(); render();
+    return false;
+  } catch (e) { return true; }
 }
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && MODE === "supa") SupaBE.reload(); });
 
@@ -1141,7 +1163,7 @@ function vLogin() {
   let h = `${marcaHtml()}<p class="lead">Sua gestão em 360°: estoque, compras, fornecedores, vendas, consignação e nota fiscal no celular.</p>`;
   if (L.modo === "entrar" || L.modo === "criar") h += `<div class="seg" style="margin-bottom:6px"><button data-a="loginModo" data-id="entrar" aria-pressed="${esc(L.modo === "entrar")}">Entrar</button><button data-a="loginModo" data-id="criar" aria-pressed="${esc(L.modo === "criar")}">Criar conta</button></div>`;
   if (L.modo === "entrar") h += inp("email", "E-mail", 'type="email" inputmode="email" autocomplete="email"', "voce@email.com") + inp("senha", "Senha", 'type="password" autocomplete="current-password"', "") + `<button class="btn block" data-a="doLogin" ${L.busy ? "disabled" : ""}>${L.busy ? "Entrando…" : "Entrar"}</button><p class="hint center"><button data-a="loginModo" data-id="recuperar" style="background:none;border:0;color:var(--accent);font-weight:700">Esqueci minha senha</button></p>`;
-  if (L.modo === "criar") h += inp("nome", "Seu nome", 'autocomplete="name"', "Como a equipe vai ver você") + inp("email", "E-mail", 'type="email" inputmode="email" autocomplete="email"', "voce@email.com") + inp("senha", "Senha (mínimo 8 caracteres)", 'type="password" autocomplete="new-password"', "") + `<p class="hint">Ao criar a conta você aceita os <button data-a="go" data-r="termos" style="background:none;border:0;padding:0;color:var(--accent);font-weight:700">Termos de uso e a Política de privacidade</button>.</p><button class="btn block" data-a="doSignup" ${L.busy ? "disabled" : ""}>${L.busy ? "Criando…" : "Criar conta"}</button>`;
+  if (L.modo === "criar") h += inp("nome", "Seu nome", 'autocomplete="name"', "Como a equipe vai ver você") + inp("email", "E-mail", 'type="email" inputmode="email" autocomplete="email"', "voce@email.com") + inp("senha", "Senha (mínimo 8 caracteres)", 'type="password" autocomplete="new-password"', "") + `<label class="aceite"><input type="checkbox" data-l="aceite" ${L.aceite ? "checked" : ""}><span>Li e aceito os <button type="button" data-a="go" data-r="termos" style="background:none;border:0;padding:0;color:var(--accent);font-weight:700">Termos de uso e a Política de privacidade</button>.</span></label><button class="btn block" data-a="doSignup" ${L.busy ? "disabled" : ""}>${L.busy ? "Criando…" : "Criar conta"}</button>`;
   if (L.modo === "confirmar") h += `<p>Enviamos um código para <b>${esc(L.email)}</b>. Digite-o abaixo, ou toque no link do e-mail e depois entre.</p>` + inp("codigo", "Código", 'inputmode="numeric" autocomplete="one-time-code"', "000000") + `<button class="btn block" data-a="doConfirm" ${L.busy ? "disabled" : ""}>Confirmar</button><div class="btns"><button class="btn line" data-a="loginModo" data-id="entrar">Já confirmei, entrar</button><button class="btn line" data-a="reenviar">Reenviar código</button></div>`;
   if (L.modo === "recuperar") h += `<p>Informe seu e-mail. Vamos enviar um código para você criar uma nova senha.</p>` + inp("email", "E-mail", 'type="email" inputmode="email"', "voce@email.com") + `<button class="btn block" data-a="doRecuperar" ${L.busy ? "disabled" : ""}>Enviar código</button><button class="btn line block" data-a="loginModo" data-id="entrar">Voltar</button>`;
   if (L.modo === "nova") h += `<p>Digite o código enviado para <b>${esc(L.email)}</b> e a nova senha.</p>` + inp("codigo", "Código", 'inputmode="numeric" autocomplete="one-time-code"', "000000") + inp("nova", "Nova senha", 'type="password" autocomplete="new-password"', "") + `<button class="btn block" data-a="doNovaSenha" ${L.busy ? "disabled" : ""}>Salvar nova senha</button><button class="btn line block" data-a="loginModo" data-id="entrar">Voltar</button>`;
@@ -1929,7 +1951,7 @@ function vImportar() {
 
 /* ---- Roteador ---- */
 const ROUTES = {
-  entrada: { v: vEntrada }, login: { v: vLogin }, termos: { v: vTermos }, inicio: { v: vInicio, tab: "inicio" },
+  entrada: { v: vEntrada }, login: { v: vLogin }, aceite: { v: vAceite }, termos: { v: vTermos }, inicio: { v: vInicio, tab: "inicio" },
   notas: { v: vNotas, tab: "mais", p: "fiscal" }, fiscal: { v: vFiscal, tab: "mais", p: "empresa" }, conta: { v: vConta, tab: "mais" },
   vendas: { v: vVendas, tab: "vendas", p: "vendas" }, pedido: { v: vPedido, tab: "vendas", p: "vendas" }, novoPedido: { v: vNovoPedido, tab: "vendas", p: "vendas" },
   estoque: { v: vEstoque, tab: "estoque", p: "estoque" }, categorias: { v: vCategorias, tab: "mais", p: "empresa" }, inventario: { v: vInventario, tab: "estoque", p: "ajuste" }, movimentos: { v: vMovimentos, tab: "estoque", p: "estoque" },
@@ -1963,7 +1985,8 @@ function sideNav() {
     <button class="sn-me" data-a="tab" data-r="mais" aria-current="${esc(cur === "mais" ? "page" : "false")}"><span class="avatar sm">${initials(m.nome)}</span><span class="wmain"><b>${esc(m.nome)}</b><small>${esc(S.emp ? S.emp.nome : "")}</small></span>${ico("grid", 18)}</button>`;
 }
 function render() {
-  const pub = ["entrada", "login", "termos"];
+  const pub = ["entrada", "login", "termos", "aceite"];
+  if (ui.precisaAceite && SESSION && ui.route !== "termos") ui.route = "aceite"; // LGPD: sem aceite não passa daqui
   if (MODE === null && !pub.includes(ui.route)) ui.route = SB && !SESSION ? "login" : "entrada";
   const R = ROUTES[ui.route] || ROUTES.inicio;
   let html;
@@ -2790,7 +2813,7 @@ document.addEventListener("input", e => {
   if (d.d && ui.draft) { ui.draft[d.d] = t.value; if (d.d === "desc") { $("dfoot").innerHTML = draftFoot(); $("dcredit").innerHTML = draftCredit(); } if ((d.d === "desc" || d.d === "recebido") && $("dtroco")) $("dtroco").innerHTML = trocoTxt(); if ((d.d === "desc" || d.d === "sinal") && $("dsaldo")) $("dsaldo").innerHTML = saldoTxt(); return; }
   if (d.ci != null && ui.cdraft) { ui.cdraft.itens[Number(d.ci)][d.cf] = t.value; $("kfoot").innerHTML = cdraftFoot(); return; }
   if (d.kd && ui.cdraft) { ui.cdraft[d.kd] = t.value; return; }
-  if (d.l && ui.login) { ui.login[d.l] = t.value; return; }
+  if (d.l && ui.login) { ui.login[d.l] = t.type === "checkbox" ? t.checked : t.value; return; }
   if (d.fc && ui.fc) { ui.fc[d.fc] = t.value; return; }
   if (d.xf != null && ui.xml) { ui.xml.itens[Number(d.xf)].fator = t.value; return; }
   if (d.inv) { if (t.value === "") delete ui.inv[d.inv]; else ui.inv[d.inv] = t.value; invGuardar(); invAtualiza(d.inv); return; }
@@ -3006,6 +3029,17 @@ function vConta() {
   h += `<div class="menu" style="margin-top:12px"><button data-a="sheet" data-k="trocarSenha">${ico("shield")}<span class="wmain"><b>Trocar senha</b><small>Use uma senha só sua no lugar da temporária</small></span></button><button data-a="sair">${ico("building")}<span class="wmain"><b>Trocar de empresa</b><small>Ver suas empresas ou entrar em outra</small></span></button><button data-a="logout">${ico("logout")}<span class="wmain"><b>Sair da conta</b><small>Você pode entrar de novo quando quiser</small></span></button><button data-a="sheet" data-k="excluirConta">${ico("x")}<span class="wmain"><b style="color:var(--bad)">Excluir minha conta</b><small>Apaga seu login e seus acessos</small></span></button></div>`;
   return h;
 }
+/* Aceite obrigatório: conta sem aceite da versão atual (equipe criada pelo admin, entrada com código, termos novos) */
+function vAceite() {
+  const novo = !!ui.aceiteAnterior;
+  return `${marcaHtml()}<h2 style="margin-top:18px">${novo ? "Atualizamos os nossos termos" : "Antes de continuar"}</h2>
+  <p class="hint">${novo ? "Mudamos os Termos de uso e a Política de privacidade. Leia e aceite para continuar usando o app." : "Para usar o app, leia e aceite os Termos de uso e a Política de privacidade. Eles explicam quais dados tratamos, para quê e os seus direitos (LGPD)."}</p>
+  <p><button class="btn line block" data-a="go" data-r="termos">Ler os termos</button></p>
+  <button class="aceite-linha" data-a="aceiteMarca" aria-pressed="${ui.aceiteOk ? "true" : "false"}"><span class="caixa">${ui.aceiteOk ? "✓" : ""}</span><span>Li e aceito os Termos de uso e a Política de privacidade.</span></button>
+  ${ui.aceiteErr ? `<div class="note bad">${esc(ui.aceiteErr)}</div>` : ""}
+  <button class="btn block" style="margin-top:14px" data-a="aceitarTermos">Aceitar e continuar</button>
+  <button class="btn ghost block" style="margin-top:8px" data-a="logout">Sair</button>`;
+}
 function vTermos() {
   return head("Termos e privacidade", APP, { back: true }) + `<div class="legal">
   <h3>1. O serviço</h3><p>Sistema de gestão para pequenos negócios: estoque, vendas, encomendas, compras, financeiro, nota fiscal e loja online. O plano é cobrado por mês ou por ano, por Pix.</p>
@@ -3158,6 +3192,13 @@ document.addEventListener("click", travarAcao(async e => {
     /* login */
     case "loginModo": ui.login.modo = id; ui.login.err = ""; ui.login.msg = ""; render(); break;
     case "doLogin": case "doSignup": case "doConfirm": case "reenviar": case "doRecuperar": case "doNovaSenha": loginAcao(a); break;
+    case "aceitarTermos": {
+      if (!ui.aceiteOk) { ui.aceiteErr = "Marque a caixa para continuar."; render(); break; }
+      try { await SB.rpc("aceitar_termos", { p_versao: TERMOS_VERSAO, p_origem: "login", p_agente: navigator.userAgent.slice(0, 300) }).then(r => { if (r.error) throw r.error; }); ui.aceiteErr = ""; ui.aceiteOk = false; ui.precisaAceite = false; ui.route = "entrada"; await afterLogin(SESSION, true); }
+      catch (er) { ui.aceiteErr = "Não foi possível registrar agora. Verifique a internet e tente de novo."; render(); }
+      break;
+    }
+    case "aceiteMarca": ui.aceiteOk = !ui.aceiteOk; ui.aceiteErr = ""; render(); break;
     case "logout": try { await SB.auth.signOut(); } catch (er) {} try { localStorage.removeItem("decanta-atual"); } catch (er) {} break;
     case "doExcluirConta": {
       const palavra = "EXCLUIR"; if (String(s.vals.conf || "").trim().toUpperCase() !== palavra) { s.err = "Digite EXCLUIR para confirmar."; renderSheet(); break; } // a palavra é traduzida junto com o aviso
@@ -3179,7 +3220,9 @@ async function loginAcao(a) {
     if (a === "doSignup") {
       if (!String(L.nome || "").trim()) { fim("Informe seu nome."); return; }
       if (String(L.senha || "").length < 8) { fim("A senha precisa ter pelo menos 8 caracteres."); return; }
-      const { data, error } = await SB.auth.signUp({ email, password: L.senha, options: { data: { nome: L.nome.trim() } } }); if (error) throw error;
+      if (!L.aceite) { fim("Para criar a conta, marque que leu e aceita os Termos de uso e a Política de privacidade."); return; }
+      const { data, error } = await SB.auth.signUp({ email, password: L.senha, options: { data: { nome: L.nome.trim(), aceite_termos: TERMOS_VERSAO, aceite_em: new Date().toISOString() } } }); if (error) throw error;
+      try { localStorage.setItem("saus360-aceite-pend", TERMOS_VERSAO); } catch (e) {}
       L.senha = ""; if (data.session) { fim(); await afterLogin(data.session); return; }
       L.modo = "confirmar"; fim("", "Conta criada. Enviamos um código para seu e-mail."); return;
     }
