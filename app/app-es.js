@@ -4535,7 +4535,9 @@ function reduzirImg(file, max, q, prop) {
       const sx = Math.round((img.width - sw) / 2), sy = Math.round((img.height - sh) / 2);
       const k = Math.min(1, max / Math.max(sw, sh)), c = document.createElement("canvas");
       c.width = Math.max(1, Math.round(sw * k)); c.height = Math.max(1, Math.round(sh * k));
-      const g = c.getContext("2d"); g.fillStyle = "white"; // fundo do JPEG (fotos com transparência), não é cor da interface g.fillRect(0, 0, c.width, c.height); g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      const g = c.getContext("2d");
+      g.fillStyle = "white"; // fundo do JPEG (fotos com transparência), não é cor da interface
+      g.fillRect(0, 0, c.width, c.height); g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url); c.toBlob(b => b ? res(b) : rej(new Error("Imagen inválida")), "image/jpeg", q);
     };
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Imagen inválida")); };
