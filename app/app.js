@@ -3050,7 +3050,7 @@ function vTermos() {
   <h3>6. Segurança</h3><p>Conexão criptografada, separação dos dados por empresa, permissões por papel e credenciais fiscais e de pagamento guardadas só no servidor.</p>
   <h3>7. Seus direitos (LGPD)</h3><p>Você pode acessar, corrigir e exportar os dados pelo app e excluir a sua conta em Mais → Minha conta. Documentos fiscais podem ter guarda obrigatória por lei. Outros pedidos: contato@saus360.com.br.</p>
   <h3>8. Responsabilidades</h3><p>A empresa usuária responde pelas informações que cadastra, inclusive as fiscais (NCM, CFOP, tributação), que devem ser validadas com o contador.</p>
-  <p><button class="btn line block" data-a="abrirUrl" data-u="https://saus360.com.br/privacidade/">Ler a política de privacidade completa</button></p></div>`;
+  <p><button class="btn line block" data-a="abrirUrl" data-u="https://saus360.com.br/termos/">Ler os termos de uso completos</button></p><p><button class="btn line block" data-a="abrirUrl" data-u="https://saus360.com.br/privacidade/">Ler a política de privacidade completa</button></p></div>`;
 }
 
 /* ---- Importação do XML da NF-e de compra ---- */

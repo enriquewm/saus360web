@@ -312,7 +312,10 @@
       '<label class="isca" aria-hidden="true">Site<input data-f="site" tabindex="-1" autocomplete="off" value=""></label>' + linhasTotais(c, taxa);
     if (ERRO) h += '<div class="aviso erro" role="alert">' + esc(ERRO) + "</div>";
     h += '<button class="btn cheio" data-a="enviar" ' + (ENVIANDO ? "disabled" : "") + ">" + (ENVIANDO ? "Enviando…" : "Enviar pedido · " + money(c.total + taxa)) + "</button>" +
-      '<p class="nota">A loja confirma o pedido e combina o pagamento com você pelo WhatsApp. Seus dados vão só para esta loja.</p>';
+      '<p class="nota">A loja confirma o pedido e combina o pagamento com você pelo WhatsApp.</p>' +
+      '<p class="nota">Ao enviar, o seu nome, telefone' + (FORM.modo === "entrega" ? ", endereço" : "") + ' e as observações vão para ' + esc((L && L.nome) || "esta loja") +
+      ', que usa esses dados só para preparar e entregar o pedido. Para o próximo pedido, eles ficam salvos neste aparelho. ' +
+      '<a href="/privacidade/#loja" target="_blank" rel="noopener">Política de privacidade</a></p>';
     abrir(h, "Entrega e seus dados");
     if (CAMPO) { var el = document.querySelector('.folha [data-f="' + CAMPO + '"]'); if (el) el.focus(); }
   }
