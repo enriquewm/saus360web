@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de privacidade | Saus360</title>
+<meta name="description" content="Como o Saus360 trata os dados de quem visita o site, usa o app e faz pedidos nas lojas online, de acordo com a LGPD.">
+<link rel="canonical" href="https://saus360.com.br/privacidade/">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#1F2340">
+<meta property="og:title" content="Política de privacidade do Saus360">
+<meta property="og:description" content="Quais dados tratamos, para quê, com quem compartilhamos e como exercer os seus direitos (LGPD).">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Saus360">
+<meta property="og:url" content="https://saus360.com.br/privacidade/">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:image" content="https://saus360.com.br/img/og-guia-sinal-encomenda-doces.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://saus360.com.br/img/og-guia-sinal-encomenda-doces.jpg">
+<link rel="icon" type="image/svg+xml" href="/app/icons/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/app/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/app/icons/apple-touch-icon.png">
+<link rel="preload" href="/fonts/fraunces-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/app/fonts/manrope-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+
+<style>
+/* Fraunces: SIL Open Font License 1.1 */
+@font-face{font-family:"Fraunces";font-weight:600;font-display:swap;src:url(/fonts/fraunces-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Manrope";font-weight:500;font-display:swap;src:url(/app/fonts/manrope-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Manrope";font-weight:700;font-display:swap;src:url(/app/fonts/manrope-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"Manrope";font-weight:800;font-display:swap;src:url(/app/fonts/manrope-latin-800-normal.woff2) format("woff2")}
+:root{
+  --tinta:#1F2340; --tinta2:#4A4F73; --hortela:#DDF3EE; --menta:#7CD5C7; --azul:#0E7C9F;
+  --doce:#F6B93B; --doce-d:#E0A21F; --framboesa:#B8324F; --linha:#D9DEE6; --papel:#FBF8F3; --erro:#B42318;
+  --display:"Fraunces",Georgia,"Times New Roman",serif; --texto:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:76px}
+body{margin:0;font:500 17px/1.6 var(--texto);color:var(--tinta);background:#fff;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+h1,h2,h3,p{margin:0}
+h1,h2{font-family:var(--display);font-weight:600;letter-spacing:-.015em;line-height:1.1;text-wrap:balance}
+h1{font-size:clamp(36px,5.6vw,60px)}
+h2{font-size:clamp(27px,3.6vw,38px);margin-top:56px}
+h3{font:800 19px/1.3 var(--texto)}
+.wrap{max-width:1120px;margin:0 auto;padding:0 22px}
+:focus-visible{outline:3px solid var(--azul);outline-offset:3px;border-radius:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 26px;border-radius:14px;border:2px solid transparent;font:800 17px/1 var(--texto);text-decoration:none;cursor:pointer;transition:transform .12s,background .12s}
+.btn.testar{background:var(--doce);color:var(--tinta);box-shadow:0 3px 0 var(--doce-d)}
+.btn.testar:hover{background:#FFC64F;transform:translateY(-1px)}
+.btn.sm{min-height:42px;padding:0 16px;font-size:15px;border-radius:12px}
+.btn.linha{border-color:currentColor;background:transparent}
+
+.topo{position:sticky;top:0;z-index:20;background:var(--tinta);color:#fff}
+.topo .wrap{display:flex;align-items:center;gap:16px;height:64px}
+.logo{display:inline-flex;align-items:center;gap:9px;text-decoration:none;font:800 21px/1 var(--texto);letter-spacing:-.03em;color:#fff}
+.logo svg{width:34px;height:34px}
+.logo span{color:var(--menta)}
+.topo .r{margin-left:auto;display:flex;align-items:center;gap:12px}
+.topo .r a.entrar{color:#fff;font-weight:700;font-size:15px;text-decoration:none}
+
+.trilha{font-size:14px;color:var(--tinta2);padding-top:22px}
+.trilha a{text-underline-offset:3px}
+.abre{padding:18px 0 8px}
+.abre .lead{font-size:19px;color:var(--tinta2);max-width:62ch;margin-top:14px}
+
+/* Texto */
+.texto{max-width:760px;padding:24px 0 30px}
+.texto p{margin-top:16px;font-size:18px;line-height:1.7}
+.texto ol,.texto ul{padding-left:22px;margin:16px 0 0}
+.texto li{margin-top:10px;font-size:18px;line-height:1.65}
+.texto h3{margin-top:28px}
+.formula{margin-top:18px;background:var(--hortela);border-radius:16px;padding:16px 18px;font:700 17px/1.5 var(--texto)}
+.formula code{font:inherit}
+table.ex{width:100%;border-collapse:collapse;margin-top:18px;font-size:16px}
+table.ex th,table.ex td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--linha)}
+table.ex td:last-child,table.ex th:last-child{text-align:right;font-variant-numeric:tabular-nums}
+table.ex tfoot td{font-weight:800}
+.duvidas details{border-bottom:1px solid var(--linha);padding:16px 0}
+.duvidas summary{font:800 18px/1.4 var(--texto);cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:16px}
+.duvidas summary::after{content:"+";font-size:24px;line-height:1;color:var(--azul)}
+.duvidas details[open] summary::after{content:"−"}
+.duvidas details p{margin-top:10px}
+.fim{background:var(--tinta);color:#fff;margin-top:40px;padding:56px 0}
+.fim h2{margin:0;color:#fff}
+.fim p{color:#C9CDE0;font-size:18px;max-width:60ch;margin-top:12px}
+.fim .btn{margin-top:22px}
+.rodape{background:var(--tinta);color:#C9CDE0;border-top:1px solid rgba(255,255,255,.14);padding:22px 0 26px;font-size:14.5px}
+.rodape .wrap{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+.rodape .logo{font-size:18px}
+.rodape .links{margin-left:auto;display:flex;flex-wrap:wrap;gap:18px}
+.rodape a{text-underline-offset:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){.btn{transition:none}}
+
+.topo .nav{display:flex;gap:22px;margin-left:28px;font-weight:700;font-size:15px}
+.topo .nav a{text-decoration:none;opacity:.85}.topo .nav a:hover{opacity:1}
+.texto h1{margin-top:6px}
+.meta{font-size:14.5px;color:var(--tinta2);margin-top:14px!important}
+.lead{font-size:20px!important;color:var(--tinta2);line-height:1.6}
+.sumario{margin-top:26px;background:var(--papel);border:1px solid #EFE7DA;border-radius:16px;padding:16px 20px}
+.sumario p{margin:0!important;font-weight:800;font-size:15px!important}
+.sumario ul{margin:8px 0 0;padding-left:20px}
+.sumario li{font-size:16px!important;margin-top:4px!important}
+.sumario a{text-underline-offset:3px}
+.texto a{color:var(--azul);font-weight:700;text-underline-offset:3px}
+.texto .btn{color:var(--tinta)}
+.nota{margin-top:28px;background:var(--hortela);border-radius:18px;padding:18px 20px}
+.nota p{margin:0 0 12px!important;font-size:17px!important}
+.baixar{margin-top:26px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;background:var(--tinta);color:#fff;border-radius:20px;padding:22px 24px}
+.baixar .t{font:600 24px/1.2 var(--display)!important;margin:0!important;color:#fff}
+.baixar p{margin:6px 0 0!important;font-size:15.5px!important;color:#C9CDE0}
+.baixar .btn{color:var(--tinta)}
+.msg{margin-top:18px;background:#E7F8E9;border-radius:16px 16px 16px 4px;padding:16px 18px;font-size:16.5px;line-height:1.55;max-width:520px;box-shadow:0 1px 0 rgba(0,0,0,.06)}
+table.ex tfoot tr:last-child td{border-bottom:0}
+.relacionados{padding:10px 0 50px;max-width:1000px}
+.cartoes{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:18px}
+.cartao{display:block;text-decoration:none;background:#fff;border:1.5px solid var(--linha);border-radius:18px;padding:18px;transition:border-color .12s}
+.cartao:hover{border-color:var(--tinta)}
+.cartao b{display:block;font:600 20px/1.2 var(--display);letter-spacing:-.01em}
+.cartao span{display:block;margin-top:8px;font-size:15px;color:var(--tinta2)}
+.cartao.calc{background:var(--papel);border-color:#EFE7DA}
+.indice{padding:10px 0 60px;max-width:1000px}
+.indice .lead{max-width:62ch;margin-top:14px}
+.indice h2{margin-top:44px}
+.destaque{display:block;margin-top:28px;text-decoration:none;background:var(--tinta);color:#fff;border-radius:22px;padding:24px}
+.destaque b{display:block;font:600 28px/1.15 var(--display)}
+.destaque span{display:block;margin-top:8px;color:#C9CDE0;font-size:17px;max-width:60ch}
+@media (max-width:760px){.topo .nav{display:none}.topo .r a.entrar{display:none}.lead{font-size:18px!important}.texto p,.texto li{font-size:17px}}
+@media (prefers-reduced-motion:reduce){.cartao{transition:none}}
+table.ex td:last-child,table.ex th:last-child{white-space:nowrap;padding-left:12px}
+
+</style>
+</head>
+<body>
+<header class="topo">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Saus360, página inicial"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="msescuroa" gradientUnits="userSpaceOnUse" x1="30" y1="16" x2="62" y2="50"><stop offset="0" stop-color="#2B9FCB"/><stop offset="1" stop-color="#47BEDD"/></linearGradient><linearGradient id="msescurob" gradientUnits="userSpaceOnUse" x1="50" y1="50" x2="40" y2="84"><stop offset="0" stop-color="#47BEDD"/><stop offset="1" stop-color="#7CD5C7"/></linearGradient></defs><g fill="none" stroke-width="15" stroke-linejoin="miter" stroke-miterlimit="4"><path d="M71.2 28.24 L50 16 L20.56 33 L20.56 50 L52 50" stroke="url(#msescuroa)"/><path d="M48 50 L79.44 50 L79.44 67 L50 84 L28.8 71.76" stroke="url(#msescurob)"/></g><path d="M50 33.5 L64.3 41.75 L64.3 58.25 L50 66.5 L35.7 58.25 L35.7 41.75 Z" style="fill:#1F2340;stroke:#1F2340" stroke-width="3" stroke-linejoin="round"/><path d="M50 36 L62.1 43 L50 50 L37.9 43 Z" fill="#FFFFFF"/><path d="M37.9 43 L50 50 L50 64 L37.9 57 Z" fill="#E4E7EF"/><path d="M50 50 L62.1 43 L62.1 57 L50 64 Z" fill="#C3C9DA"/><path d="M50 36 L62.1 43 L62.1 57 L50 64 L37.9 57 L37.9 43 Z M37.9 43 L50 50 L62.1 43 M50 50 L50 64" fill="none" stroke="#464B71" stroke-width="1.3" stroke-linejoin="round"/><path d="M43.9 39.5 L56 46.5 L56 50.8" fill="none" stroke="#464B71" stroke-width="1.3" stroke-linejoin="round" opacity=".85"/></svg><b>Saus<span>360</span></b></a>
+    <nav class="nav" aria-label="Seções"><a href="/guias/">Guias</a><a href="/calculadora-preco-doces/">Calculadora</a></nav>
+    <div class="r">
+      <a class="entrar" href="/app/">Entrar</a>
+      <a class="btn testar sm" href="/app/#criar">Testar grátis</a>
+    </div>
+  </div>
+</header>
+<main>
+<div class="wrap">
+  <nav class="trilha" aria-label="Você está em"><a href="/">Saus360</a> › Política de privacidade</nav>
+  <article class="texto">
+    <h1>Política de privacidade</h1>
+    <p class="meta">Atualizada em 14 de novembro de 2026</p>
+    <p class="lead">Esta página explica quais dados o Saus360 trata, para quê, com quem compartilha e como você exerce os seus direitos, de acordo com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018, LGPD).</p>
+    <nav class="sumario" aria-label="Nesta página"><p>Nesta página</p><ul>
+      <li><a href="#quem">Quem somos e quem decide sobre os dados</a></li><li><a href="#site">Visitantes do site</a></li><li><a href="#app">Quem usa o app</a></li>
+      <li><a href="#loja">Clientes das lojas online</a></li><li><a href="#compartilhamento">Com quem compartilhamos</a></li><li><a href="#guarda">Por quanto tempo guardamos</a></li>
+      <li><a href="#seguranca">Segurança</a></li><li><a href="#direitos">Seus direitos</a></li><li><a href="#cookies">Cookies e armazenamento no aparelho</a></li><li><a href="#contato">Contato</a></li></ul></nav>
+
+    <h2 id="quem">Quem somos e quem decide sobre os dados</h2>
+    <p>O Saus360 é um sistema de gestão para pequenos negócios (estoque, vendas, encomendas, financeiro, nota fiscal e loja online), disponível em saus360.com.br e no aplicativo para Android.</p>
+    <p>Para os dados da sua conta e da navegação no site, o Saus360 é o <b>controlador</b>. Para os dados que cada empresa cadastra no app (clientes, fornecedores, pedidos, lançamentos), a <b>empresa usuária é a controladora</b> e o Saus360 atua como <b>operador</b>: guardamos e processamos essas informações apenas para prestar o serviço, conforme as instruções da empresa.</p>
+
+    <h2 id="site">Visitantes do site</h2>
+    <p>Contamos as visitas para saber quais páginas e canais trazem pessoas ao site. Registramos a página visitada, o site de origem (por exemplo, instagram.com), parâmetros de campanha do link, o tipo de aparelho (celular, tablet ou computador) e o idioma. <b>Não guardamos o seu IP, nome, e-mail ou localização nessa contagem.</b></p>
+    <p>Só se você tocar em <b>Aceitar</b> no aviso de cookies guardamos no seu aparelho um código aleatório que permite saber se a visita é de alguém que já esteve aqui. Sem o aceite, nada fica salvo no aparelho. Base legal: legítimo interesse (art. 7º, IX) para a contagem anônima e consentimento (art. 7º, I) para o código no aparelho.</p>
+
+    <h2 id="app">Quem usa o app</h2>
+    <ul>
+      <li><b>Conta:</b> nome, e-mail e senha (guardada de forma criptografada, nunca em texto).</li>
+      <li><b>Empresa:</b> nome, CNPJ/CPF, telefone, cidade e dados fiscais informados por você.</li>
+      <li><b>Dados de operação:</b> produtos, clientes, fornecedores, pedidos, compras, caixa e lançamentos que a sua equipe cadastra.</li>
+      <li><b>Registros de uso:</b> quem fez cada operação e quando (trilha de auditoria) e relatórios técnicos de erros do app, para corrigir falhas.</li>
+      <li><b>Pagamento da mensalidade:</b> valor, plano e situação do Pix. Os dados do pagamento são tratados pelo Mercado Pago; não recebemos dados de cartão nem da sua conta bancária.</li>
+    </ul>
+    <p>Usamos esses dados para prestar o serviço, emitir notas fiscais quando você pede, cobrar a mensalidade, dar suporte e manter a segurança. Base legal: execução de contrato (art. 7º, V), cumprimento de obrigação legal (art. 7º, II) e legítimo interesse para segurança e prevenção de fraude (art. 7º, IX). <b>Não vendemos dados e não usamos os seus dados para anúncios.</b></p>
+
+    <h2 id="loja">Clientes das lojas online</h2>
+    <p>Quando você faz um pedido na loja online de uma empresa (endereço saus360.com.br/loja/…), enviamos para essa empresa o nome, o telefone, a forma de retirada ou entrega, o endereço (se houver entrega), a data desejada e as observações do pedido. A <b>empresa da loja é a controladora</b> desses dados e é quem fala com você sobre o pedido. Para exercer os seus direitos sobre esses dados, fale com a própria loja; se precisar, também ajudamos pelo contato abaixo.</p>
+
+    <h2 id="compartilhamento">Com quem compartilhamos</h2>
+    <p>Somente com os fornecedores necessários para o serviço funcionar:</p>
+    <ul>
+      <li><b>Supabase</b>: banco de dados, login e funções do servidor, hospedados na região de São Paulo (Brasil).</li>
+      <li><b>GitHub Pages</b>: hospedagem das páginas do site.</li>
+      <li><b>Mercado Pago</b>: pagamento da mensalidade por Pix.</li>
+      <li><b>Focus NFe</b> e a <b>SEFAZ</b>: apenas quando a empresa emite nota fiscal pelo app.</li>
+    </ul>
+    <p>Também podemos informar dados a autoridades quando a lei ou uma ordem judicial exigir. Cada empresa enxerga só os próprios dados; ninguém de outra empresa tem acesso a eles.</p>
+
+    <h2 id="guarda">Por quanto tempo guardamos</h2>
+    <p>Enquanto a conta existir. Quando você exclui a conta (no app, em <b>Mais › Minha conta</b>), apagamos o seu acesso e, se você for a única pessoa da empresa, os dados da empresa. Documentos fiscais e registros de pagamento podem ser mantidos pelo prazo que a lei exige (em geral, 5 anos). Registros técnicos de erros e visitas são apagados ou anonimizados com o tempo.</p>
+
+    <h2 id="seguranca">Segurança</h2>
+    <p>Usamos conexão criptografada (HTTPS) em todo o tráfego, separação dos dados por empresa no banco de dados, permissões por papel (administrador, gerente, vendedor e estoque), credenciais fiscais e de pagamento guardadas só no servidor e acesso administrativo protegido por biometria no celular. Nenhum sistema é 100% imune; se acontecer um incidente que possa trazer risco a você, avisaremos você e a ANPD, como manda a lei.</p>
+
+    <h2 id="direitos">Seus direitos</h2>
+    <p>Pela LGPD (art. 18), você pode pedir: confirmação de que tratamos os seus dados, acesso, correção, anonimização ou exclusão do que for desnecessário, portabilidade, informação sobre com quem compartilhamos, e revogar o consentimento. Boa parte você faz direto no app (editar, exportar e excluir a conta). Para o resto, escreva para o contato abaixo; respondemos em até 15 dias. Se não ficar satisfeito, você também pode reclamar à Autoridade Nacional de Proteção de Dados (<a href="https://www.gov.br/anpd" rel="noopener">ANPD</a>).</p>
+    <p>O Saus360 não é destinado a menores de 18 anos.</p>
+
+    <h2 id="cookies">Cookies e armazenamento no aparelho</h2>
+    <ul>
+      <li><b>Essenciais</b> (sempre ativos): manter você conectado no app, lembrar o idioma, o tema e a sua escolha sobre cookies.</li>
+      <li><b>Contagem de visitas</b> (só com o seu aceite): o código aleatório explicado acima.</li>
+    </ul>
+    <p>Não usamos cookies de anúncios, de redes sociais ou de rastreamento de terceiros.</p>
+    <p><button type="button" class="btn sm" id="rever-cookies">Rever minha escolha de cookies</button> <span id="rever-ok" role="status"></span></p>
+
+    <h2 id="contato">Contato</h2>
+    <p>Dúvidas, pedidos sobre os seus dados ou avisos de segurança: <a href="mailto:contato@saus360.com.br">contato@saus360.com.br</a>.</p>
+    <p>Podemos atualizar esta política quando o serviço mudar. A data no topo mostra a última versão; mudanças importantes serão avisadas no app.</p>
+  </article>
+</div>
+</main>
+
+<footer class="rodape">
+  <div class="wrap">
+    <a class="logo" href="/" aria-label="Saus360, página inicial"><b>Saus<span>360</span></b></a>
+    <span>© 2026 Saus360. Feito em Santa Catarina.</span>
+    <div class="links">
+      <a href="/">Sistema para confeitaria</a>
+      <a href="/calculadora-preco-doces/">Calculadora de preço de doces</a>
+      <a href="/guias/">Guias para confeitaria</a>
+      <a href="/privacidade/">Política de privacidade</a>
+      <a href="mailto:contato@saus360.com.br">Contato</a>
+    </div>
+  </div>
+</footer>
+<script>
+document.getElementById("rever-cookies").addEventListener("click", function () {
+  try { localStorage.removeItem("saus360-cookies"); localStorage.removeItem("saus360-v"); } catch (e) {}
+  var s = document.createElement("script"); s.src = "/cookies.js?" + Date.now(); document.body.appendChild(s);
+});
+</script>
+<script src="/cookies.js" defer></script>
+</body>
+</html>

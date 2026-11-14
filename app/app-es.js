@@ -3007,15 +3007,16 @@ function vConta() {
   return h;
 }
 function vTermos() {
-  return head("Términos y privacidad", APP, { back: true }) + `<div class="note warn">Modelo inicial. Revísalo con un abogado antes de publicar la app.</div><div class="legal">
-  <h3>1. El servicio</h3><p>O ${APP} es una aplicación de gestión para comercios: inventario, ventas, consignación, finanzas y emisión de documentos fiscales mediante un socio integrado.</p>
-  <h3>2. Datos que recopilamos</h3><p>Nombre y correo de quien usa la app; datos que la empresa registra (productos, clientes, proveedores, pedidos, movimientos); registros de uso para auditoría (quién hizo cada operación y cuándo).</p>
-  <h3>3. Para qué los usamos</h3><p>Exclusivamente para prestar el servicio: guardar y mostrar la información de la empresa a los miembros autorizados, emitir documentos fiscales cuando se solicite y dar soporte. No vendemos datos.</p>
-  <h3>4. Compartir datos</h3><p>Con proveedores necesarios para el funcionamiento: alojamiento de la base de datos y emisor de documentos fiscales, que transmite las notas a la SEFAZ. Cada empresa solo accede a sus propios datos.</p>
-  <h3>5. Seguridad</h3><p>Acceso con usuario individual, separación de datos por empresa y permisos por rol. Las credenciales fiscales quedan solo en el servidor.</p>
-  <h3>6. Tus derechos (LGPD)</h3><p>Puedes acceder, corregir y exportar los datos de la empresa desde la propia app, y eliminar tu cuenta en Más → Mi cuenta. Los documentos fiscales pueden tener resguardo obligatorio por ley.</p>
-  <h3>7. Responsabilidades</h3><p>La empresa usuaria es responsable de la información fiscal registrada y de validarla con su contador.</p>
-  <h3>8. Contacto</h3><p>Dudas sobre privacidad: indica aquí el correo de soporte de ${APP}.</p></div>`;
+  return head("Términos y privacidad", APP, { back: true }) + `<div class="legal">
+  <h3>1. El servicio</h3><p>Sistema de gestión para pequeños negocios: inventario, ventas, encargos, compras, finanzas, factura y tienda online. El plan se cobra por mes o por año, por Pix.</p>
+  <h3>2. Datos que tratamos</h3><p>Nombre, correo y contraseña cifrada de quien usa la app; datos de la empresa; lo que el equipo registra (productos, clientes, proveedores, pedidos, movimientos); registros de auditoría (quién hizo cada operación y cuándo) e informes técnicos de errores.</p>
+  <h3>3. Para qué los usamos</h3><p>Solo para prestar el servicio, emitir facturas cuando lo pides, cobrar la mensualidad, dar soporte y mantener la seguridad. No vendemos datos ni los usamos para anuncios.</p>
+  <h3>4. Quién decide sobre los datos</h3><p>Los datos de clientes y proveedores que tu empresa registra son de tu empresa: ella es la responsable y nosotros solo los guardamos y procesamos para que el servicio funcione.</p>
+  <h3>5. Datos compartidos</h3><p>Solo con los proveedores necesarios: base de datos en Brasil (Supabase, São Paulo), Mercado Pago para el Pix de la mensualidad y Focus NFe/SEFAZ cuando emites factura. Cada empresa ve solo sus propios datos.</p>
+  <h3>6. Seguridad</h3><p>Conexión cifrada, separación de datos por empresa, permisos por rol y credenciales fiscales y de pago guardadas solo en el servidor.</p>
+  <h3>7. Tus derechos (LGPD)</h3><p>Puedes acceder, corregir y exportar los datos desde la app y eliminar tu cuenta en Más → Mi cuenta. Los documentos fiscales pueden tener conservación obligatoria por ley. Otras solicitudes: contato@saus360.com.br.</p>
+  <h3>8. Responsabilidades</h3><p>La empresa usuaria responde por la información que registra, incluidas las fiscales (NCM, CFOP, tributación), que deben validarse con el contador.</p>
+  <p><button class="btn line block" data-a="abrirUrl" data-u="https://saus360.com.br/privacidade/">Leer la política de privacidad completa</button></p></div>`;
 }
 
 /* ---- Importação do XML da NF-e de compra ---- */

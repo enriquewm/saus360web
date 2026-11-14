@@ -17,12 +17,12 @@
     pt: {
       site: "Usamos cookies essenciais para o site funcionar. Com a sua permissão, também lembramos este aparelho para contar visitas, sem identificar você. Sem anúncios e sem venda de dados.",
       app: "O Saus360 guarda neste aparelho só o essencial: o seu login e as suas preferências. Não usamos cookies de anúncio nem de rastreamento.",
-      sim: "Aceitar", nao: "Só os essenciais", ok: "Entendi", rot: "Aviso de cookies"
+      sim: "Aceitar", nao: "Só os essenciais", ok: "Entendi", rot: "Aviso de cookies", mais: "Política de privacidade"
     },
     es: {
       site: "Usamos cookies esenciales para que el sitio funcione. Con tu permiso, también recordamos este dispositivo para contar visitas, sin identificarte. Sin anuncios y sin venta de datos.",
       app: "Saus360 guarda en este dispositivo solo lo esencial: tu inicio de sesión y tus preferencias. No usamos cookies de anuncios ni de rastreo.",
-      sim: "Aceptar", nao: "Solo las esenciales", ok: "Entendido", rot: "Aviso de cookies"
+      sim: "Aceptar", nao: "Solo las esenciales", ok: "Entendido", rot: "Aviso de cookies", mais: "Política de privacidad"
     }
   }[lang];
 
@@ -35,6 +35,9 @@
       + (escuro ? "background:#1b1e2b;color:#ecebe6;border:1px solid #2f3346;" : "background:#fff;color:#22243a;border:1px solid #e3e1d8;");
     var p = document.createElement("p");
     p.style.cssText = "margin:0 0 12px"; p.textContent = app ? T.app : T.site;
+    var lk = document.createElement("a"); lk.href = "/privacidade/"; lk.textContent = T.mais;
+    lk.style.cssText = "color:inherit;text-decoration:underline;margin-left:6px;white-space:nowrap";
+    p.appendChild(document.createTextNode(" ")); p.appendChild(lk);
     cx.appendChild(p);
     var linha = document.createElement("div");
     linha.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end";

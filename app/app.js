@@ -3007,15 +3007,16 @@ function vConta() {
   return h;
 }
 function vTermos() {
-  return head("Termos e privacidade", APP, { back: true }) + `<div class="note warn">Modelo inicial. Revise com um advogado antes de publicar o app.</div><div class="legal">
-  <h3>1. O serviço</h3><p>O ${APP} é um aplicativo de gestão para comércio de vinhos: estoque, vendas, consignação, financeiro e emissão de documentos fiscais por meio de parceiro integrado.</p>
-  <h3>2. Dados que coletamos</h3><p>Nome e e-mail de quem usa o app; dados que a empresa cadastra (produtos, clientes, fornecedores, pedidos, lançamentos); registros de uso para auditoria (quem fez cada operação e quando).</p>
-  <h3>3. Para que usamos</h3><p>Exclusivamente para prestar o serviço: guardar e mostrar as informações da empresa aos membros autorizados, emitir notas fiscais quando solicitado e dar suporte. Não vendemos dados.</p>
-  <h3>4. Compartilhamento</h3><p>Com provedores necessários ao funcionamento: hospedagem do banco de dados e emissor de documentos fiscais, que transmite as notas à SEFAZ. Cada empresa só acessa os próprios dados.</p>
-  <h3>5. Segurança</h3><p>Acesso por login individual, separação de dados por empresa e permissões por papel. Credenciais fiscais ficam somente no servidor.</p>
-  <h3>6. Seus direitos (LGPD)</h3><p>Você pode acessar, corrigir e exportar os dados da empresa pelo próprio app, e excluir sua conta em Mais → Minha conta. Documentos fiscais podem ter guarda obrigatória por lei.</p>
-  <h3>7. Responsabilidades</h3><p>A empresa usuária é responsável pelas informações fiscais cadastradas (NCM, CFOP, tributação) e por validá-las com seu contador.</p>
-  <h3>8. Contato</h3><p>Dúvidas sobre privacidade: informe aqui o e-mail de suporte do ${APP}.</p></div>`;
+  return head("Termos e privacidade", APP, { back: true }) + `<div class="legal">
+  <h3>1. O serviço</h3><p>Sistema de gestão para pequenos negócios: estoque, vendas, encomendas, compras, financeiro, nota fiscal e loja online. O plano é cobrado por mês ou por ano, por Pix.</p>
+  <h3>2. Dados que tratamos</h3><p>Nome, e-mail e senha criptografada de quem usa o app; dados da empresa; o que a equipe cadastra (produtos, clientes, fornecedores, pedidos, lançamentos); registros de auditoria (quem fez cada operação e quando) e relatórios técnicos de erros.</p>
+  <h3>3. Para que usamos</h3><p>Só para prestar o serviço, emitir notas quando você pede, cobrar a mensalidade, dar suporte e manter a segurança. Não vendemos dados e não usamos para anúncios.</p>
+  <h3>4. Quem decide sobre os dados</h3><p>Os dados de clientes e fornecedores que a sua empresa cadastra são da sua empresa: ela é a controladora e nós apenas guardamos e processamos para o serviço funcionar.</p>
+  <h3>5. Compartilhamento</h3><p>Só com os fornecedores necessários: banco de dados no Brasil (Supabase, São Paulo), Mercado Pago para o Pix da mensalidade e Focus NFe/SEFAZ quando você emite nota. Cada empresa enxerga apenas os próprios dados.</p>
+  <h3>6. Segurança</h3><p>Conexão criptografada, separação dos dados por empresa, permissões por papel e credenciais fiscais e de pagamento guardadas só no servidor.</p>
+  <h3>7. Seus direitos (LGPD)</h3><p>Você pode acessar, corrigir e exportar os dados pelo app e excluir a sua conta em Mais → Minha conta. Documentos fiscais podem ter guarda obrigatória por lei. Outros pedidos: contato@saus360.com.br.</p>
+  <h3>8. Responsabilidades</h3><p>A empresa usuária responde pelas informações que cadastra, inclusive as fiscais (NCM, CFOP, tributação), que devem ser validadas com o contador.</p>
+  <p><button class="btn line block" data-a="abrirUrl" data-u="https://saus360.com.br/privacidade/">Ler a política de privacidade completa</button></p></div>`;
 }
 
 /* ---- Importação do XML da NF-e de compra ---- */
