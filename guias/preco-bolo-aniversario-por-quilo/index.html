@@ -359,12 +359,13 @@ table.ex td:last-child,table.ex th:last-child{white-space:nowrap;padding-left:12
   } catch (e) {}
   if (navigator.webdriver || /bot|crawl|spider|preview|headless|lighthouse|facebookexternalhit|whatsapp/i.test(navigator.userAgent || "")) return;
   var vid = "";
-  try { vid = localStorage.getItem("saus360-v") || ""; } catch (e) {}
+  var aceitou = false;
+  try { aceitou = localStorage.getItem("saus360-cookies") === "sim"; vid = aceitou ? localStorage.getItem("saus360-v") || "" : ""; } catch (e) {} // LGPD: sem aceite, nada fica salvo
   if (!/^[a-f0-9]{16,40}$/.test(vid)) {
     var b = new Uint8Array(12);
     try { crypto.getRandomValues(b); } catch (e) { for (var i = 0; i < 12; i++) b[i] = Math.floor(Math.random() * 256); }
     vid = Array.prototype.map.call(b, function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
-    try { localStorage.setItem("saus360-v", vid); } catch (e) {}
+    if (aceitou) try { localStorage.setItem("saus360-v", vid); } catch (e) {}
   }
   var w = window.innerWidth || 1024, tela = w < 600 ? "celular" : w < 1024 ? "tablet" : "computador";
   var de = "";
@@ -391,5 +392,6 @@ table.ex td:last-child,table.ex th:last-child{white-space:nowrap;padding-left:12
 })();
 
 </script>
+<script src="/cookies.js" defer></script>
 </body>
 </html>
