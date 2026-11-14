@@ -1,0 +1,1 @@
+(function(){var l;try{l=localStorage.getItem("saus360-idioma")}catch(e){}if(l!=="es"&&l!=="pt")l=/^es/i.test(navigator.language||"")?"es":"pt";document.documentElement.lang=l==="es"?"es":"pt-BR";document.write('<script src="'+(l==="es"?"app-es.js":"app.js")+'"><\/script>')})();

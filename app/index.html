@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://yawimfjkcntexqantjgy.supabase.co; font-src 'self' data:; connect-src 'self' https://yawimfjkcntexqantjgy.supabase.co wss://yawimfjkcntexqantjgy.supabase.co; media-src 'self' blob: mediastream:; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <meta name="theme-color" content="#F2F2ED">
@@ -635,6 +636,6 @@ label.btn.disabled{opacity:.6;pointer-events:none}
 </section>
 <div id="scanner" hidden><video id="scanVideo" playsinline muted></video><div class="frame"></div><p class="scan-hint">Aponte a câmera para o código de barras</p><button class="btn" data-a="scanStop">Cancelar</button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="config.js"></script><script src="native.js"></script><script>(function(){var l;try{l=localStorage.getItem("saus360-idioma")}catch(e){}if(l!=="es"&&l!=="pt")l=/^es/i.test(navigator.language||"")?"es":"pt";document.documentElement.lang=l==="es"?"es":"pt-BR";document.write('<script src="'+(l==="es"?"app-es.js":"app.js")+'"><\/script>')})()</script>
+<script src="config.js"></script><script src="native.js"></script><script src="idioma.js"></script>
 </body>
 </html>
