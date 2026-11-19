@@ -405,6 +405,18 @@ section.bloco{padding:84px 0}
   .rodape{padding-bottom:100px}
 }
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.btn,.barra i,.fixo{transition:none}}
+/* Quanto cobrar (links internos para as guias) */
+.sub-precos{color:var(--tinta2);font-size:17px;max-width:62ch;margin:10px 0 0}
+.precos-doces{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 44px;margin-top:30px}
+.precos-doces h3{font:600 21px/1.25 var(--display);margin:0 0 8px;color:var(--tinta)}
+.precos-doces ul{list-style:none;margin:0;padding:0}
+.precos-doces li{border-bottom:1px dashed var(--pontilhado)}
+.precos-doces a{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:11px 0;color:var(--tinta);font-weight:700;text-decoration:none}
+.precos-doces a:hover span,.precos-doces a:focus-visible span{color:var(--azul);text-decoration:underline}
+.precos-doces b{font-weight:800;white-space:nowrap}
+.precos-doces small{font-weight:600;color:var(--tinta2);font-size:13px}
+.precos-doces .todos-guias{display:inline-block;margin-top:14px;padding:0;color:var(--azul);font-weight:800;text-decoration:underline}
+@media (max-width:860px){.precos-doces{grid-template-columns:1fr;gap:22px}}
 </style>
 </head>
 <body>
@@ -583,6 +595,20 @@ section.bloco{padding:84px 0}
     <p class="fino" data-i="fine">Valores em reais, para empresas no Brasil. Nota fiscal (NF-e e NFC-e) no Food: em breve, como adicional de R$ 49/mês.</p>
   </div>
 </section>
+
+<!-- guias:inicio (gerado por tools/seo/gen_guias.py) -->
+<section class="bloco" id="quanto-cobrar">
+  <div class="wrap">
+    <h2>Quanto cobrar pelos seus doces</h2>
+    <p class="sub-precos">Fichas de custo com preço sugerido, prontas para abrir na calculadora e trocar pelos seus preços.</p>
+    <div class="precos-doces">
+      <div><h3>Docinhos</h3><ul><li><a href="/guias/quanto-cobrar-brigadeiro-gourmet/"><span>Brigadeiro gourmet</span><b>R$ 4,25<small>/unidade</small></b></a></li><li><a href="/guias/quanto-cobrar-bem-casado/"><span>Bem-casado</span><b>R$ 5,95<small>/unidade</small></b></a></li><li><a href="/guias/quanto-cobrar-cone-trufado/"><span>Cone trufado</span><b>R$ 15,00<small>/cone</small></b></a></li><li><a href="/guias/quanto-cobrar-pao-de-mel/"><span>Pão de mel</span><b>R$ 9,15<small>/unidade</small></b></a></li><li><a href="/guias/quanto-cobrar-trufa-de-chocolate/"><span>Trufa de chocolate</span><b>R$ 5,00<small>/unidade</small></b></a></li><li><a href="/guias/quanto-cobrar-palha-italiana/"><span>Palha italiana</span><b>R$ 5,45<small>/unidade</small></b></a></li></ul></div>
+      <div><h3>Bolos e sobremesas</h3><ul><li><a href="/guias/quanto-cobrar-bolo-de-pote/"><span>Bolo de pote</span><b>R$ 14,50<small>/pote</small></b></a></li><li><a href="/guias/quanto-cobrar-brownie/"><span>Brownie</span><b>R$ 7,55<small>/unidade</small></b></a></li><li><a href="/guias/quanto-cobrar-cupcake/"><span>Cupcake</span><b>R$ 10,50<small>/unidade</small></b></a></li><li><a href="/guias/quanto-cobrar-torta-de-limao/"><span>Torta de limão</span><b>R$ 11,00<small>/fatia</small></b></a></li><li><a href="/guias/quanto-cobrar-bolo-de-cenoura/"><span>Bolo de cenoura</span><b>R$ 7,20<small>/pedaço</small></b></a></li><li><a href="/guias/quanto-cobrar-pudim/"><span>Pudim</span><b>R$ 7,80<small>/fatia</small></b></a></li></ul></div>
+      <div><h3>Guias grátis</h3><ul class="so-link"><li><a href="/calculadora-preco-doces/"><span>Calculadora de preço de doces</span></a></li><li><a href="/guias/planilha-custos-confeitaria/"><span>Planilha de custos grátis</span></a></li><li><a href="/guias/ficha-tecnica-confeitaria/"><span>Como fazer ficha técnica</span></a></li><li><a href="/guias/preco-cento-docinhos/"><span>Preço do cento de docinhos</span></a></li><li><a href="/guias/preco-bolo-aniversario-por-quilo/"><span>Preço do bolo por quilo</span></a></li><li><a href="/guias/sinal-encomenda-doces/"><span>Quanto cobrar de sinal</span></a></li><li><a href="/guias/panetone-trufado-para-vender/"><span>Panetone trufado para vender</span></a></li></ul><a class="todos-guias" href="/guias/">Ver todos os guias</a></div>
+    </div>
+  </div>
+</section>
+<!-- guias:fim -->
 
 <section class="bloco" id="duvidas">
   <div class="wrap junto">
