@@ -15,10 +15,10 @@
   var slug = (m ? m[1] : (new URLSearchParams(location.search).get("l") || "mimo-elegance")).toLowerCase();
   if (!/^[a-z0-9-]{3,40}$/.test(slug)) slug = "";
 
-  /* CARRO: embalagens e combos (chave → quantidade). PECAS: canecas, uma linha para cada jeito de personalizar (frase, foto, recado). */
+  /* CARRO: embalagens e combos (chave → quantidade). PECAS: canecas, uma linha para cada jeito de personalizar (frase, foto da frente, foto do verso, recado). */
   var L = null, NOME = "", PRODS = [], COMBOS = [], CARRO = {}, PECAS = [], BUSCA = "", ENVIANDO = false, ERRO = "", CAMPO = "", OUTRA = false, QF = 1, ED = null;
   var FORM = { nome: "", fone: "", modo: "", end: "", data: "", hora: "", obs: "", site: "" };
-  var HERO = { v: "me_cn_branca", t: "", quente: false, foto: null, n: 0 };
+  var HERO = { v: "me_cn_branca", t: "", quente: false, foto: null, verso: null, n: 0 };
   var MAXFRASE = 36, MAXREC = 120;
   var ORDEM_HERO = ["me_cn_branca", "me_cn_cor_rosa", "me_cn_cor_azul", "me_cn_coracao", "me_cn_magica"];
   var SELOS = { novo: "Novidade", top: "Mais pedido", limitado: "Edição limitada" };
@@ -55,6 +55,7 @@
     /* marca da loja: uma caneca branca no círculo cobalto */
     camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.500h3l1.500-2.500h7L17 8.500h3V19H4z"/><circle cx="12" cy="13.500" r="3.500"/></svg>',
     lapis: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16.500 4.500a2.100 2.100 0 013 3L8 19l-4 1z"/><path d="M14 7l3 3"/></svg>',
+    giro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>',
     caneca: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h10v7a4 4 0 01-4 4H9a4 4 0 01-4-4V8z"/><path d="M15 10h1.500a2.500 2.500 0 010 5H15"/><path d="M8 4.500c0 .800.800.800.800 1.600M11 4.500c0 .800.800.800.800 1.600"/></svg>'
   };
 
@@ -178,13 +179,179 @@
   var MINI = "21 24 172 172";
   var visual = function (o) { return imgOk(o.foto) ? '<img src="' + esc(o.foto) + '" alt="" loading="lazy" decoding="async">' : ilustra(o, { vb: MINI }); };
 
+  /* ---------- caneca em 3D: o cliente gira com o dedo para ver a frente e o verso ----------
+     Desenho em canvas, sem bibliotecas (a página só roda código do próprio site): a estampa (frente, verso e frase)
+     vira uma faixa que envolve o corpo, e cada coluna de pixels do corpo mostra o pedaço da faixa que está de frente.
+     A frente fica no meio da faixa, o verso nas pontas e a alça entre os dois, como na sublimação de verdade. */
+  var TEM3D = (function () { try { var c = document.createElement("canvas"); return !!(c.getContext && c.getContext("2d") && window.requestAnimationFrame); } catch (e) { return false; } })();
+  var CALMO = !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  var IMGS = Object.create(null), VIEWS = [], DICA = false, RY = 9;
+  function imagem(src) {
+    if (!src) return null;
+    var im = IMGS[src];
+    if (!im) {
+      im = IMGS[src] = new Image();
+      im.onload = function () { im.pronta = true; VIEWS.forEach(function (v) { v.sujo(); }); };
+      im.src = src;
+    }
+    return im.pronta && im.naturalWidth ? im : null;
+  }
+  function retArred(t, x, y, w, h, r) { t.beginPath(); t.moveTo(x + r, y); t.arcTo(x + w, y, x + w, y + h, r); t.arcTo(x + w, y + h, x, y + h, r); t.arcTo(x, y + h, x, y, r); t.arcTo(x, y, x + w, y, r); t.closePath(); }
+  /* a foto preenche a área de impressão sem distorcer (corta o que sobra, como na prévia de antes) */
+  function cobrir(t, im, x, y, w, h, r) {
+    var iw = im.naturalWidth, ih = im.naturalHeight, k = Math.max(w / iw, h / ih), sw = w / k, sh = h / k;
+    t.save(); retArred(t, x, y, w, h, r); t.clip(); t.drawImage(im, (iw - sw) / 2, (ih - sh) / 2, sw, sh, x, y, w, h); t.restore();
+  }
+  var difAng = function (a, b) { var d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return d; };
+
+  function Caneca3D(box) {
+    var cv = document.createElement("canvas"), g = cv.getContext("2d"), tex = document.createElement("canvas");
+    cv.className = "c3d"; cv.tabIndex = 0; cv.setAttribute("role", "img");
+    box.innerHTML = ""; box.appendChild(cv);
+    var est = null, chave = "", sujoTex = true, rot = 0, alvo = null, vel = 0, raf = 0, arr = null, k = 1, ox = 0, oy = 0;
+    function montar() {
+      var s = est.s, bh = Math.round(112 * (est.f || 1)), R = (s.bw || 88) / 2, hc = bh - RY;
+      var W = 1200, U = W / (2 * Math.PI * R), H = Math.max(40, Math.round(hc * U)), ln = s.linha || "#CBD1E6";
+      tex.width = W; tex.height = H;
+      var t = tex.getContext("2d");
+      t.fillStyle = s.corpo; t.fillRect(0, 0, W, H);
+      if (s.esmalte) {
+        var acaso = function (i) { var x = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return x - Math.floor(x); }; /* pintinhas do esmalte, sempre nos mesmos lugares */
+        t.fillStyle = "#C5CEEC";
+        for (var i = 0; i < 90; i++) { t.beginPath(); t.arc(acaso(i) * W, (16 + acaso(i + 500) * (hc - 24)) * U, (1.1 + acaso(i + 900) * 0.9) * U, 0, 2 * Math.PI); t.fill(); }
+        t.fillStyle = s.aro; t.fillRect(0, 11 * U, W, 2.5 * U);
+      }
+      if (s.lata) { t.fillStyle = ln; t.fillRect(0, 15 * U, W, 2 * U); t.fillRect(0, (hc - 9) * U, W, 2 * U); }
+      if (s.magica && !est.quente) return; /* a caneca mágica só mostra a estampa com bebida quente */
+      var pw = 0.31 * W, py = 8 * U, ph = (bh - 20) * U, r = 5 * U, fr = imagem(est.frente), vs = imagem(est.verso);
+      if (fr) cobrir(t, fr, W / 2 - pw / 2, py, pw, ph, r);
+      if (vs) { cobrir(t, vs, -pw / 2, py, pw, ph, r); cobrir(t, vs, W - pw / 2, py, pw, ph, r); }
+      var txt = String(est.txt || "").trim(), fant = false;
+      if (!txt && est.fantasma && !fr && !vs) { txt = "Sua frase aqui"; fant = true; }
+      if (!txt) return;
+      var bw = s.bw || 88, lin = quebrar(txt, 11), mx = lin.reduce(function (a, b) { return Math.max(a, b.length); }, 1);
+      var fs = Math.min(21, (bw - 24) / (mx * 0.58), (bh * 0.56) / (lin.length * 1.2)), lh = fs * 1.2, y0 = bh * 0.54 - (lin.length - 1) * lh / 2 + fs * 0.32;
+      t.font = "600 " + (fs * U).toFixed(1) + "px Fraunces, Georgia, serif"; t.textAlign = "center"; t.textBaseline = "alphabetic";
+      t.globalAlpha = fant ? 0.34 : 1; t.lineJoin = "round";
+      lin.forEach(function (l, i) {
+        var y = (y0 + i * lh) * U;
+        if (fr) { t.lineWidth = 3.4 * U; t.strokeStyle = s.magica ? "#1D1D26" : "#fff"; t.strokeText(l, W / 2, y); }
+        t.fillStyle = s.texto || COB; t.fillText(l, W / 2, y);
+      });
+      t.globalAlpha = 1;
+    }
+    /* alça: sai do corpo no ângulo de 90° da faixa; de lado aparece inteira, de frente vira uma faixa estreita */
+    function alca(s, cx, R, yt, bh, sa, ca, ln) {
+      var dy = RY * ca;
+      g.lineCap = "round"; g.lineJoin = "round";
+      if (s.coracao) {
+        var hx = cx + (R + 18) * sa, hy = yt + bh * 0.46 + dy, X = function (d) { return hx + d * sa; };
+        g.beginPath(); g.moveTo(X(0), hy + 20);
+        g.bezierCurveTo(X(-34), hy - 2, X(-16), hy - 30, X(0), hy - 14); g.bezierCurveTo(X(16), hy - 30, X(34), hy - 2, X(0), hy + 20); g.closePath();
+        g.strokeStyle = ln; g.lineWidth = 13; g.stroke(); g.strokeStyle = s.alca; g.lineWidth = 9; g.stroke();
+        return;
+      }
+      var y1 = yt + bh * 0.2 + dy, y2 = yt + bh * 0.72 + dy, xi = cx + (R - 6) * sa, xo = cx + (R + 38) * sa;
+      g.beginPath(); g.moveTo(xi, y1); g.bezierCurveTo(xo, y1 - 8, xo, y2 + 8, xi, y2);
+      g.strokeStyle = ln; g.lineWidth = 15; g.stroke(); g.strokeStyle = s.alca; g.lineWidth = 11; g.stroke();
+    }
+    function desenha() {
+      if (!est) return;
+      var w = box.clientWidth, h = box.clientHeight; if (!w || !h) return;
+      var d = Math.min(window.devicePixelRatio || 1, 2.5), W = Math.round(w * d), H = Math.round(h * d);
+      if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+      if (sujoTex) { montar(); sujoTex = false; }
+      var s = est.s, bh = Math.round(112 * (est.f || 1)), bw = s.bw || 88, R = bw / 2, cx = 100, yb = 176, yt = yb - bh, hc = bh - RY, ln = s.linha || "#CBD1E6";
+      k = Math.min(W, H) / 200; ox = (W - 200 * k) / 2; oy = H - 200 * k;
+      g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
+      g.setTransform(k, 0, 0, k, ox, oy);
+      g.fillStyle = "rgba(20,24,58,.14)"; g.beginPath(); g.ellipse(cx + 4, 178, R + 18, 6, 0, 0, 2 * Math.PI); g.fill();
+      var ah = Math.PI / 2 - rot, sa = Math.sin(ah), ca = Math.cos(ah);
+      if (ca < 0) alca(s, cx, R, yt, bh, sa, ca, ln);
+      /* corpo: uma coluna de pixels por vez, cada uma com o pedaço da faixa que está de frente */
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      var X0 = Math.floor(ox + (cx - R) * k), X1 = Math.ceil(ox + (cx + R) * k), TW = tex.width, TH = tex.height, dois = 2 * Math.PI;
+      for (var X = X0; X < X1; X++) {
+        var nx = ((X + 0.5 - ox) / k - cx) / R; if (nx <= -1 || nx >= 1) continue;
+        var ph = Math.asin(nx), u = ((ph + rot + Math.PI) / dois) % 1; if (u < 0) u += 1;
+        var du = Math.max(1, (Math.asin(Math.min(0.99999, nx + 1 / (R * k))) - ph) / dois * TW), sx = u * TW;
+        if (sx + du > TW) sx = TW - du;
+        g.drawImage(tex, sx, 0, du, TH, X, oy + (yt + RY * Math.cos(ph)) * k, 1, hc * k);
+      }
+      g.setTransform(k, 0, 0, k, ox, oy);
+      var lado = function () { g.beginPath(); g.ellipse(cx, yt, R, RY, 0, Math.PI, 0, true); g.lineTo(cx + R, yb - RY); g.ellipse(cx, yb - RY, R, RY, 0, 0, Math.PI, false); g.closePath(); };
+      var br = s.magica ? 0.14 : 0.5, gr = g.createLinearGradient(cx - R, 0, cx + R, 0);
+      gr.addColorStop(0, "rgba(20,24,58,.28)"); gr.addColorStop(0.1, "rgba(20,24,58,.06)"); gr.addColorStop(0.24, "rgba(255,255,255," + br + ")");
+      gr.addColorStop(0.42, "rgba(255,255,255,0)"); gr.addColorStop(0.72, "rgba(20,24,58,0)"); gr.addColorStop(0.93, "rgba(20,24,58,.13)"); gr.addColorStop(1, "rgba(20,24,58,.32)");
+      lado(); g.fillStyle = gr; g.fill(); g.strokeStyle = ln; g.lineWidth = 1.5; g.stroke();
+      /* boca da caneca */
+      g.beginPath(); g.ellipse(cx, yt, R, RY, 0, 0, 2 * Math.PI); g.fillStyle = s.dentro; g.fill(); g.strokeStyle = s.aro || ln; g.lineWidth = s.aro ? 3 : 1.5; g.stroke();
+      g.beginPath(); g.ellipse(cx, yt + 1.5, R - 6, RY - 3.5, 0, 0, 2 * Math.PI); g.fillStyle = s.dentro2; g.fill();
+      if (s.magica && est.quente) {
+        g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 3.4; g.lineCap = "round";
+        [[-16, 10], [0, 14], [16, 10]].forEach(function (p) { var x = cx + p[0], y = yt - p[1]; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x - 8, y - 11, x, y - 21); g.quadraticCurveTo(x + 8, y - 31, x, y - 41); g.stroke(); });
+      }
+      if (ca >= 0) alca(s, cx, R, yt, bh, sa, ca, ln);
+    }
+    function quadro() {
+      raf = 0;
+      if (!arr && alvo !== null) { var dd = alvo - rot; if (Math.abs(dd) < 0.003 || CALMO) { rot = alvo; alvo = null; } else rot += dd * 0.14; }
+      else if (!arr && Math.abs(vel) > 0.0008) { rot += vel; vel *= 0.93; }
+      desenha();
+      if (!arr && (alvo !== null || Math.abs(vel) > 0.0008)) pinta();
+    }
+    function pinta() { if (!raf) raf = requestAnimationFrame(quadro); }
+    var Rcss = function () { var s = est ? est.s : null; return Math.max(20, ((s && s.bw) || 88) / 2 * k / Math.min(window.devicePixelRatio || 1, 2.5)); };
+    cv.addEventListener("pointerdown", function (e) { if (e.button > 0) return; arr = { x: e.clientX, t: performance.now() }; vel = 0; alvo = null; try { cv.setPointerCapture(e.pointerId); } catch (x) {} cv.classList.add("pega"); });
+    cv.addEventListener("pointermove", function (e) {
+      if (!arr) return;
+      var agora = performance.now(), dr = -(e.clientX - arr.x) / Rcss();
+      rot += dr; vel = dr * Math.min(1, 16 / Math.max(1, agora - arr.t)); arr.x = e.clientX; arr.t = agora;
+      v.mexeu = true; pinta();
+    });
+    var solta = function () { if (!arr) return; arr = null; cv.classList.remove("pega"); if (CALMO) vel = 0; pinta(); };
+    cv.addEventListener("pointerup", solta); cv.addEventListener("pointercancel", solta); cv.addEventListener("lostpointercapture", solta);
+    cv.addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault(); v.mexeu = true; vel = 0; alvo = (alvo === null ? rot : alvo) + (e.key === "ArrowRight" ? -1 : 1) * Math.PI / 8; pinta();
+    });
+    if (window.ResizeObserver) new ResizeObserver(function () { pinta(); }).observe(box);
+    var v = {
+      box: box, mexeu: false,
+      set: function (o) {
+        var c = [o.id, o.f, o.txt, o.frente, o.verso, !!o.quente, !!o.fantasma].join("\u0001");
+        est = o; if (c !== chave) { chave = c; sujoTex = true; }
+        cv.setAttribute("aria-label", (o.rotulo || "Prévia da caneca") + ". Arraste para os lados ou use as setas para girar.");
+        pinta();
+      },
+      /* gira até a frente (0) ou o verso (π) pelo caminho mais curto */
+      para: function (a) { vel = 0; alvo = rot + difAng(a, rot); pinta(); },
+      dica: function () { if (DICA || CALMO || v.mexeu) return; DICA = true; setTimeout(function () { if (!v.mexeu && box.isConnected) { alvo = -0.7; pinta(); setTimeout(function () { if (!v.mexeu) { alvo = 0; pinta(); } }, 900); } }, 700); },
+      sujo: function () { sujoTex = true; pinta(); }
+    };
+    VIEWS = VIEWS.filter(function (x) { return x.box.isConnected; }); VIEWS.push(v);
+    return v;
+  }
+  /* liga (ou atualiza) a caneca 3D dentro de box; sem canvas, fica a ilustração de antes */
+  function caneca3D(box, o) {
+    if (!box || !TEM3D) return null;
+    var v = box._v; if (!v || !box.querySelector("canvas.c3d")) v = box._v = Caneca3D(box);
+    v.set(o); return v;
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { VIEWS.forEach(function (v) { v.sujo(); }); });
+  window.addEventListener("resize", function () { VIEWS.forEach(function (v) { v.sujo(); }); });
+  /* controles embaixo da caneca: lembrar que dá para girar e ir direto à frente ou ao verso */
+  var giroHtml = function (qual) { return TEM3D ? '<div class="giro"><span class="dica3d">' + IC.giro + 'Arraste para girar</span><span class="lados" role="group" aria-label="Ver a caneca"><button type="button" data-a="lado" data-id="f" data-v="' + qual + '">Frente</button><button type="button" data-a="lado" data-id="v" data-v="' + qual + '">Verso</button></span></div>' : ""; };
+  var viewDe = function (qual) { var b = $(qual === "h" ? "h-svg" : "gv"); return b && b._v ? b._v : null; };
+  function girarPara(alvoFoto) { var v = viewDe(alvoFoto.indexOf("hero") === 0 ? "h" : "e"); if (v) v.para(/-v$/.test(alvoFoto) ? Math.PI : 0); }
+
   /* ---------- sacola ---------- */
   var CHAVE = "saus360-loja-" + slug;
   /* da foto só o caminho (já enviada) e uma miniatura vão para o aparelho; a prévia grande fica na memória */
   function guardar() {
     try {
       localStorage.setItem(CHAVE, JSON.stringify({ c: CARRO, f: { nome: FORM.nome, fone: FORM.fone, end: FORM.end },
-        pc: PECAS.map(function (x) { var ok = x.foto && x.foto.st === "ok"; return { i: x.i, id: x.id, q: x.q, f: x.f, r: x.r, fp: ok ? x.foto.path : "", th: ok ? x.foto.th : "" }; }) }));
+        pc: PECAS.map(function (x) { var ok = x.foto && x.foto.st === "ok", okv = x.verso && x.verso.st === "ok"; return { i: x.i, id: x.id, q: x.q, f: x.f, r: x.r, fp: ok ? x.foto.path : "", th: ok ? x.foto.th : "", vp: okv ? x.verso.path : "", vth: okv ? x.verso.th : "" }; }) }));
     } catch (e) {}
   }
   function recuperar() {
@@ -194,13 +361,14 @@
       Object.keys(c).forEach(function (k) { var q = Number(c[k]); if (isFinite(q) && q > 0 && q <= 999) CARRO[k] = q; });
       /* sacolas guardadas antes: as canecas ficavam em c, com a frase em p */
       var p = g.p && typeof g.p === "object" ? g.p : {};
-      Object.keys(CARRO).forEach(function (k) { var pr = PRODS.find(function (x) { return x.id === k; }); if (pr && ehCaneca(pr)) { PECAS.push({ i: nid(), id: k, q: Math.round(CARRO[k]) || 1, f: typeof p[k] === "string" ? p[k].trim().slice(0, MAXFRASE) : "", r: "", foto: null }); delete CARRO[k]; } });
+      Object.keys(CARRO).forEach(function (k) { var pr = PRODS.find(function (x) { return x.id === k; }); if (pr && ehCaneca(pr)) { PECAS.push({ i: nid(), id: k, q: Math.round(CARRO[k]) || 1, f: typeof p[k] === "string" ? p[k].trim().slice(0, MAXFRASE) : "", r: "", foto: null, verso: null }); delete CARRO[k]; } });
       (Array.isArray(g.pc) ? g.pc : []).slice(0, 40).forEach(function (x) {
         if (!x || typeof x !== "object" || typeof x.id !== "string") return;
         var q = Math.round(Number(x.q)); if (!(q >= 1 && q <= 999)) return;
         var pr = PRODS.find(function (y) { return y.id === x.id; }); if (!pr || !ehCaneca(pr)) return;
         var foto = caminhoOk(x.fp) && thOk(x.th) ? { path: x.fp, th: x.th, pv: "", st: "ok", blob: null, msg: "" } : null;
-        PECAS.push({ i: typeof x.i === "string" ? x.i.slice(0, 12) : nid(), id: x.id, q: q, f: typeof x.f === "string" ? x.f.slice(0, MAXFRASE) : "", r: typeof x.r === "string" ? x.r.slice(0, MAXREC) : "", foto: foto });
+        var verso = caminhoOk(x.vp) && thOk(x.vth) ? { path: x.vp, th: x.vth, pv: "", st: "ok", blob: null, msg: "" } : null;
+        PECAS.push({ i: typeof x.i === "string" ? x.i.slice(0, 12) : nid(), id: x.id, q: q, f: typeof x.f === "string" ? x.f.slice(0, MAXFRASE) : "", r: typeof x.r === "string" ? x.r.slice(0, MAXREC) : "", foto: foto, verso: verso });
       });
       ["nome", "fone", "end"].forEach(function (k) { if (g.f && typeof g.f[k] === "string") FORM[k] = g.f[k].slice(0, 200); });
     } catch (e) {}
@@ -235,10 +403,10 @@
   }
   /* adiciona uma caneca personalizada; se já existe uma linha igual, só soma a quantidade */
   var caminhoDe = function (f) { return f && f.path ? f.path : ""; };
-  var igual = function (a, b) { return a.id === b.id && a.f === b.f && a.r === b.r && caminhoDe(a.foto) === caminhoDe(b.foto); };
+  var igual = function (a, b) { return a.id === b.id && a.f === b.f && a.r === b.r && caminhoDe(a.foto) === caminhoDe(b.foto) && caminhoDe(a.verso) === caminhoDe(b.verso); };
   function adicionarPeca(l) {
     var ja = PECAS.find(function (x) { return igual(x, l); });
-    if (ja) ja.q = Math.min(999, ja.q + l.q); else PECAS.push({ i: nid(), id: l.id, q: Math.min(999, l.q), f: l.f, r: l.r, foto: l.foto });
+    if (ja) ja.q = Math.min(999, ja.q + l.q); else PECAS.push({ i: nid(), id: l.id, q: Math.min(999, l.q), f: l.f, r: l.r, foto: l.foto, verso: l.verso || null });
     guardar(); atualizaCtl(l.id); barra(true);
   }
   function tirarPeca(i) {
@@ -247,7 +415,7 @@
   }
   /* a personalização de cada caneca viaja em "pers"; a observação do pedido fica só com o que o cliente escreveu */
   function persPedido() {
-    return PECAS.filter(function (x) { return x.f || x.r || (x.foto && x.foto.path); }).map(function (x) { return { p: x.id, q: x.q, f: x.f, foto: x.foto ? x.foto.path : "", r: x.r }; });
+    return PECAS.filter(function (x) { return x.f || x.r || (x.foto && x.foto.path) || (x.verso && x.verso.path); }).map(function (x) { return { p: x.id, q: x.q, f: x.f, foto: x.foto ? x.foto.path : "", verso: x.verso ? x.verso.path : "", r: x.r }; });
   }
   function obsFinal() { return FORM.obs.trim().slice(0, 500); }
 
@@ -293,32 +461,37 @@
       .then(function (r) { f.st = r.ok ? "ok" : "erro"; if (!r.ok) f.msg = r.status === 400 || r.status === 403 ? "Não foi possível enviar a foto agora. Tente de novo em alguns minutos." : "Não foi possível enviar a foto."; })
       .catch(function () { f.st = "erro"; f.msg = "Sem conexão. Verifique a internet e tente de novo."; });
   }
-  var fotoDe = function (alvo) { return alvo === "hero" ? HERO.foto : ED && ED.foto; };
-  function poeFoto(alvo, f) { if (alvo === "hero") HERO.foto = f; else if (ED) { ED.foto = f; ED.erro = ""; } }
+  var ALVOS = ["hero", "hero-v", "ed", "ed-v"];
+  var fotoDe = function (alvo) { return alvo === "hero" ? HERO.foto : alvo === "hero-v" ? HERO.verso : !ED ? null : alvo === "ed-v" ? ED.verso : ED.foto; };
+  function poeFoto(alvo, f) { if (alvo === "hero") HERO.foto = f; else if (alvo === "hero-v") HERO.verso = f; else if (ED) { if (alvo === "ed-v") ED.verso = f; else ED.foto = f; ED.erro = ""; } }
+  var enviando = function (f) { return !!f && f.st !== "ok" && f.st !== "erro"; };
   function refresca() { if (ED) edAtualiza(); if ($("h-svg")) heroAtualiza(); }
   function escolherFoto(file, alvo) {
     var f = { st: "prep", path: slug + "/" + hex32() + ".jpg", pv: "", th: "", blob: null, msg: "" };
     poeFoto(alvo, f);
+    girarPara(alvo);
     if (!file || (file.type && !/^image\//.test(file.type))) { f.st = "erro"; f.msg = "Escolha uma imagem (JPG ou PNG)."; refresca(); return; }
     if (file.size > 40 * 1024 * 1024) { f.st = "erro"; f.msg = "Essa foto é grande demais. Escolha outra."; refresca(); return; }
     refresca();
-    prepararFoto(file).then(function (r) { f.blob = r.blob; f.pv = r.pv; f.th = r.th; refresca(); return subirFoto(f); })
+    prepararFoto(file).then(function (r) { f.blob = r.blob; f.pv = r.pv; f.th = r.th; refresca(); girarPara(alvo); return subirFoto(f); })
       .catch(function () { f.st = "erro"; f.blob = null; f.msg = "Não consegui ler essa foto. Tente um JPG ou PNG."; })
       .then(refresca);
   }
   function fotoDeNovo(alvo) { var f = fotoDe(alvo); if (!f || !f.blob) return; var p = subirFoto(f); refresca(); p.then(refresca); }
-  /* o botão da foto: escolher, acompanhar o envio, trocar ou tirar */
+  /* o botão da foto: escolher, acompanhar o envio, trocar ou tirar (uma para a frente e outra para o verso) */
   function fotoBox(alvo) {
-    var f = fotoDe(alvo);
-    var input = function (txt, cls) { return '<label class="' + cls + '"><input type="file" accept="image/*" data-up="' + alvo + '" aria-label="' + txt + '">' + (cls === "upl" ? IC.camera : "") + "<span>" + txt + "</span></label>"; };
-    if (!f) return input(alvo === "hero" ? "Adicionar uma foto (opcional)" : "Escolher a foto", "upl");
-    var th = f.pv || f.th, img = th ? '<img src="' + esc(th) + '" alt="Sua foto">' : '<span class="rodando" aria-hidden="true"></span>';
-    var estado = f.st === "ok" ? '<div class="ft bom">Foto enviada<small>Já está no pedido.</small></div>'
+    var f = fotoDe(alvo), verso = /-v$/.test(alvo), qual = verso ? "do verso" : "da frente";
+    var input = function (txt, cls, rot) { return '<label class="' + cls + '"><input type="file" accept="image/*" data-up="' + alvo + '" aria-label="' + (rot || txt) + '">' + (cls === "upl" ? IC.camera : "") + "<span>" + txt + "</span></label>"; };
+    if (!f) return input(verso ? "Foto do verso" : "Foto da frente", "upl", "Escolher a foto " + qual + " da caneca");
+    var th = f.pv || f.th, img = th ? '<img src="' + esc(th) + '" alt="Foto ' + qual + '">' : '<span class="rodando" aria-hidden="true"></span>';
+    var estado = f.st === "ok" ? '<div class="ft bom">Foto ' + qual + ' enviada<small>Já está no pedido.</small></div>'
       : f.st === "erro" ? '<div class="ft ruim" role="alert">' + esc(f.msg || "Não foi possível enviar a foto.") + "</div>"
-      : '<div class="ft">' + (f.st === "prep" ? "Preparando a foto…" : "Enviando a foto…") + "<small>Aguarde um instante.</small></div>";
+      : '<div class="ft">' + (f.st === "prep" ? "Preparando a foto " + qual + "…" : "Enviando a foto " + qual + "…") + "<small>Aguarde um instante.</small></div>";
     var acoes = f.st === "erro" && f.blob ? '<button type="button" class="lk" data-a="foto-de-novo" data-alvo="' + alvo + '">Tentar de novo</button>' : "";
-    return '<div class="fotob">' + img + estado + '<div class="ac">' + acoes + (f.st === "env" || f.st === "prep" ? "" : input("Trocar", "lk")) + '<button type="button" class="lk x" data-a="foto-x" data-alvo="' + alvo + '">Tirar</button></div></div>';
+    return '<div class="fotob">' + img + estado + '<div class="ac">' + acoes + (f.st === "env" || f.st === "prep" ? "" : input("Trocar", "lk", "Trocar a foto " + qual)) + '<button type="button" class="lk x" data-a="foto-x" data-alvo="' + alvo + '" aria-label="Tirar a foto ' + qual + '">Tirar</button></div></div>';
   }
+  /* as duas fotos juntas: lado a lado enquanto vazias, uma embaixo da outra depois de escolhidas */
+  function fotosBox(base) { var a = fotoDe(base), b = fotoDe(base + "-v"); return '<div class="fotos2' + (!a && !b ? " duas" : "") + '">' + fotoBox(base) + fotoBox(base + "-v") + "</div>"; }
 
   function rpc(nome, corpo) {
     return fetch(CFG.supabaseUrl + "/rest/v1/rpc/" + nome, { method: "POST", headers: { apikey: CFG.supabaseAnonKey, Authorization: "Bearer " + CFG.supabaseAnonKey, "Content-Type": "application/json" }, body: JSON.stringify(corpo), credentials: "omit", referrerPolicy: "no-referrer" })
@@ -419,9 +592,16 @@
   /* ---------- capa: escreva a frase e veja na caneca ---------- */
   function variantes() { return ORDEM_HERO.map(function (id) { return PRODS.find(function (p) { return p.id === id; }); }).filter(Boolean); }
   function heroProd() { return PRODS.find(function (p) { return p.id === HERO.v; }) || variantes()[0]; }
+  function heroRotulo(p) { return "Prévia: " + p.nome + (HERO.t.trim() ? ", com o texto " + HERO.t.trim() : "") + (HERO.foto ? ", com foto na frente" : "") + (HERO.verso ? ", com foto no verso" : ""); }
   function heroSvg() {
     var p = heroProd();
-    return mugSvg(specDe(p), { f: fDe(p, specDe(p)), txt: HERO.t, foto: fotoSrc(HERO.foto), fantasma: true, grande: true, rotulo: "Prévia: " + p.nome + (HERO.t.trim() ? ", com o texto " + HERO.t.trim() : "") + (HERO.foto ? ", com a sua foto" : "") });
+    return mugSvg(specDe(p), { f: fDe(p, specDe(p)), txt: HERO.t, foto: fotoSrc(HERO.foto), fantasma: true, grande: true, rotulo: heroRotulo(p) });
+  }
+  /* a capa usa a caneca 3D quando o aparelho desenha em canvas */
+  function hero3D() {
+    var p = heroProd(), b = $("h-svg"); if (!p || !b) return;
+    var s = specDe(p), v = caneca3D(b, { id: p.id, s: s, f: fDe(p, s), txt: HERO.t, frente: fotoSrc(HERO.foto), verso: fotoSrc(HERO.verso), quente: !!HERO.quente, fantasma: true, rotulo: heroRotulo(p) });
+    if (v) v.dica(); else b.innerHTML = heroSvg();
   }
   function escolhaHtml(p) {
     var promo = p.de && Number(p.de) > Number(p.preco);
@@ -432,11 +612,11 @@
     if (!vs.some(function (p) { return p.id === HERO.v; })) HERO.v = vs[0].id;
     var p = heroProd(), s = specDe(p), wa = digits(L.whatsapp);
     var chips = ["Feliz Natal!", "Melhor mãe do mundo", "Café com amor"];
-    return '<section class="hero" aria-labelledby="t-hero"><div class="hero-in"><div class="hero-tx"><h1 id="t-hero">Veja sua frase na caneca.</h1><p class="sub">Escolha o modelo, escreva a frase e, se quiser, envie uma foto. Cada caneca pode ter a sua.</p></div>' +
-      '<div class="palco' + (HERO.quente ? " quente" : "") + '" id="palco"><div class="mesa"></div><div class="palco-svg" id="h-svg">' + heroSvg() + "</div></div>" +
+    return '<section class="hero" aria-labelledby="t-hero"><div class="hero-in"><div class="hero-tx"><h1 id="t-hero">Veja sua frase na caneca.</h1><p class="sub">Escolha o modelo, escreva a frase e, se quiser, envie fotos para a frente e o verso. Gire a caneca para ver como fica.</p></div>' +
+      '<div class="palco' + (HERO.quente ? " quente" : "") + '" id="palco"><div class="mesa"></div><div class="palco-svg" id="h-svg">' + heroSvg() + "</div>" + giroHtml("h") + "</div>" +
       '<div class="ctrl"><div class="frase"><label for="h-frase">Sua frase na caneca</label><div class="cx"><input id="h-frase" maxlength="' + MAXFRASE + '" autocomplete="off" placeholder="Ex.: Para a melhor vovó" value="' + esc(HERO.t) + '"><span class="cnt" id="h-cnt">' + HERO.t.length + "/" + MAXFRASE + "</span></div>" +
       '<div class="chips">' + chips.map(function (c) { return '<button type="button" data-a="chip" data-t="' + esc(c) + '">' + esc(c) + "</button>"; }).join("") + "</div></div>" +
-      '<div class="fotolinha" id="h-fotobox">' + fotoBox("hero") + "</div>" +
+      '<div class="fotolinha"><span class="lbl-f">Fotos na caneca <small>(opcional)</small></span><div id="h-fotobox">' + fotosBox("hero") + "</div></div>" +
       '<div class="modelos"><span id="t-mod">Modelo</span><div class="mod-l" role="group" aria-labelledby="t-mod">' + vs.map(function (v) { return '<button type="button" data-a="modelo" data-id="' + esc(v.id) + '" aria-pressed="' + (v.id === HERO.v) + '" aria-label="' + esc(v.nome) + '">' + mugSvg(specDe(v), { f: 1 }) + "</button>"; }).join("") + "</div></div>" +
       '<div class="escolha" id="h-esc" aria-live="polite">' + escolhaHtml(p) + "</div>" +
       '<button type="button" class="quente-b" id="h-q" data-a="quente" aria-pressed="' + !!HERO.quente + '"' + (s.magica ? "" : " hidden") + ">" + (HERO.quente ? "Esfriar a caneca" : "Colocar bebida quente") + "</button>" +
@@ -448,24 +628,24 @@
   function heroAtualiza() {
     var p = heroProd(); if (!p || !$("h-svg")) return;
     var s = specDe(p);
-    $("h-svg").innerHTML = heroSvg();
+    hero3D();
     $("palco").classList.toggle("quente", !!HERO.quente);
     $("h-esc").innerHTML = escolhaHtml(p);
     $("h-add").textContent = heroBtn(p);
     $("h-cnt").textContent = HERO.t.length + "/" + MAXFRASE;
-    var fb = $("h-fotobox"); if (fb) { var nb = fotoBox("hero"); if (fb.dataset.s !== nb) { fb.innerHTML = nb; fb.dataset.s = nb; } }
-    var ha = $("h-add"), esperando = HERO.foto && HERO.foto.st !== "ok" && HERO.foto.st !== "erro"; ha.disabled = !!esperando;
+    var fb = $("h-fotobox"); if (fb) { var nb = fotosBox("hero"); if (fb.dataset.s !== nb) { fb.innerHTML = nb; fb.dataset.s = nb; } }
+    var ha = $("h-add"), esperando = enviando(HERO.foto) || enviando(HERO.verso); ha.disabled = !!esperando;
     if (esperando) ha.textContent = "Enviando a foto…";
     var q = $("h-q"); q.hidden = !s.magica; q.setAttribute("aria-pressed", String(!!HERO.quente)); q.textContent = HERO.quente ? "Esfriar a caneca" : "Colocar bebida quente";
     Array.prototype.forEach.call(document.querySelectorAll('[data-a="modelo"]'), function (b) { b.setAttribute("aria-pressed", String(b.dataset.id === HERO.v)); });
   }
   function heroAdd() {
     var p = heroProd(); if (!p) return;
-    var f = HERO.foto;
-    if (f && f.st === "erro") { brinde("Tente enviar a foto de novo"); return; }
-    if (f && f.st !== "ok") { brinde("Aguarde o envio da foto"); return; }
+    var f = HERO.foto, fv = HERO.verso;
+    if ((f && f.st === "erro") || (fv && fv.st === "erro")) { brinde("Tente enviar a foto de novo"); return; }
+    if (enviando(f) || enviando(fv)) { brinde("Aguarde o envio da foto"); return; }
     var t = HERO.t.trim().slice(0, MAXFRASE), tinha = qCaneca(p.id);
-    adicionarPeca({ id: p.id, q: 1, f: t, r: "", foto: f });
+    adicionarPeca({ id: p.id, q: 1, f: t, r: "", foto: f, verso: fv });
     HERO.n++; heroAtualiza();
     brinde(tinha ? "Mais uma caneca na sacola" : "Caneca na sacola");
   }
@@ -497,13 +677,14 @@
     }
     h += '<div id="conteudo">' + conteudo() + "</div>" + (cat ? '<div id="fimloja">' + comoHtml() + "</div>" : "") + contatoHtml();
     $("app").innerHTML = h;
+    if (cat) hero3D();
     barra(); espiar();
   }
   /* fim da vitrine: como o pedido funciona e os dados da loja */
   function comoHtml() {
     var wa = digits(L.whatsapp);
     return '<section class="como" aria-labelledby="t-como"><div class="wrap"><h2 id="t-como">Como fazer seu pedido</h2><ol>' +
-      "<li><b>Monte suas canecas</b><span>Escolha o modelo, escreva a frase e envie a foto. Cada caneca pode ser diferente.</span></li>" +
+      "<li><b>Monte suas canecas</b><span>Escolha o modelo, escreva a frase e envie as fotos da frente e do verso. Cada caneca pode ser diferente.</span></li>" +
       "<li><b>Marque o dia</b><span>" + (L.retirada && L.entrega ? "Retirada na loja ou entrega, no dia que preferir." : L.entrega ? "Escolha o dia da entrega." : "Escolha o dia da retirada.") + "</span></li>" +
       "<li><b>Envie o pedido</b><span>" + nomeCurto() + " confirma" + (wa ? " pelo WhatsApp" : "") + " e combina o pagamento com você.</span></li></ol>" +
       (wa ? '<p class="arte">Ficou com alguma dúvida sobre a arte da sua caneca? <a href="' + esc(waLink("Olá! Tenho uma dúvida sobre a personalização da minha caneca.")) + '" target="_blank" rel="noopener">Fale com a loja pelo WhatsApp</a>.</p>' : "") + "</div></section>";
@@ -570,13 +751,13 @@
   var TIPOS = ["sem", "frase", "foto", "ambos"];
   var usaFrase = function (t) { return t === "frase" || t === "ambos"; };
   var usaFoto = function (t) { return t === "foto" || t === "ambos"; };
-  var tipoDe = function (e) { return e.f && e.foto ? "ambos" : e.foto ? "foto" : e.f ? "frase" : e.ln ? "sem" : "frase"; };
+  var tipoDe = function (e) { var ft = e.foto || e.verso; return e.f && ft ? "ambos" : ft ? "foto" : e.f ? "frase" : e.ln ? "sem" : "frase"; };
   var rotSem = function (o) { return imgOk(o.foto) ? "Como está no modelo" : "Só a caneca"; };
   function abrirEstudio(k, ln, pre) {
     var it = item(k); if (!it) return;
     var l = ln ? PECAS.find(function (x) { return x.i === ln; }) : null; if (ln && !l) return;
     pre = pre || {};
-    ED = { k: k, ln: l ? l.i : "", q: l ? l.q : 1, f: l ? l.f : pre.f || "", r: l ? l.r : pre.r || "", foto: l ? l.foto : pre.foto || null, n: 0, erro: "" };
+    ED = { k: k, ln: l ? l.i : "", q: l ? l.q : 1, f: l ? l.f : pre.f || "", r: l ? l.r : pre.r || "", foto: l ? l.foto : pre.foto || null, verso: l ? l.verso || null : pre.verso || null, n: 0, erro: "" };
     ED.tipo = tipoDe(ED);
     verEstudio();
   }
@@ -584,15 +765,20 @@
     var it = item(ED.k);
     return ilustra(it.o, { txt: usaFrase(ED.tipo) ? ED.f : "", foto: usaFoto(ED.tipo) && ED.foto ? fotoSrc(ED.foto) : "", grande: true });
   }
-  /* topo da folha: a foto do produto (quando tem e nada foi personalizado) ou a caneca desenhada com a frase e a foto do cliente */
+  /* topo da folha: a foto do produto (quando tem e nada foi personalizado) ou a caneca em 3D com a frase e as fotos do cliente */
   function edCabeca() {
     var it = item(ED.k), o = it.o;
     if (imgOk(o.foto) && ED.tipo === "sem") return '<img class="grande" src="' + esc(o.foto) + '" alt="' + esc(it.nome) + '">';
+    if (TEM3D) return '<div class="grande ph tres"><div class="gv" id="gv"></div>' + giroHtml("e") + "</div>";
     return '<div class="grande ph"><div class="gv" id="gv">' + edIlustra() + "</div></div>";
   }
   function edCabecaAtualiza() {
     var eh = $("e-head"); if (!eh || !ED) return;
     var nh = edCabeca(); if (eh.dataset.s !== nh) { eh.innerHTML = nh; eh.dataset.s = nh; }
+    var gv = $("gv"); if (!gv || !TEM3D) return;
+    var it = item(ED.k), s = specDe(it.o), fo = usaFoto(ED.tipo);
+    caneca3D(gv, { id: it.o.id, s: s, f: fDe(it.o, s), txt: usaFrase(ED.tipo) ? ED.f : "", frente: fo ? fotoSrc(ED.foto) : "", verso: fo ? fotoSrc(ED.verso) : "", quente: true,
+      rotulo: "Prévia: " + it.nome + (usaFrase(ED.tipo) && ED.f.trim() ? ", com o texto " + ED.f.trim() : "") + (fo && ED.foto ? ", com foto na frente" : "") + (fo && ED.verso ? ", com foto no verso" : "") });
   }
   function edCampos() {
     var it = item(ED.k), t = ED.tipo, pronto = imgOk(it.o.foto), h = "";
@@ -601,20 +787,20 @@
         '<div class="chips ch2">' + ["Feliz Natal!", "Melhor mãe do mundo", "Café com amor"].map(function (c) { return '<button type="button" data-a="e-chip" data-t="' + esc(c) + '">' + esc(c) + "</button>"; }).join("") + "</div>" +
         '<p class="nota">' + (pronto ? "Este modelo já vem com uma arte. Escreva a frase que você quer no lugar da original." : "Até " + MAXFRASE + " letras. A frase vai impressa na caneca.") + "</p>";
     }
-    if (usaFoto(t)) h += '<span class="lbl">Sua foto</span><div id="e-fotobox">' + fotoBox("ed") + '</div><p class="nota">Prefira uma foto nítida. Se quiser, diga abaixo onde ela deve ficar.</p>';
+    if (usaFoto(t)) h += '<span class="lbl">Suas fotos</span><div id="e-fotobox">' + fotosBox("ed") + '</div><p class="nota">Envie a foto da frente, a do verso ou as duas. Gire a caneca acima para ver como fica. Prefira fotos nítidas.</p>';
     if (t !== "sem") h += '<label class="campo">Algum detalhe ou ajuste? (opcional)<textarea data-e="r" rows="2" maxlength="' + MAXREC + '" placeholder="' + (pronto ? "Ex.: trocar o nome do modelo por Ana" : "Ex.: foto do casal à esquerda, frase embaixo") + '">' + esc(ED.r) + "</textarea></label>";
     return h;
   }
   function edBotao() {
     var it = item(ED.k), b = $("e-add"); if (!it || !b) return;
-    var esp = usaFoto(ED.tipo) && ED.foto && ED.foto.st !== "ok" && ED.foto.st !== "erro";
+    var esp = usaFoto(ED.tipo) && (enviando(ED.foto) || enviando(ED.verso));
     b.disabled = !!esp;
     b.textContent = esp ? "Enviando a foto…" : (ED.ln ? "Salvar" : "Adicionar") + " · " + money(ED.q * it.preco);
   }
   function edAtualiza() {
     if (!ED || !$("e-add")) return;
     edCabecaAtualiza();
-    var fb = $("e-fotobox"); if (fb) { var nb = fotoBox("ed"); if (fb.dataset.s !== nb) { fb.innerHTML = nb; fb.dataset.s = nb; } }
+    var fb = $("e-fotobox"); if (fb) { var nb = fotosBox("ed"); if (fb.dataset.s !== nb) { fb.innerHTML = nb; fb.dataset.s = nb; } }
     var er = $("e-err"); if (er) er.innerHTML = ED.erro ? '<div class="aviso erro" role="alert">' + esc(ED.erro) + "</div>" : "";
     var q = $("e-q"); if (q) q.textContent = numTxt(ED.q);
     edBotao();
@@ -639,19 +825,19 @@
     edAtualiza();
   }
   function edValida() {
-    var t = ED.tipo, ft = ED.foto;
+    var t = ED.tipo, fs = [ED.foto, ED.verso].filter(Boolean);
     if (usaFrase(t) && !ED.f.trim()) return "Escreva a frase ou escolha “" + rotSem(item(ED.k).o) + "”.";
     if (usaFoto(t)) {
-      if (!ft) return "Escolha a foto ou mude o tipo de personalização.";
-      if (ft.st === "erro") return "A foto não foi enviada. Tente de novo ou escolha outra.";
-      if (ft.st !== "ok") return "Aguarde o envio da foto.";
+      if (!fs.length) return "Escolha pelo menos uma foto (frente ou verso) ou mude o tipo de personalização.";
+      if (fs.some(function (x) { return x.st === "erro"; })) return "Uma foto não foi enviada. Tente de novo ou escolha outra.";
+      if (fs.some(function (x) { return x.st !== "ok"; })) return "Aguarde o envio da foto.";
     }
     return "";
   }
   /* só vale o que o tipo escolhido usa: quem volta para "Só a caneca" não leva frase nem foto */
   function edLinha() {
     var t = ED.tipo;
-    return { id: ED.k, q: ED.q, f: usaFrase(t) ? ED.f.trim().slice(0, MAXFRASE) : "", foto: usaFoto(t) ? ED.foto : null, r: t === "sem" ? "" : ED.r.trim().slice(0, MAXREC) };
+    return { id: ED.k, q: ED.q, f: usaFrase(t) ? ED.f.trim().slice(0, MAXFRASE) : "", foto: usaFoto(t) ? ED.foto : null, verso: usaFoto(t) ? ED.verso : null, r: t === "sem" ? "" : ED.r.trim().slice(0, MAXREC) };
   }
   function edSalvar(outra) {
     var er = edValida(); if (er) { ED.erro = er; edAtualiza(); return; }
@@ -659,7 +845,7 @@
     if (ED.ln) {
       var x = PECAS.find(function (y) { return y.i === ED.ln; });
       if (x) {
-        x.q = l.q; x.f = l.f; x.r = l.r; x.foto = l.foto;
+        x.q = l.q; x.f = l.f; x.r = l.r; x.foto = l.foto; x.verso = l.verso;
         var dup = PECAS.find(function (y) { return y !== x && igual(y, x); });
         if (dup) { dup.q = Math.min(999, dup.q + x.q); PECAS = PECAS.filter(function (y) { return y !== x; }); }
       }
@@ -667,7 +853,7 @@
     }
     adicionarPeca(l);
     if (outra) {
-      ED.n++; ED.f = ""; ED.r = ""; ED.foto = null; ED.q = 1; ED.tipo = "frase"; ED.erro = "";
+      ED.n++; ED.f = ""; ED.r = ""; ED.foto = null; ED.verso = null; ED.q = 1; ED.tipo = "frase"; ED.erro = "";
       brinde("Caneca na sacola. Monte a próxima."); verEstudio();
       var fo = document.querySelector(".folha"); if (fo) fo.scrollTop = 0;
       return;
@@ -676,8 +862,9 @@
   }
   function pecaHtml(x) {
     var it = item(x.id); if (!it) return "";
-    var mini = imgOk(it.o.foto) && !x.f && !x.foto ? visual(it.o) : ilustra(it.o, { vb: MINI, txt: x.f, foto: x.foto ? x.foto.th : "" });
-    var det = (x.f ? '<span class="fr">«' + esc(x.f) + "»</span>" : "") + (x.foto ? '<span class="fo"><img src="' + esc(x.foto.th) + '" alt="">Foto enviada</span>' : "") + (x.r ? '<span class="re">' + esc(x.r) + "</span>" : "") + (!x.f && !x.foto && !x.r ? '<span class="sem">Sem personalização</span>' : "");
+    var fa = x.foto || x.verso, mini = imgOk(it.o.foto) && !x.f && !fa ? visual(it.o) : ilustra(it.o, { vb: MINI, txt: x.f, foto: fa ? fa.th : "" });
+    var fo = function (y, txt) { return y ? '<span class="fo"><img src="' + esc(y.th) + '" alt="">' + txt + "</span>" : ""; };
+    var det = (x.f ? '<span class="fr">«' + esc(x.f) + "»</span>" : "") + fo(x.foto, x.verso ? "Foto da frente" : "Foto enviada") + fo(x.verso, "Foto do verso") + (x.r ? '<span class="re">' + esc(x.r) + "</span>" : "") + (!x.f && !fa && !x.r ? '<span class="sem">Sem personalização</span>' : "");
     return '<div class="item pc"><span class="mini">' + mini + '</span><div class="nm"><b>' + esc(it.nome) + "</b><small>" + money(r2(x.q * it.preco)) + "</small>" + det + '<button type="button" class="lk" data-a="e-editar" data-ln="' + esc(x.i) + '">Editar</button></div>' +
       '<div class="passo"><button data-a="p-menos" data-ln="' + esc(x.i) + '" aria-label="Diminuir">−</button><output>' + numTxt(x.q) + '</output><button data-a="p-mais" data-ln="' + esc(x.i) + '" aria-label="Aumentar">+</button></div></div>';
   }
@@ -742,7 +929,7 @@
     else if (!/^\d{4}-\d{2}-\d{2}$/.test(FORM.data) || FORM.data < min) { ERRO = "Escolha o dia a partir de " + dataBR(min) + "."; CAMPO = "data"; OUTRA = true; }
     else if (FORM.nome.trim().length < 2) { ERRO = "Informe seu nome."; CAMPO = "nome"; }
     else if (digits(FORM.fone).length < 10) { ERRO = "Informe seu WhatsApp com DDD."; CAMPO = "fone"; }
-    else if (PECAS.some(function (x) { return x.foto && x.foto.st !== "ok"; })) { ERRO = "Uma foto ainda não foi enviada. Volte à sacola, toque em Editar e envie de novo."; }
+    else if (PECAS.some(function (x) { return (x.foto && x.foto.st !== "ok") || (x.verso && x.verso.st !== "ok"); })) { ERRO = "Uma foto ainda não foi enviada. Volte à sacola, toque em Editar e envie de novo."; }
     if (ERRO) { verDados(); return; }
     ENVIANDO = true; verDados();
     var obs = obsFinal(), pers = persPedido();
@@ -755,9 +942,9 @@
         if (!r || !r.ok) { ERRO = (r && typeof r.erro === "string" && r.erro) || "Não foi possível enviar. Tente de novo."; CAMPO = r && /^(nome|fone|end|data)$/.test(r.campo || "") ? r.campo : ""; if (CAMPO === "data") OUTRA = true; verDados(); return; }
         var num = parseInt(r.num, 10) || 0, hora = /^\d{2}:\d{2}$/.test(r.hora || "") ? r.hora : "";
         var quando = (r.modo === "entrega" ? "Entrega" : "Retirada") + " em " + dataBR(r.data) + (hora ? " às " + hora : "");
-        var persTxt = typeof r.pers === "string" ? r.pers.slice(0, 3000) : "", persTela = persTxt.replace(/foto https:\/\/\S+/g, "foto enviada");
+        var persTxt = typeof r.pers === "string" ? r.pers.slice(0, 3000) : "", persTela = persTxt.replace(/(foto(?: da frente| do verso)?) https:\/\/\S+/g, "$1 enviada");
         var msg = "Olá! Acabei de fazer o pedido #" + num + " pela loja online:\n" + r.resumo + (persTxt ? "\n\nPersonalização:\n" + persTxt : "") + "\n\nTotal: " + money(r.total) + "\n" + quando + (r.modo === "entrega" ? "\nEndereço: " + FORM.end.trim() : "") + (obs ? "\nObs.: " + obs : "") + "\nNome: " + FORM.nome.trim();
-        CARRO = {}; PECAS = []; ED = null; HERO.foto = null; FORM.obs = ""; FORM.hora = ""; guardar(); desenhar();
+        CARRO = {}; PECAS = []; ED = null; HERO.foto = null; HERO.verso = null; FORM.obs = ""; FORM.hora = ""; guardar(); desenhar();
         abrir('<div class="ok"><div class="sel">' + IC.certo + "</div><h2>Pedido #" + num + ' enviado!</h2><p class="muted">' + nomeCurto() + " vai confirmar o pedido e combinar o pagamento com você.</p>" +
           '<div class="resumo">' + esc(r.resumo) + (persTela ? "\n\nPersonalização:\n" + esc(persTela) : "") + "\n\nTotal: " + esc(money(r.total)) + (Number(r.economia) > 0 ? "\nVocê economizou " + esc(money(r.economia)) : "") + "\n" + esc(quando) + (obs ? "\n" + esc(obs) : "") + "</div>" +
           (digits(L.whatsapp) ? '<a class="btn wa cheio" style="margin-top:0" href="' + esc(waLink(msg)) + '" target="_blank" rel="noopener">' + IC.wa + "Avisar a loja pelo WhatsApp</a>" : "") +
@@ -784,9 +971,10 @@
     if (a === "chip") { HERO.t = String(t.dataset.t || "").slice(0, MAXFRASE); var hf = $("h-frase"); if (hf) hf.value = HERO.t; heroAtualiza(); return; }
     if (a === "quente") { HERO.quente = !HERO.quente; heroAtualiza(); return; }
     if (a === "pers-add") { heroAdd(); return; }
-    if (a === "hero-mais") { var hp = heroProd(); if (hp) abrirEstudio(hp.id, "", { f: HERO.t.trim().slice(0, MAXFRASE), foto: HERO.foto && HERO.foto.st === "ok" ? HERO.foto : null }); return; }
-    if (a === "foto-x") { poeFoto(t.dataset.alvo, null); refresca(); return; }
-    if (a === "foto-de-novo") { fotoDeNovo(t.dataset.alvo); return; }
+    if (a === "hero-mais") { var hp = heroProd(); if (hp) abrirEstudio(hp.id, "", { f: HERO.t.trim().slice(0, MAXFRASE), foto: HERO.foto && HERO.foto.st === "ok" ? HERO.foto : null, verso: HERO.verso && HERO.verso.st === "ok" ? HERO.verso : null }); return; }
+    if (a === "lado") { var vw = viewDe(t.dataset.v); if (vw) { vw.mexeu = true; vw.para(id === "v" ? Math.PI : 0); } return; }
+    if (a === "foto-x") { if (ALVOS.indexOf(t.dataset.alvo) >= 0) { poeFoto(t.dataset.alvo, null); refresca(); } return; }
+    if (a === "foto-de-novo") { if (ALVOS.indexOf(t.dataset.alvo) >= 0) fotoDeNovo(t.dataset.alvo); return; }
     if (a === "e-tipo" && ED && TIPOS.indexOf(id) >= 0) {
       ED.tipo = id; ED.erro = ""; $("e-campos").innerHTML = edCampos();
       Array.prototype.forEach.call(document.querySelectorAll('[data-a="e-tipo"]'), function (b) { b.setAttribute("aria-pressed", String(b.dataset.id === id)); });
@@ -838,7 +1026,7 @@
   });
   /* escolher a foto: o campo de arquivo fica dentro do botão */
   document.addEventListener("change", function (e) {
-    var t = e.target, alvo = t && t.dataset && t.dataset.up; if (!alvo || (alvo !== "ed" && alvo !== "hero")) return;
+    var t = e.target, alvo = t && t.dataset && t.dataset.up; if (!alvo || ALVOS.indexOf(alvo) < 0) return;
     var arq = t.files && t.files[0]; t.value = "";
     if (arq) escolherFoto(arq, alvo);
   });
