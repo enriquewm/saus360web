@@ -371,3 +371,10 @@ svg{display:block}
 .fotos2.duas{grid-template-columns:1fr 1fr}
 .fotos2.duas .upl{padding:0 8px;font-size:15px;gap:7px}
 @media (prefers-reduced-motion:reduce){.c3d{cursor:default}}
+/* como ficam as fotos: separadas, unidas ou uma em volta */
+.ly{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surf);border-radius:14px;padding:3px;gap:3px;margin-bottom:6px}
+.ly button{border:0;background:none;font:inherit;font-weight:800;font-size:14px;color:var(--ink2);min-height:40px;border-radius:11px;cursor:pointer;padding:0 4px}
+.ly button[aria-pressed="true"]{background:var(--bg);color:var(--ink);box-shadow:0 1px 3px color-mix(in srgb,#14183A 18%,transparent)}
+.ly button:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
+.hero .ly{background:rgba(255,255,255,.5)}
+.ly-n{margin:0 0 10px;font-size:13.5px;color:var(--ink2);line-height:1.4}
