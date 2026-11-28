@@ -404,7 +404,7 @@
   </form>`);
   }
   function telaMfaVerificar(S2) {
-    return porta(S2, `<h1>Verificação em duas etapas</h1><p class="mudo">Abra o app autenticador no celular e digite o código de 6 dígitos do Saus360 Equipe.</p>${mensagem(S2)}
+    return porta(S2, `<h1>Verificação em duas etapas</h1><p class="mudo">Abra o app autenticador no celular (Google ou Microsoft Authenticator) e digite os 6 números que aparecem em "Saus360 Equipe". O código não chega por e-mail.</p>${mensagem(S2)}
   <form data-form="mfa-verificar" novalidate>
     <label class="campo"><span>Código</span><input class="entrada codigo" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" autofocus></label>
     <button class="btn prim cheio" ${S2.ocupado ? "disabled" : ""}>${ocupado(S2, "Conferindo", "Confirmar")}</button>
@@ -422,9 +422,10 @@
   function telaMfaAtivar(S2, obrigatoria) {
     return porta(S2, `<h1>Ative a verificação em duas etapas</h1>
   <p class="mudo">${obrigatoria ? "É obrigatória para administradores: eles mexem em pessoas e permissões, e o código no celular protege a empresa mesmo se a senha vazar." : "Além da senha, o Saus360 Equipe vai pedir um código do seu celular."}</p>${mensagem(S2)}
-  <p class="pequeno"><b>1.</b> Instale um app autenticador (Microsoft Authenticator ou Google Authenticator) e leia o código QR.</p>
+  <div class="msg info">O código não chega por e-mail nem por SMS: ele aparece no app autenticador do seu celular e muda a cada 30 segundos.</div>
+  <p class="pequeno"><b>1.</b> Instale no celular o Google Authenticator ou o Microsoft Authenticator (grátis na Play Store e na App Store). No app, toque em "+" e leia este código QR.</p>
   ${blocoQr(S2)}
-  <p class="pequeno"><b>2.</b> Digite o código de 6 dígitos que o app mostra.</p>
+  <p class="pequeno"><b>2.</b> O app passa a mostrar "Saus360 Equipe" com 6 números. Digite esses números aqui.</p>
   <form data-form="mfa-ativar" novalidate>
     <label class="campo"><span class="sr">Código</span><input class="entrada codigo" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"></label>
     <button class="btn prim cheio" ${S2.ocupado || !S2.fator ? "disabled" : ""}>${ocupado(S2, "Ativando", "Ativar")}</button>
