@@ -1,0 +1,1 @@
+(function(){var l;try{l=localStorage.getItem("s360eq-idioma")}catch(e){}if(l!=="es"&&l!=="pt")l=/^es/i.test(navigator.language||"")?"es":"pt";document.documentElement.lang=l==="es"?"es":"pt-BR";var s=document.createElement("script");s.src=(l==="es"?"app-es.js":"app.js")+"?v=912b5325c2";document.body.appendChild(s)})();

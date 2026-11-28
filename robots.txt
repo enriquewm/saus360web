@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /prototipo/
 
 Sitemap: https://saus360.com.br/sitemap.xml
